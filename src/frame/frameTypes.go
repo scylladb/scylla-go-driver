@@ -18,7 +18,7 @@ func WriteByte(b byte, writer io.Writer) (int64, error) {
 	return int64(res), err
 }
 
-// WriteShort - Writes Short in a BigEndian order.
+// WriteShort writes [short] in a BigEndian order.
 func WriteShort(s Short, writer io.Writer) (int64, error) {
 	// It might not look great, but it's similar to original implementation.
 	// https://golang.org/src/encoding/binary/binary.go
@@ -26,95 +26,167 @@ func WriteShort(s Short, writer io.Writer) (int64, error) {
 	return int64(res), err
 }
 
-func WriteString(s string, writer io.Writer) (int64, error) {
-	res, err := writer.Write([]byte(s))
+// WriteInt writes [int] in a BigEndian order.
+func WriteInt(s Int, writer io.Writer) (int64, error) {
+	// It might not look great, but it's similar to original implementation.
+	// https://golang.org/src/encoding/binary/binary.go
+	res, err := writer.Write([]byte{
+									byte(s >> 24),
+									byte(s >> 16),
+									byte(s >> 8),
+									byte(s)},
+									)
 	return int64(res), err
 }
 
-// A lot of error checking in here, it would be great if we could reduce this.
+// WriteString writes [string] consisting of its length (in BE order)
+// and the actual string.
+func WriteString(s string, writer io.Writer) (int64, error) {
+	// Write length of [string].
+	slen, err := WriteShort(Short(len(s)), writer)
+	if err != nil {
+		return 0, err
+	}
+	res, err := writer.Write([]byte(s))
+	return int64(res) + slen, err
+}
+
+// WriteStringList writes [string list] consisting of
+// [short] n, followed by n [string]s.
+func WriteStringList(strLst []string, writer io.Writer) (int64, error) {
+	// Write the length of [string list].
+	wrote, err := WriteShort(Short(len(strLst)), writer)
+	if err != nil {
+		return 0, err
+	}
+
+	// Write [string list]
+	for _, s := range strLst {
+		res, err := WriteString(s, writer)
+		wrote += res
+		if err != nil {
+			return wrote, err
+		}
+	}
+	return wrote, err
+}
+
+// WriteStringMultiMap writes [string multimap] which consists of
+// a [short] n, followed by n pair <k><v> where <k> is a [string]
+// and <v> is a [string list].
+// TODO: A lot of error checking in here, it would be great if we could reduce this.
 func WriteStringMultiMap(m StringMultiMap, writer io.Writer) (int64, error) {
-	var wrote int64 = 0
-	res, err := WriteShort(Short(len(m)),writer) // Write number of elements in map.
-	wrote += res
+	wrote, err := WriteShort(Short(len(m)),writer) // Write the number of elements in map.
 	if err != nil {
 		return wrote, nil
 	}
 
 	for key, strLst := range m {
-		res, err = WriteString(key, writer) // Write <key>.
+		res, err := WriteString(key, writer) // Write <key>.
 		wrote += res
 		if err != nil {
 			return wrote, err
 		}
 
-		// Write number of strings in <value> - length of [string list].
-		res, err = WriteShort(Short(len(strLst)), writer)
+		res, err = WriteStringList(strLst, writer) // Write <value>.
 		wrote += res
 		if err != nil {
 			return wrote, err
-		}
-
-		// Write [string list]
-		for _, s := range strLst {
-			res, err = WriteString(s, writer)
-			wrote += res
-			if err != nil {
-				return wrote, err
-			}
 		}
 	}
-	return wrote, nil
+	return wrote, err
 }
 
+func ReadByte(buf []byte) (b Byte, err error) {
+	if len(buf) == 0 {
+		err = errors.New("not enough bytes to perform ReadByte")
+	} else {
+		b = Byte(buf[0]) //TODO silly casting
+		buf = buf[1:]
+	}
+	return
+}
+
+// ReadShort - Reads [short] from bytes stream in BigEndian order.
 func ReadShort(buf []byte) (s Short, err error) {
 	if len(buf) < 2 {
-		err = errors.New("not enough bytes in ReadShort")
+		err = errors.New("not enough bytes to perform ReadShort")
 	} else {
-		s = Short(buf[1] | (buf[0] << 8))
+		s = Short(buf[1]) | Short(buf[0]) << 8
 		buf = buf[2:]
 	}
 	return
 }
 
-func ReadString(buf []byte) (s string, err error) {
-	length, err := ReadShort(buf)
-	if err != nil && len(buf) < int(length) {
-		err = errors.New("not enough bytes in ReadString")
+// ReadInt - Reads [int] from bytes stream in BigEndian order.
+func ReadInt(buf []byte) (i Int, err error) {
+	if len(buf) < 4 {
+		err = errors.New("not enough bytes to perform ReadInt")
 	} else {
-		s = string(buf[:length])
-		buf = buf[length:]
+		i = Int(buf[3]) | Int(buf[2]) << 8 |Int(buf[1]) << 16 | Int(buf[0]) << 24
+		buf = buf[4:]
 	}
 	return
 }
 
+// ReadString reads [string] consisting of its length (in BE order)
+// and the actual string.
+func ReadString(buf []byte) (s string, err error) {
+	// Read length of [string].
+	l, err := ReadShort(buf)
+	if err != nil || len(buf) < int(l) {
+		err = errors.New("not enough bytes in ReadString")
+	} else {
+		s = string(buf[:l])
+		buf = buf[l:]
+	}
+	return
+}
 
-// A lot of error checking in here, it would be great if we could reduce this.
-func ReadStringMultiMap(buf []byte, m StringMultiMap) (err error) {
-	length, err := ReadShort(buf)
+// ReadStringList reads [string list] consisting of
+// [short] n, followed by n [string]s.
+func ReadStringList(buf []byte) (strLst []string, err error) {
+	// Read the length of [string list].
+	l, err := ReadShort(buf)
 	if err != nil {
 		return
 	}
 
-	for i := Short(0); i < length; i++{
-		key, err := ReadString(buf) // Read option key.
+	strLst = make([]string, l)
+	for i := Short(0); i < l; i++ {
+		var str string
+		str, err = ReadString(buf)
+		if err != nil {
+			return
+		}
+		strLst = append(strLst, str)
+	}
+	return
+}
+
+// ReadStringMultiMap - reads [string multimap] which consists of
+// a [short] n, followed by n pair <k><v> where <k> is a [string]
+// and <v> is a [string list].
+// TODO: A lot of error checking in here, it would be great if we could reduce this.
+func ReadStringMultiMap(buf []byte, m StringMultiMap) (err error) {
+	length, err := ReadShort(buf) // Read the number of elements in map.
+	if err != nil {
+		return
+	}
+
+	var key string
+	var strLst []string
+	for i := Short(0); i < length; i++ {
+		key, err = ReadString(buf) // Read <key>.
 		if err != nil {
 			return
 		}
 
-		// Read number of strings in <value> - length of [string list].
-		optionsNumber, err := ReadShort(buf)
+		strLst, err = ReadStringList(buf) // Read <value>.
 		if err != nil {
 			return
 		}
-		strLst := make([]string, length)
-		for j := Short(0); j < optionsNumber; j++ {
-			option, err := ReadString(buf)
-			if err != nil {
-				return
-			}
-			strLst = append(strLst, option)
-		}
-		// Place values in map.
+
 		m[key] = strLst
 	}
 	return
