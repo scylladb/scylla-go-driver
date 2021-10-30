@@ -15,6 +15,9 @@ func NewSupported(buf []byte) (*Supported, error) {
 	}
 	o.Header = *hd
 
+	buf = buf[9:] // TODO: Make buffer drain itself in frameTypes functions!
+	o.options = make(frame.StringMultiMap)
+
 	err = frame.ReadStringMultiMap(buf, o.options)
 	if err != nil {
 		return o, err

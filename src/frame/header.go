@@ -3,11 +3,11 @@ package frame
 import "io"
 
 type Header struct {
-	version    Byte
-	flags      Byte
-	streamId   Short
-	opcode     Byte
-	length     Int
+	Version  byte
+	Flags    byte
+	StreamId Short
+	Opcode   byte
+	Length 	 Int
 }
 
 // NewHeader uses byte stream to construct Header,
@@ -19,60 +19,60 @@ func NewHeader(buf []byte) (*Header, error) {
 	if err != nil {
 		return nil, err
 	}
-	h.version = v
+	h.Version = v
 
 	f, err := ReadByte(buf)
 	if err != nil {
 		return h, err
 	}
-	h.flags = f
+	h.Flags = f
 
 	sid, err := ReadShort(buf)
 	if err != nil {
 		return h, err
 	}
-	h.streamId = sid
+	h.StreamId = sid
 
 	op, err := ReadByte(buf)
 	if err != nil {
 		return h, err
 	}
-	h.opcode = op
+	h.Opcode = op
 
 	l, err := ReadInt(buf)
 	if err != nil {
 		return h, err
 	}
-	h.length = l
+	h.Length = l
 
 	return h, nil
 }
 
 func (h *Header) WriteHeader(writer io.Writer) (int64, error) {
-	wrote, err := WriteByte(byte(h.version), writer) // TODO are types even pretty?
+	wrote, err := WriteByte(h.Version, writer)
 	if err != nil {
 		return wrote, err
 	}
 
-	l, err := WriteByte(byte(h.flags), writer)
-	if err != nil {
-		return wrote, err
-	}
-	wrote += l
-
-	l, err = WriteShort(h.streamId, writer)
+	l, err := WriteByte(h.Flags, writer)
 	if err != nil {
 		return wrote, err
 	}
 	wrote += l
 
-	l, err = WriteByte(byte(h.opcode), writer)
+	l, err = WriteShort(h.StreamId, writer)
 	if err != nil {
 		return wrote, err
 	}
 	wrote += l
 
-	l, err = WriteInt(h.length, writer)
+	l, err = WriteByte(h.Opcode, writer)
+	if err != nil {
+		return wrote, err
+	}
+	wrote += l
+
+	l, err = WriteInt(h.Length, writer)
 	if err != nil {
 		return wrote, err
 	}
