@@ -152,7 +152,7 @@ func ReadStringList(buf []byte) (strLst []string, err error) {
 		return
 	}
 
-	strLst = make([]string, 0, l) // TODO: Hubert tell the others about it.
+	strLst = make([]string, 0, l)
 	for i := Short(0); i < l; i++ {
 		var str string
 		str, err = ReadString(buf)

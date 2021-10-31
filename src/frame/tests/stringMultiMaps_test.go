@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestWriteStringMultiMap(t *testing.T) {
+func TestWriteReadStringMultiMap(t *testing.T) {
 	var m = frame.StringMultiMap{
 		"GOLang": {
 			"is", "super", "awesome!",

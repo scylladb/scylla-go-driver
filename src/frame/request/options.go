@@ -7,12 +7,8 @@ import (
 
 type Options struct {
 	frame.Header
-	// Options request hasn't got a body.
+	// Options request doesn't have a body.
 }
-
-//func NewOptions() *Options {
-//	return &Options{}
-//}
 
 func NewOptions(ver byte, flags byte, streamId frame.Short) *Options {
 	o := Options{}
