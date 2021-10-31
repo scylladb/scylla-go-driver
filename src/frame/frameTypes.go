@@ -97,11 +97,11 @@ func WriteStringMultiMap(m StringMultiMap, writer io.Writer) (int64, error) {
 	return wrote, err
 }
 
-func ReadByte(buf []byte) (b Byte, err error) {
+func ReadByte(buf []byte) (b byte, err error) {
 	if len(buf) == 0 {
 		err = errors.New("not enough bytes to perform ReadByte")
 	} else {
-		b = Byte(buf[0]) //TODO silly casting
+		b = buf[0]
 		buf = buf[1:]
 	}
 	return
@@ -152,7 +152,7 @@ func ReadStringList(buf []byte) (strLst []string, err error) {
 		return
 	}
 
-	strLst = make([]string, l)
+	strLst = make([]string, 0, l)
 	for i := Short(0); i < l; i++ {
 		var str string
 		str, err = ReadString(buf)

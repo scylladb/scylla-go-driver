@@ -7,12 +7,17 @@ import (
 
 type Options struct {
 	frame.Header
-	// Options request has not a body.
+	// Options request doesn't have a body.
 }
 
-func NewOptions() *Options {
-	o := new(Options)
-	return o
+func NewOptions(ver byte, flags byte, streamId frame.Short) *Options {
+	o := Options{}
+	o.Version = ver
+	o.Opcode = frame.OpOptions
+	o.Flags = flags
+	o.StreamId = streamId
+	o.Length = 0 // Empty body.
+	return &o
 }
 
 func (o *Options) WriteTo(writer io.Writer) (int64, error) {

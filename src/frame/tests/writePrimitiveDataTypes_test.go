@@ -1,11 +1,12 @@
-package main
+package tests
 
 import (
 	"bytes"
 	"scylla-go-driver/src/frame"
+	"testing"
 )
 
-func testWriteShort() {
+func TestWriteShort(t *testing.T) {
 	buf := new(bytes.Buffer)
 	wrote, err := frame.WriteShort(frame.Short(5), buf)
 	if err != nil || wrote != 2 {
