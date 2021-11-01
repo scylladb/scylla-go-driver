@@ -6,24 +6,24 @@ import (
 )
 
 type Options struct {
-	frame.Header
+	head *frame.Header
 	// Options request doesn't have a body.
 }
 
-func NewOptions(ver byte, flags byte, StreamID uint16) *Options {
-	o := Options{}
-	o.Version = ver
-	o.Opcode = frame.OpOptions
-	o.Flags = flags
-	o.StreamID = StreamID
-	o.Length = 0 // Empty body.
-	return &o
+// NewOptions FIXME: arguments to this depend on context I don't know yet
+func NewOptions(ver byte, flags byte, streamID uint16) *Options {
+	o := new(Options)
+	o.head = &frame.Header{
+		Version:  ver,
+		Flags:    flags,
+		StreamID: streamID,
+		Opcode:   frame.OpOptions,
+		Length:   0,
+	}
+
+	return o
 }
 
-func (o *Options) WriteTo(writer io.Writer) (int64, error) {
-	l, err := o.Header.WriteHeader(writer)
-	if err != nil {
-		return l, err
-	}
-	return l, nil
+func (o *Options) WriteTo(w io.Writer) (int64, error) {
+	return o.head.Write(w)
 }
