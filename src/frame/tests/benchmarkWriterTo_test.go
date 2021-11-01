@@ -49,7 +49,7 @@ func supportedRead() (err error) {
 	h.StreamID = 1
 	h.Opcode = frame.OpSupported
 	h.Length = 51 // map size
-	header, err := h.WriteHeader(&buf)
+	header, err := h.Write(&buf)
 	if err != nil || header != 9 {
 		panic(err)
 	}
@@ -63,7 +63,9 @@ func supportedRead() (err error) {
 	}
 
 	tmpBuf := buf.Bytes()
-	_, err = response.NewSupported(&tmpBuf)
+
+	head, err := frame.ReadHeader(&tmpBuf)
+	_, err = response.NewSupported(head, &tmpBuf)
 	if err != nil {
 		panic(err)
 	}
