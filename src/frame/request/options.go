@@ -10,12 +10,12 @@ type Options struct {
 	// Options request doesn't have a body.
 }
 
-func NewOptions(ver byte, flags byte, streamId uint16) *Options {
+func NewOptions(ver byte, flags byte, StreamID uint16) *Options {
 	o := Options{}
 	o.Version = ver
 	o.Opcode = frame.OpOptions
 	o.Flags = flags
-	o.StreamId = streamId
+	o.StreamID = StreamID
 	o.Length = 0 // Empty body.
 	return &o
 }
@@ -27,4 +27,3 @@ func (o *Options) WriteTo(writer io.Writer) (int64, error) {
 	}
 	return l, nil
 }
-

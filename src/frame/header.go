@@ -5,14 +5,14 @@ import "io"
 type Header struct {
 	Version  byte
 	Flags    byte
-	StreamId uint16
+	StreamID uint16
 	Opcode   byte
-	Length 	 int32
+	Length   int32
 }
 
 // NewHeader uses byte stream to construct Header,
 // used when reading responses
-func NewHeader(buf []byte) (*Header, error) {
+func NewHeader(buf *[]byte) (*Header, error) {
 	h := new(Header)
 
 	v, err := ReadByte(buf)
@@ -31,7 +31,7 @@ func NewHeader(buf []byte) (*Header, error) {
 	if err != nil {
 		return h, err
 	}
-	h.StreamId = sid
+	h.StreamID = sid
 
 	op, err := ReadByte(buf)
 	if err != nil {
@@ -60,7 +60,7 @@ func (h *Header) WriteHeader(writer io.Writer) (int64, error) {
 	}
 	wrote += l
 
-	l, err = WriteShort(h.StreamId, writer)
+	l, err = WriteShort(h.StreamID, writer)
 	if err != nil {
 		return wrote, err
 	}

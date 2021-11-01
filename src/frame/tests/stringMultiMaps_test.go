@@ -21,12 +21,12 @@ func TestWriteReadStringMultiMap(t *testing.T) {
 		return
 	}
 	m2 := make(frame.StringMultiMap)
-	tmp_buf := buf.Bytes()
-	err = frame.ReadStringMultiMap(&tmp_buf, m2)
+	tmpBuf := buf.Bytes()
+	err = frame.ReadStringMultiMap(&tmpBuf, m2)
 
 	if err != nil {
 		panic(err)
-	} else if len(tmp_buf) != 0 {
+	} else if len(tmpBuf) != 0 {
 		panic("Buffer should be empty.")
 	}
 }

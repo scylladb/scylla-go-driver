@@ -7,7 +7,7 @@ type Supported struct {
 	options frame.StringMultiMap
 }
 
-func NewSupported(buf []byte) (*Supported, error) {
+func NewSupported(buf *[]byte) (*Supported, error) {
 	o := new(Supported)
 	hd, err := frame.NewHeader(buf)
 	if err != nil {
@@ -15,7 +15,7 @@ func NewSupported(buf []byte) (*Supported, error) {
 	}
 	o.Header = *hd
 
-	buf = buf[9:] // TODO: Make buffer drain itself in frameTypes functions!
+	*buf = (*buf)[9:] // TODO: Make buffer drain itself in frameTypes functions!
 	o.options = make(frame.StringMultiMap)
 
 	err = frame.ReadStringMultiMap(buf, o.options)

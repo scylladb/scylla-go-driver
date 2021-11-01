@@ -6,32 +6,28 @@ func SWriteByte(b byte, buf *[]byte) error {
 	return nil
 }
 
-// WriteShort writes [short] in a BigEndian order.
 func SWriteShort(s uint16, buf *[]byte) error {
 	// It might not look great, but it's similar to original implementation.
 	// https://golang.org/src/encoding/binary/binary.go
 	*buf = append(*buf,
-		byte(s >> 8),
+		byte(s>>8),
 		byte(s),
 	)
 	return nil
 }
 
-// WriteInt writes [int] in a BigEndian order.
 func SWriteInt(s int32, buf *[]byte) error {
 	// It might not look great, but it's similar to original implementation.
 	// https://golang.org/src/encoding/binary/binary.go
 	*buf = append(*buf,
-		byte(s >> 24),
-		byte(s >> 16),
-		byte(s >> 8),
+		byte(s>>24),
+		byte(s>>16),
+		byte(s>>8),
 		byte(s),
 	)
 	return nil
 }
 
-// WriteString writes [string] consisting of its length (in BE order)
-// and the actual string.
 func SWriteString(s string, buf *[]byte) error {
 	// Write length of [string].
 	err := SWriteShort(uint16(len(s)), buf)
@@ -62,7 +58,7 @@ func SWriteStringList(strLst []string, buf *[]byte) error {
 }
 
 func SWriteStringMultiMap(m StringMultiMap, buf *[]byte) error {
-	err := SWriteShort(uint16(len(m)),buf) // Write the number of elements in map.
+	err := SWriteShort(uint16(len(m)), buf) // Write the number of elements in map.
 	if err != nil {
 		return nil
 	}

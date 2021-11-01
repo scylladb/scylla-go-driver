@@ -8,9 +8,7 @@ import (
 	"testing"
 )
 
-
 // In this directory run go test -bench=.
-
 
 func optionsWriterTo() (err error) {
 	result := []byte{0x0, 0x0, 0x0, 0x1, 0x5, 0x0, 0x0, 0x0, 0x0}
@@ -35,7 +33,6 @@ func BenchmarkOptionsWriterTo(b *testing.B) {
 	}
 }
 
-
 func supportedRead() (err error) {
 	var m = frame.StringMultiMap{
 		"GOLang": {
@@ -49,7 +46,7 @@ func supportedRead() (err error) {
 	h := frame.Header{}
 	h.Version = 0b10000000 // Response
 	h.Flags = 0
-	h.StreamId = 1
+	h.StreamID = 1
 	h.Opcode = frame.OpSupported
 	h.Length = 51 // map size
 	header, err := h.WriteHeader(&buf)
@@ -61,11 +58,12 @@ func supportedRead() (err error) {
 		panic(err)
 	}
 
-	if len(buf.Bytes()) != int(h.Length) + int(header) {
+	if len(buf.Bytes()) != int(h.Length)+int(header) {
 		panic("invalid buf")
 	}
 
-	_, err = response.NewSupported(buf.Bytes())
+	tmpBuf := buf.Bytes()
+	_, err = response.NewSupported(&tmpBuf)
 	if err != nil {
 		panic(err)
 	}
@@ -80,4 +78,3 @@ func BenchmarkSupportedRead(b *testing.B) {
 		}
 	}
 }
-
