@@ -26,11 +26,11 @@ func WriteInt(s int32, writer io.Writer) (int64, error) {
 	// It might not look great, but it's similar to original implementation.
 	// https://golang.org/src/encoding/binary/binary.go
 	res, err := writer.Write([]byte{
-									byte(s >> 24),
-									byte(s >> 16),
-									byte(s >> 8),
-									byte(s)},
-									)
+		byte(s >> 24),
+		byte(s >> 16),
+		byte(s >> 8),
+		byte(s)},
+	)
 	return int64(res), err
 }
 
@@ -71,7 +71,7 @@ func WriteStringList(strLst []string, writer io.Writer) (int64, error) {
 // and <v> is a [string list].
 // TODO: A lot of error checking in here, it would be great if we could reduce this.
 func WriteStringMultiMap(m StringMultiMap, writer io.Writer) (int64, error) {
-	wrote, err := WriteShort(uint16(len(m)),writer) // Write the number of elements in map.
+	wrote, err := WriteShort(uint16(len(m)), writer) // Write the number of elements in map.
 	if err != nil {
 		return wrote, nil
 	}
@@ -107,7 +107,7 @@ func ReadShort(buf *[]byte) (s uint16, err error) {
 	if len(*buf) < 2 {
 		err = errors.New("not enough bytes to perform ReadShort")
 	} else {
-		s = uint16((*buf)[1]) | uint16((*buf)[0]) << 8
+		s = uint16((*buf)[1]) | uint16((*buf)[0])<<8
 		*buf = (*buf)[2:]
 	}
 	return
@@ -118,7 +118,7 @@ func ReadInt(buf *[]byte) (i int32, err error) {
 	if len(*buf) < 4 {
 		err = errors.New("not enough bytes to perform ReadInt")
 	} else {
-		i = int32((*buf)[3]) | int32((*buf)[2]) << 8 |int32((*buf)[1]) << 16 | int32((*buf)[0]) << 24
+		i = int32((*buf)[3]) | int32((*buf)[2])<<8 | int32((*buf)[1])<<16 | int32((*buf)[0])<<24
 		*buf = (*buf)[4:]
 	}
 	return
