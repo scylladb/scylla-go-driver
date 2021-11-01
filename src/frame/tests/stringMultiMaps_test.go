@@ -21,10 +21,12 @@ func TestWriteReadStringMultiMap(t *testing.T) {
 		return
 	}
 	m2 := make(frame.StringMultiMap)
-	err = frame.ReadStringMultiMap(buf.Bytes(), m2)
-	// TODO: buf.Bytes() still contains all the bytes, which should've been drained.
+	tmp_buf := buf.Bytes()
+	err = frame.ReadStringMultiMap(&tmp_buf, m2)
+
 	if err != nil {
 		panic(err)
+	} else if len(tmp_buf) != 0 {
+		panic("Buffer should be empty.")
 	}
-
 }

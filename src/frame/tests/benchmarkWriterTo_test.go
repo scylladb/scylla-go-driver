@@ -57,7 +57,7 @@ func supportedRead() (err error) {
 		panic(err)
 	}
 	wrote, err := frame.WriteStringMultiMap(m, &buf)
-	if err != nil || frame.Int(wrote) != h.Length {
+	if err != nil || int32(wrote) != h.Length {
 		panic(err)
 	}
 

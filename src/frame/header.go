@@ -5,9 +5,9 @@ import "io"
 type Header struct {
 	Version  byte
 	Flags    byte
-	StreamId Short
+	StreamId uint16
 	Opcode   byte
-	Length 	 Int
+	Length 	 int32
 }
 
 // NewHeader uses byte stream to construct Header,

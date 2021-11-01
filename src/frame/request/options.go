@@ -10,7 +10,7 @@ type Options struct {
 	// Options request doesn't have a body.
 }
 
-func NewOptions(ver byte, flags byte, streamId frame.Short) *Options {
+func NewOptions(ver byte, flags byte, streamId uint16) *Options {
 	o := Options{}
 	o.Version = ver
 	o.Opcode = frame.OpOptions
