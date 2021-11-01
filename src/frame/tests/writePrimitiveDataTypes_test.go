@@ -8,7 +8,7 @@ import (
 
 func TestWriteShort(t *testing.T) {
 	buf := new(bytes.Buffer)
-	wrote, err := frame.WriteShort(frame.Short(5), buf)
+	wrote, err := frame.WriteShort(5, buf)
 	if err != nil || wrote != 2 {
 		panic("Writing to buffer error")
 	}
@@ -20,7 +20,7 @@ func TestWriteShort(t *testing.T) {
 	}
 
 	buf.Reset()
-	wrote, err = frame.WriteShort(frame.Short(7919), buf)
+	wrote, err = frame.WriteShort(7919, buf)
 	if err != nil || wrote != 2 {
 		panic("Writing to buffer error")
 	}
