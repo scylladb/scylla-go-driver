@@ -1,5 +1,6 @@
-package tests
+package frame
 
+/*
 import (
 	"scylla-go-driver/src/frame"
 	"testing"
@@ -43,3 +44,4 @@ func TestWriteStringList(t *testing.T) {
 		*buf = (*buf)[:0]
 	}
 }
+*/

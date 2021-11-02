@@ -1,5 +1,6 @@
-package tests
+package frame
 
+/*
 import (
 	"bytes"
 	"scylla-go-driver/src/frame"
@@ -105,3 +106,4 @@ func TestWriteString(t *testing.T) {
 		*buf = (*buf)[:0]
 	}
 }
+*/

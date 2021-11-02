@@ -1,5 +1,6 @@
-package tests
+package frame
 
+/*
 import (
 	"bytes"
 	"io"
@@ -51,4 +52,4 @@ func BenchmarkBytesBuffer(b *testing.B) {
 		}
 		res += to
 	}
-}
+}*/
