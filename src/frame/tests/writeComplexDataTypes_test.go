@@ -17,7 +17,7 @@ func TestWriteStringList(t *testing.T) {
 	buf := new([]byte)
 
 	for _, v := range stringListTests {
-		frame.SWriteStringList(v.strLst, buf)
+		frame.WriteStringList(v.strLst, buf)
 		length, err := frame.ReadShort(buf)
 
 		if err != nil {

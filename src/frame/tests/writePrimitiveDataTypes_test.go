@@ -20,7 +20,7 @@ func TestWriteByte(t *testing.T) {
 	buf := new([]byte)
 
 	for _, v := range byteTests {
-		frame.SWriteByte(v.nr, buf)
+		frame.WriteByte(v.nr, buf)
 
 		if !bytes.Equal(*buf, v.expected) {
 			t.Errorf("Wrong result buffer. Got %v, expected %v.", *buf, v.expected)
@@ -45,7 +45,7 @@ func TestWriteShort(t *testing.T) {
 	buf := new([]byte)
 
 	for _, v := range shortTests {
-		frame.SWriteShort(v.nr, buf)
+		frame.WriteShort(v.nr, buf)
 
 		if !bytes.Equal(*buf, v.expected) {
 			t.Errorf("Wrong result buffer. Got %v, expected %v.", *buf, v.expected)
@@ -71,7 +71,7 @@ func TestWriteInt(t *testing.T) {
 	buf := new([]byte)
 
 	for _, v := range intTests {
-		frame.SWriteInt(v.nr, buf)
+		frame.WriteInt(v.nr, buf)
 
 		if !bytes.Equal(*buf, v.expected) {
 			t.Errorf("Wrong result buffer. Got %v, expected %v.", *buf, v.expected)
@@ -92,7 +92,7 @@ func TestWriteString(t *testing.T) {
 	buf := new([]byte)
 
 	for _, v := range stringTests {
-		frame.SWriteString(v, buf)
+		frame.WriteString(v, buf)
 		length := int((*buf)[0])<<8 | int((*buf)[1])
 
 		if length != len(v) {

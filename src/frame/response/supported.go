@@ -1,6 +1,7 @@
 package response
 
 import (
+	"errors"
 	"scylla-go-driver/src/frame"
 )
 
@@ -10,11 +11,15 @@ type Supported struct {
 }
 
 func NewSupported(head *frame.Header, buf *[]byte) (*Supported, error) {
-	o := new(Supported)
-	o.head = head
-	if err := frame.ReadStringMultiMap(buf, o.options); err != nil {
-		return o, err
+	s := new(Supported)
+	s.head = head
+	inBuf := len(*buf)
+	if err := frame.ReadStringMultiMap(buf, s.options); err != nil {
+		return nil, err
+	}
+	if len(*buf) + int(s.head.Length) != inBuf {
+		return nil, errors.New("header length != read bytes")
 	}
 
-	return o, nil
+	return s, nil
 }

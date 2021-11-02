@@ -11,19 +11,16 @@ type Options struct {
 }
 
 // NewOptions FIXME: arguments to this depend on context I don't know yet
-func NewOptions(ver byte, flags byte, streamID uint16) *Options {
+func NewOptions(head *frame.Header) *Options {
 	o := new(Options)
-	o.head = &frame.Header{
-		Version:  ver,
-		Flags:    flags,
-		StreamID: streamID,
-		Opcode:   frame.OpOptions,
-		Length:   0,
-	}
-
+	o.head = head
 	return o
 }
 
 func (o *Options) WriteTo(w io.Writer) (int64, error) {
-	return o.head.Write(w)
+	buf := make([]byte, 0, 128)
+	o.head.WriteTo(&buf)
+	res, err := w.Write(buf)
+
+	return int64(res), err
 }

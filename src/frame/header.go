@@ -2,7 +2,6 @@ package frame
 
 import (
 	"errors"
-	"io"
 )
 
 type Header struct {
@@ -16,10 +15,6 @@ type Header struct {
 // ReadHeader uses byte stream to construct Header,
 // used when reading responses
 func ReadHeader(buf *[]byte) (*Header, error) {
-	if len(*buf) < 9 {
-		return nil, errors.New("buffer too short to read header")
-	}
-
 	h := new(Header)
 
 	var err error
@@ -62,35 +57,10 @@ func ReadHeader(buf *[]byte) (*Header, error) {
 	return h, nil
 }
 
-func (h *Header) Write(writer io.Writer) (int64, error) {
-	wrote, err := WriteByte(h.Version, writer)
-	if err != nil {
-		return wrote, err
-	}
-
-	l, err := WriteByte(h.Flags, writer)
-	if err != nil {
-		return wrote, err
-	}
-	wrote += l
-
-	l, err = WriteShort(h.StreamID, writer)
-	if err != nil {
-		return wrote, err
-	}
-	wrote += l
-
-	l, err = WriteByte(h.Opcode, writer)
-	if err != nil {
-		return wrote, err
-	}
-	wrote += l
-
-	l, err = WriteInt(h.Length, writer)
-	if err != nil {
-		return wrote, err
-	}
-	wrote += l
-
-	return wrote, nil
+func (h *Header) WriteTo(buf *[]byte) {
+	WriteByte(h.Version, buf)
+	WriteByte(h.Flags, buf)
+	WriteShort(h.StreamID, buf)
+	WriteByte(h.Opcode, buf)
+	WriteInt(h.Length, buf)
 }

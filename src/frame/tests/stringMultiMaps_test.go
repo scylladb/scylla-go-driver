@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"bytes"
 	"scylla-go-driver/src/frame"
 	"testing"
 )
@@ -15,18 +14,14 @@ func TestWriteReadStringMultiMap(t *testing.T) {
 			"cat", "dog",
 		},
 	}
-	buf := new(bytes.Buffer)
-	_, err := frame.WriteStringMultiMap(m, buf)
-	if err != nil {
-		return
-	}
+	buf := make([]byte, 0, 128)
+	frame.WriteStringMultiMap(m, &buf)
 	m2 := make(frame.StringMultiMap)
-	tmpBuf := buf.Bytes()
-	err = frame.ReadStringMultiMap(&tmpBuf, m2)
-
+	err := frame.ReadStringMultiMap(&buf, m2)
 	if err != nil {
-		panic(err)
-	} else if len(tmpBuf) != 0 {
-		panic("Buffer should be empty.")
+		t.Errorf("Error from ReadStringMultiMap: %s", err.Error())
+	}
+	if len(buf) != 0 {
+		t.Errorf("Buffer should be empty.")
 	}
 }
