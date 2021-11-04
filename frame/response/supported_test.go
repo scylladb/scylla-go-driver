@@ -1,7 +1,8 @@
-package frame
+package response
 
 import (
 	"bytes"
+	"scylla-go-driver/frame"
 	"testing"
 )
 
@@ -20,10 +21,8 @@ func Equal(a, b []string) bool {
 func TestSimpleSupported(t *testing.T) {
 	b := bytes.Buffer{}
 	err := error(nil)
-
-	w := bufWrapper{&b, &err}
-
-	m := StringMultiMap{
+	w := frame.Buffer{Buf: &b, Err: &err}
+	m := frame.StringMultiMap{
 		"GOLang": {
 			"is", "super", "awesome!",
 		},
@@ -31,29 +30,23 @@ func TestSimpleSupported(t *testing.T) {
 			"cat", "dog",
 		},
 	}
-
-	h := Header{
+	h := frame.Header{
 		Version:  0x84,
 		Flags:    0,
 		StreamID: 0,
-		Opcode:   OpSupported,
+		Opcode:   frame.OpSupported,
 		Length:   0,
 	}
-
-	w.WriteHeader(h)
-	w.WriteStringMultiMap(m)
-
-	h2 := w.ReadHeader()
-	s := w.ReadSupported(h2)
-
+	frame.WriteHeader(h, &b)
+	frame.WriteStringMultiMap(m, &b)
+	h2 := frame.ReadHeader(w)
+	s := ReadSupported(h2, w)
 	if s.head != h {
 		t.Errorf("header")
 	}
-
 	if !Equal(m["GOLang"], s.options["GOLang"]) {
 		t.Errorf("GOlang")
 	}
-
 	if !Equal(m["Pets"], s.options["Pets"]) {
 		t.Errorf("Pets")
 	}
