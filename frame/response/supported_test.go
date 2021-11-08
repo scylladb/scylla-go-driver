@@ -19,9 +19,7 @@ func Equal(a, b []string) bool {
 }
 
 func TestSimpleSupported(t *testing.T) {
-	b := bytes.Buffer{}
-	err := error(nil)
-	w := frame.Buffer{Buf: &b, Err: &err}
+	b := &bytes.Buffer{}
 	m := frame.StringMultiMap{
 		"GOLang": {
 			"is", "super", "awesome!",
@@ -37,10 +35,10 @@ func TestSimpleSupported(t *testing.T) {
 		Opcode:   frame.OpSupported,
 		Length:   0,
 	}
-	frame.WriteHeader(h, &b)
-	frame.WriteStringMultiMap(m, &b)
-	h2 := frame.ReadHeader(w)
-	s := ReadSupported(h2, w)
+	frame.WriteHeader(h, b)
+	frame.WriteStringMultiMap(m, b)
+	h2 := frame.ReadHeader(b)
+	s := ReadSupported(h2, b)
 	if s.head != h {
 		t.Errorf("header")
 	}

@@ -50,46 +50,29 @@ func WriteStringMultiMap(m StringMultiMap, b *bytes.Buffer) {
 	}
 }
 
-func ReadByte(b Buffer) Byte {
-	if *b.Err != nil {
-		return 0
-	}
-	n, err := b.Buf.ReadByte()
-	*b.Err = err
+func ReadByte(b *bytes.Buffer) Byte {
+	n, _ := b.ReadByte()
 	return n
 }
 
-func ReadShort(b Buffer) Short {
-	if *b.Err != nil {
-		return 0
-	}
-	// TODO: can we allocate byte slice for two elements?
+func ReadShort(b *bytes.Buffer) Short {
 	return (Short(ReadByte(b)) << 8) | Short(ReadByte(b))
 }
 
-func ReadInt(b Buffer) Int {
+func ReadInt(b *bytes.Buffer) Int {
 	return (Int(ReadShort(b)) << 16) | Int(ReadShort(b))
 }
 
-func ReadString(b Buffer) string {
+func ReadString(b *bytes.Buffer) string {
 	// Reads length of the string.
-	if n := ReadShort(b); *b.Err == nil {
-		// Placeholder for read bytes.
-		tmp := make([]byte, n)
-		cnt, err := b.Buf.Read(tmp)
-		*b.Err = err
-
-		// Checks the amount of read bytes.
-		if *b.Err == nil && cnt != int(n) {
-			*b.Err = bytesErr
-		} else {
-			return string(tmp)
-		}
-	}
-	return ""
+	n := ReadShort(b)
+	// Placeholder for read bytes.
+	tmp := make([]byte, n)
+	b.Read(tmp)
+	return string(tmp)
 }
 
-func ReadStringList(b Buffer) StringList {
+func ReadStringList(b *bytes.Buffer) StringList {
 	// Reads length of the string list.
 	n := ReadShort(b)
 	l := make(StringList, 0, n)
@@ -101,7 +84,7 @@ func ReadStringList(b Buffer) StringList {
 	return l
 }
 
-func ReadStringMultiMap(b Buffer) StringMultiMap {
+func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 	// Reads the number of elements in the map.
 	n := ReadShort(b)
 	m := StringMultiMap{}
@@ -117,7 +100,7 @@ func ReadStringMultiMap(b Buffer) StringMultiMap {
 
 // ReadHeader uses Buffer to construct Header.
 // Used when reading responses.
-func ReadHeader(b Buffer) Header {
+func ReadHeader(b *bytes.Buffer) Header {
 	v := ReadByte(b)
 	f := ReadByte(b)
 	s := ReadShort(b)
@@ -125,8 +108,8 @@ func ReadHeader(b Buffer) Header {
 	l := ReadInt(b)
 	h := Header{v, f, s, o, l}
 	// Currently, we only accept CQLv4 spec response frames.
-	if *b.Err == nil && v != 0x84 {
-		*b.Err = protocolVersionErr
+	if v != CQLv4 {
+		panic(protocolVersionErr)
 	}
 	return h
 }

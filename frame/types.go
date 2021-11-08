@@ -1,7 +1,6 @@
 package frame
 
 import (
-	"bytes"
 	"errors"
 )
 
@@ -17,11 +16,6 @@ type (
 	StringList     = []string
 
 	OpCode = byte
-
-	Buffer struct {
-		Buf *bytes.Buffer
-		Err *error
-	}
 
 	Header struct {
 		Version  Byte
@@ -49,10 +43,10 @@ const (
 	OpAuthChallenge OpCode = 0x0E
 	OpAuthResponse  OpCode = 0x0F
 	OpAuthSuccess   OpCode = 0x10
+
+	CQLv4 Byte = 0x84
 )
 
 var (
-	// TODO: can we replace it with io.EOF
-	bytesErr           = errors.New("not enough bytes")
 	protocolVersionErr = errors.New("frame protocol version is not supported")
 )
