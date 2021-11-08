@@ -4,10 +4,10 @@ import (
 	"errors"
 )
 
+// Generic types from CQL binary protocol.
 type (
-	Byte = byte
-
-	Short = int16
+	Byte  = byte
+	Short = uint16
 	Int   = int32
 	Long  = int64
 
@@ -16,16 +16,18 @@ type (
 	StringList     = []string
 
 	OpCode = byte
-
-	Header struct {
-		Version  Byte
-		Flags    Byte
-		StreamID Short
-		Opcode   OpCode
-		Length   Int
-	}
 )
 
+// Header used both in requests and responses.
+type Header struct {
+	Version  Byte
+	Flags    Byte
+	StreamID Short
+	Opcode   OpCode
+	Length   Int
+}
+
+// Types of messages.
 const (
 	OpError         OpCode = 0x00
 	OpStartup       OpCode = 0x01
@@ -43,10 +45,9 @@ const (
 	OpAuthChallenge OpCode = 0x0E
 	OpAuthResponse  OpCode = 0x0F
 	OpAuthSuccess   OpCode = 0x10
-
-	CQLv4 Byte = 0x84
 )
 
-var (
-	protocolVersionErr = errors.New("frame protocol version is not supported")
-)
+// CQLv4 is the only protocol version currently supported.
+const CQLv4 Byte = 0x84
+
+var protocolVersionErr = errors.New("frame protocol version is not supported")
