@@ -7,7 +7,7 @@ import (
 type (
 	Byte = byte
 
-	Short = int16
+	Short = uint16
 	Int   = int32
 	Long  = int64
 
