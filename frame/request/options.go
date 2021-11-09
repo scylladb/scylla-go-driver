@@ -18,4 +18,4 @@ func NewOptions() Options {
 }
 
 // WriteOptions writes Options to the buffer.
-func WriteOptions(_ Options, _ *bytes.Buffer) {}
+func (Options) Write(_ *bytes.Buffer) {}

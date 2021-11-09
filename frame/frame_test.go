@@ -166,6 +166,38 @@ func TestWriteStringMultiMap(t *testing.T) {
 	}
 }
 
+func TestWriteHeader(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  Header
+		expected []byte
+	}{
+		{"plain supported",
+			Header{
+				Version:  CQLv4,
+				Flags:    0,
+				StreamID: 0,
+				Opcode:   OpSupported,
+				Length:   0,
+			},
+			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
+		},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
+			tc.content.Write(&buf)
+
+			if !bytes.Equal(buf.Bytes(), tc.expected) {
+				t.Fatal("Failure while reading StringMultiMap.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
 //------------------------------- READ TESTS ----------------------------------
 
 func TestReadByte(t *testing.T) {
@@ -348,6 +380,39 @@ func TestReadStringMultiMap(t *testing.T) {
 			out := ReadStringMultiMap(&buf)
 
 			if !equalStringMultiMap(out, tc.expected) {
+				t.Fatal("Failure while reading StringMultiMap.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+func TestReadHeader(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected Header
+	}{
+		{"plain supported",
+			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
+			Header{
+				Version:  CQLv4,
+				Flags:    0,
+				StreamID: 0,
+				Opcode:   OpSupported,
+				Length:   0,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.content)
+			out := ReadHeader(&buf)
+
+			if out != tc.expected {
 				t.Fatal("Failure while reading StringMultiMap.")
 			}
 		})

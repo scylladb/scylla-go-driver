@@ -34,6 +34,22 @@ func WriteInt(i Int, b *bytes.Buffer) {
 	})
 }
 
+// WriteBytes writes Bytes to the buffer.
+// If Bytes is nil then writes -1 to the buffer.
+func WriteBytes(t Bytes, b *bytes.Buffer) {
+	if t == nil {
+		WriteInt(-1, b)
+		return
+	}
+
+	// Writes length of the string list.
+	WriteInt(Int(len(t)), b)
+	// Writes consecutive strings.
+	for _, s := range t {
+		WriteByte(s, b)
+	}
+}
+
 // WriteString writes single string to the buffer.
 func WriteString(s string, b *bytes.Buffer) {
 	// Writes length of the string.
@@ -48,6 +64,19 @@ func WriteStringList(l StringList, b *bytes.Buffer) {
 	// Writes consecutive strings.
 	for _, s := range l {
 		WriteString(s, b)
+	}
+}
+
+// WriteStringMap writes StringMap to the buffer.
+func WriteStringMap(m StringMap, b *bytes.Buffer) {
+	// Writes the number of elements in the map.
+	WriteShort(Short(len(m)), b)
+	// Writes consecutive map entries.
+	for k, l := range m {
+		// Writes key.
+		WriteString(k, b)
+		// Writes value.
+		WriteString(l, b)
 	}
 }
 
@@ -85,6 +114,55 @@ func ReadInt(b *bytes.Buffer) Int {
 		Int(tmp[3])
 }
 
+// ReadBytes reads Bytes from the buffer.
+// If read bytes length is negative returns nil.
+func ReadBytes(b *bytes.Buffer) Bytes {
+	// Reads length of the Bytes.
+	n := ReadInt(b)
+	if n < 0 {
+		return nil
+	}
+
+	var out Bytes
+	for i := Int(0); i < n; i++ {
+		out = append(out, ReadByte(b))
+	}
+	return out
+}
+
+// ReadConsistency reads Short if it is valid consistency
+// then returns it else panics.
+func ReadConsistency(b *bytes.Buffer) Short {
+	c := ReadShort(b)
+	if c > 10 {
+		panic(unknownConsistencyErr)
+	}
+	return c
+}
+
+var writeTypes = []string{
+	"SIMPLE",
+	"BATCH",
+	"UNLOGGED_BATCH",
+	"COUNTER",
+	"BATCH_LOG",
+	"CAS",
+	"VIEW",
+	"CDC",
+}
+
+// ReadWriteType reads string if it is valid write type
+// then returns it else panics.
+func ReadWriteType(b *bytes.Buffer) string {
+	wt := ReadString(b)
+	for _, v := range writeTypes {
+		if wt == v {
+			return wt
+		}
+	}
+	panic(unknownWriteTypeErr)
+}
+
 // ReadString reads and returns string from the buffer.
 func ReadString(b *bytes.Buffer) string {
 	// Reads length of the string.
@@ -108,6 +186,21 @@ func ReadStringList(b *bytes.Buffer) StringList {
 	return l
 }
 
+// ReadStringMap reads and returns StringMap from the buffer.
+func ReadStringMap(b *bytes.Buffer) StringMap {
+	// Reads the number of elements in the map.
+	n := ReadShort(b)
+	m := StringMap{}
+	for i := Short(0); i < n; i++ {
+		// Reads the key.
+		k := ReadString(b)
+		// Reads the value.
+		l := ReadString(b)
+		m[k] = l
+	}
+	return m
+}
+
 // ReadStringMultiMap reads and returns StringMultiMap from the buffer.
 func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 	// Reads the number of elements in the map.
@@ -121,30 +214,4 @@ func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 		m[k] = l
 	}
 	return m
-}
-
-// ReadHeader reads and returns Header from the buffer.
-// Used when handling responses.
-func ReadHeader(b *bytes.Buffer) Header {
-	v := ReadByte(b)
-	f := ReadByte(b)
-	s := ReadShort(b)
-	o := ReadByte(b)
-	l := ReadInt(b)
-	h := Header{v, f, s, o, l}
-	// Currently, we only accept CQLv4 spec response frames.
-	if v != CQLv4 {
-		panic(protocolVersionErr)
-	}
-	return h
-}
-
-// WriteHeader writes Header to the buffer.
-// Used when handling requests.
-func WriteHeader(h Header, b *bytes.Buffer) {
-	WriteByte(h.Version, b)
-	WriteByte(h.Flags, b)
-	WriteShort(h.StreamID, b)
-	WriteByte(h.Opcode, b)
-	WriteInt(h.Length, b)
 }
