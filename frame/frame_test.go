@@ -218,6 +218,11 @@ func ReadShortWithSliceNoAlloc(b *bytes.Buffer) Short {
 	return Short(tmp[0])<<8 | Short(tmp[1])
 }
 
+// ReadIntWithByte reads and returns Int by reading two Shorts.
+func ReadIntWithByte(b *bytes.Buffer) Int {
+	return Int(ReadByte(b))<<24 | Int(ReadByte(b))<<16 | Int(ReadByte(b))<<8 | Int(ReadByte(b))
+}
+
 // ReadIntWithShort reads and returns Int by reading two Shorts.
 func ReadIntWithShort(b *bytes.Buffer) Int {
 	return Int(ReadShortWithByte(b))<<16 | Int(ReadShortWithByte(b))
@@ -226,6 +231,25 @@ func ReadIntWithShort(b *bytes.Buffer) Int {
 // ReadShortWithByte reads and returns Short by reading two Bytes.
 func ReadShortWithByte(b *bytes.Buffer) Short {
 	return Short(ReadByte(b))<<8 | Short(ReadByte(b))
+}
+
+// BenchmarkReadIntWithByte creates and refills buffer (with B.Timer stopped)
+// so it can read Int values from it by using ReadIntWithByte.
+func BenchmarkReadIntWithByte(b *testing.B) {
+	buf := fullBuffer(100000)
+	var r Int
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r = ReadIntWithByte(buf)
+		if buf.Len() == 0 {
+			b.StopTimer()
+			buf = fullBuffer(100000)
+			b.StartTimer()
+		}
+	}
+	result = r
+	// It removes unused variable warning.
+	_ = result
 }
 
 // BenchmarkReadIntWithShort creates and refills buffer (with B.Timer stopped)
@@ -264,8 +288,8 @@ func BenchmarkReadIntWithSlice(b *testing.B) {
 	result = r
 }
 
-// BenchmarkReadIntWithSlice creates and refills buffer (with B.Timer stopped)
-// so it can read Int values from it by using ReadIntWithSlice.
+// BenchmarkReadIntWithSliceNoAlloc creates and refills buffer (with B.Timer stopped)
+// so it can read Int values from it by using ReadIntWithSliceNoAlloc.
 func BenchmarkReadIntWithSliceNoAlloc(b *testing.B) {
 	buf := fullBuffer(100000)
 	var r Int
@@ -298,8 +322,8 @@ func BenchmarkReadShortWithSlice(b *testing.B) {
 	result = Int(r)
 }
 
-// BenchmarkReadShortWithSlice creates and refills buffer (with B.Timer stopped)
-// so it can read Short values from it by using ReadShortWithSlice.
+// BenchmarkReadShortWithSliceNoAlloc creates and refills buffer (with B.Timer stopped)
+// so it can read Short values from it by using ReadShortWithSliceNoAlloc.
 func BenchmarkReadShortWithSliceNoAlloc(b *testing.B) {
 	buf := fullBuffer(100000)
 	var r Short
