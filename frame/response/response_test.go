@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func EqualStringList(a, b frame.StringList) bool {
+func equalStringList(a, b frame.StringList) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -42,10 +42,10 @@ func TestSimpleSupported(t *testing.T) {
 	if s.head != h {
 		t.Errorf("header")
 	}
-	if !EqualStringList(m["GOLang"], s.options["GOLang"]) {
+	if !equalStringList(m["GOLang"], s.options["GOLang"]) {
 		t.Errorf("GOlang")
 	}
-	if !EqualStringList(m["Pets"], s.options["Pets"]) {
+	if !equalStringList(m["Pets"], s.options["Pets"]) {
 		t.Errorf("Pets")
 	}
 }
