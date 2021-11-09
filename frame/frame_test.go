@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+//------------------------------- WRITE TESTS ---------------------------------
+
 func TestWriteByte(t *testing.T) {
 	var cases = []struct {
 		name     string
@@ -25,7 +27,7 @@ func TestWriteByte(t *testing.T) {
 			WriteByte(tc.nr, &buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
-				t.Fatal("Failure while writing byte to buffer.")
+				t.Fatal("Failure while writing byte to a buffer.")
 			}
 		})
 
@@ -53,7 +55,7 @@ func TestWriteShort(t *testing.T) {
 			WriteShort(tc.nr, &buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
-				t.Fatal("Failure while writing unsigned short to buffer.")
+				t.Fatal("Failure while writing unsigned short to a buffer.")
 			}
 		})
 
@@ -82,7 +84,7 @@ func TestWriteInt(t *testing.T) {
 			WriteInt(tc.nr, &buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
-				t.Fatal("Failure while writing integer to buffer.")
+				t.Fatal("Failure while writing integer to a buffer.")
 			}
 		})
 
@@ -105,11 +107,11 @@ func TestWriteString(t *testing.T) {
 	var buf bytes.Buffer
 	for _, tc := range cases {
 
-		t.Run(fmt.Sprintf("Integer writing test %s", tc.name), func(t *testing.T) {
+		t.Run(fmt.Sprintf("String writing test %s", tc.name), func(t *testing.T) {
 			WriteString(tc.content, &buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
-				t.Fatal("Failure while writing integer to buffer.")
+				t.Fatal("Failure while writing string to a buffer.")
 			}
 		})
 
@@ -117,11 +119,10 @@ func TestWriteString(t *testing.T) {
 	}
 }
 
-
 func TestWriteStringList(t *testing.T) {
 	var cases = []struct {
-		name 	 string
-		content	 StringList
+		name     string
+		content  StringList
 		expected []byte
 	}{
 		{"one string", StringList{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
@@ -144,8 +145,8 @@ func TestWriteStringList(t *testing.T) {
 
 func TestWriteStringMultiMap(t *testing.T) {
 	var cases = []struct {
-		name string
-		content StringMultiMap
+		name     string
+		content  StringMultiMap
 		expected []byte
 	}{
 		{"Smoke test", StringMultiMap{"a": {"a"}}, []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}},
@@ -164,6 +165,198 @@ func TestWriteStringMultiMap(t *testing.T) {
 		buf.Reset()
 	}
 }
+
+//------------------------------- READ TESTS ----------------------------------
+
+func TestReadByte(t *testing.T) {
+	var cases = []struct {
+		name     string
+		nr       []byte
+		expected Byte
+	}{
+		{"min byte", []byte{0x00}, 0},
+		{"random small byte", []byte{0x16}, 22},
+		{"random large byte", []byte{0x7d}, 125},
+		{"max byte", []byte{0xff}, 255},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("Byte reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.nr)
+			out := ReadByte(&buf)
+
+			if out != tc.expected {
+				t.Fatal("Failure while reading Byte.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+func TestReadShort(t *testing.T) {
+	var cases = []struct {
+		name     string
+		nr       []byte
+		expected Short
+	}{
+		{"min short", []byte{0x00, 0x00}, 0},
+		{"random small short", []byte{0x00, 0xf5}, 245},
+		{"random large short", []byte{0xa7, 0xf3}, 42995},
+		{"max short", []byte{0xff, 0xff}, 65535},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.nr)
+			out := ReadShort(&buf)
+
+			if out != tc.expected {
+				t.Fatal("Failure while reading Short.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+func TestReadInt(t *testing.T) {
+	var cases = []struct {
+		name     string
+		nr       []byte
+		expected Int
+	}{
+		{"min integer", []byte{0x80, 0x0, 0x0, 0x0}, -2147483648},
+		{"zero", []byte{0x0, 0x0, 0x0, 0x0}, 0},
+		{"min positive integer", []byte{0x0, 0x0, 0x0, 0x01}, 1},
+		{"random short", []byte{0x0, 0x0, 0x24, 0xec}, 9452},
+		{"random 3 byte numer", []byte{0x0, 0x01, 0xe1, 0xc7}, 123335},
+		{"max integer", []byte{0x7f, 0xff, 0xff, 0xff}, 2147483647},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("Integer reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.nr)
+			out := ReadInt(&buf)
+
+			if out != tc.expected {
+				t.Fatal("Failure while reading Integer.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+func TestReadString(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected string
+	}{
+		{"one char", []byte{0x00, 0x01, 0x61}, "a"},
+		{"normal word", []byte{0x00, 0x06, 0x67, 0x6f, 0x6c, 0x61, 0x6e, 0x67}, "golang"},
+		{"UTF-8 characters", []byte{0x00, 0x0a, 0xcf, 0x80, 0xc5, 0x93, 0xc4, 0x99, 0xc2, 0xa9, 0xc3, 0x9f}, "πœę©ß"},
+		{"empty string", []byte{0x00, 0x00}, ""},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+
+		t.Run(fmt.Sprintf("String reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.content)
+			out := ReadString(&buf)
+
+			if out != tc.expected {
+				t.Fatal("Failure while writing reading String.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+// equalStringList checks equality between two StringLists,
+// by writing function on our own we avoid reflect.DeepEqual function.
+func equalStringList(a, b StringList) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestReadStringList(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected StringList
+	}{
+		{"one string", []byte{0x00, 0x01, 0x00, 0x01, 0x61}, StringList{"a"}},
+		{"two strings", []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}, StringList{"a", "b"}},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringList reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.content)
+			out := ReadStringList(&buf)
+
+			if !equalStringList(out, tc.expected) {
+				t.Fatal("Failure while reading StringList.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+// equalStringMultiMap checks equality between two StringMultiMaps,
+// by writing function on our own we avoid reflect.DeepEqual function.
+func equalStringMultiMap(a, b StringMultiMap) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if !equalStringList(v, b[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func TestReadStringMultiMap(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected StringMultiMap
+	}{
+		{"Smoke test", []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}, StringMultiMap{"a": {"a"}}},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
+			buf.Write(tc.content)
+			out := ReadStringMultiMap(&buf)
+
+			if !equalStringMultiMap(out, tc.expected) {
+				t.Fatal("Failure while reading StringMultiMap.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+//------------------------------- BENCHMARKS ----------------------------------
 
 // result ensures that compiler won't skip operations
 // during optimization of the benchmark functions.

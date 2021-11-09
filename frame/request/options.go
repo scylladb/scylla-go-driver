@@ -10,7 +10,6 @@ import (
 
 // Options request message type.
 type Options struct {
-
 }
 
 // NewOptions creates and returns Options request.
