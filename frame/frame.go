@@ -100,7 +100,7 @@ func ReadString(b *bytes.Buffer) string {
 func ReadStringList(b *bytes.Buffer) StringList {
 	// Reads length of the string list.
 	n := ReadShort(b)
-	l := make(StringList, 0, n)
+	l := StringList{}
 	for i := Short(0); i < n; i++ {
 		// Reads the strings and append them to the list.
 		s := ReadString(b)

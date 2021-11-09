@@ -6,7 +6,7 @@ import (
 
 // Generic types from CQL binary protocol.
 type (
-	Byte = byte
+	Byte  = byte
 	Short = uint16
 	Int   = int32
 	Long  = int64

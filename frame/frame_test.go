@@ -117,6 +117,31 @@ func TestWriteString(t *testing.T) {
 	}
 }
 
+
+func TestWriteStringList(t *testing.T) {
+	var cases = []struct {
+		name 	 string
+		content	 []string
+		expected []byte
+	}{
+		{"one string", []string{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
+		{"two strings", []string{"a", "b"}, []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringList writing test #{tc.name}"), func(t *testing.T) {
+			WriteStringList(tc.content, &buf)
+
+			if !bytes.Equal(buf.Bytes(), tc.expected) {
+				t.Fatal("Failure while writing StringList.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
 // result ensures that compiler won't skip operations
 // during optimization of the benchmark functions.
 // That's the reason why functions assign value to it.
@@ -196,7 +221,7 @@ func BenchmarkReadIntWithShort(b *testing.B) {
 	}
 	result = r
 	// It removes unused variable warning.
-	r = result
+	_ = result
 }
 
 // BenchmarkReadIntWithSlice creates and refills buffer (with B.Timer stopped)
