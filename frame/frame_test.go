@@ -162,6 +162,14 @@ func ReadShortWithSlice(b *bytes.Buffer) Short {
 	return Short(tmp[0])<<8 | Short(tmp[1])
 }
 
+// ReadShortWithSlice reads and returns Short by reading
+// all two bytes at once to allocated byte slice.
+func ReadShortWithSliceNoAlloc(b *bytes.Buffer) Short {
+	tmp := []byte{0, 0}
+	_, _ = b.Read(tmp)
+	return Short(tmp[0])<<8 | Short(tmp[1])
+}
+
 // ReadIntWithShort reads and returns Int by reading two Shorts.
 func ReadIntWithShort(b *bytes.Buffer) Int {
 	return Int(ReadShortWithByte(b))<<16 | Int(ReadShortWithByte(b))
@@ -233,6 +241,23 @@ func BenchmarkReadShortWithSlice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r = ReadShortWithSlice(buf)
+		if buf.Len() == 0 {
+			b.StopTimer()
+			buf = fullBuffer(100000)
+			b.StartTimer()
+		}
+	}
+	result = Int(r)
+}
+
+// BenchmarkReadShortWithSlice creates and refills buffer (with B.Timer stopped)
+// so it can read Short values from it by using ReadShortWithSlice.
+func BenchmarkReadShortWithSliceNoAlloc(b *testing.B) {
+	buf := fullBuffer(100000)
+	var r Short
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r = ReadShortWithSliceNoAlloc(buf)
 		if buf.Len() == 0 {
 			b.StopTimer()
 			buf = fullBuffer(100000)
