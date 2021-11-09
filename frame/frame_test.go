@@ -121,11 +121,11 @@ func TestWriteString(t *testing.T) {
 func TestWriteStringList(t *testing.T) {
 	var cases = []struct {
 		name 	 string
-		content	 []string
+		content	 StringList
 		expected []byte
 	}{
-		{"one string", []string{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
-		{"two strings", []string{"a", "b"}, []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}},
+		{"one string", StringList{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
+		{"two strings", StringList{"a", "b"}, []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}},
 	}
 
 	var buf bytes.Buffer
@@ -135,6 +135,29 @@ func TestWriteStringList(t *testing.T) {
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
 				t.Fatal("Failure while writing StringList.")
+			}
+		})
+
+		buf.Reset()
+	}
+}
+
+func TestWriteStringMultiMap(t *testing.T) {
+	var cases = []struct {
+		name string
+		content StringMultiMap
+		expected []byte
+	}{
+		{"Smoke test", StringMultiMap{"a": {"a"}}, []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("StringMultiMap writing test %s", tc.name), func(t *testing.T) {
+			WriteStringMultiMap(tc.content, &buf)
+
+			if !bytes.Equal(buf.Bytes(), tc.expected) {
+				t.Fatal("Failure while writing StringMultiMap.")
 			}
 		})
 
