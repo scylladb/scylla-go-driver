@@ -130,7 +130,7 @@ func TestWriteStringList(t *testing.T) {
 
 	var buf bytes.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("StringList writing test #{tc.name}"), func(t *testing.T) {
+		t.Run(fmt.Sprintf("StringList writing test %s", tc.name), func(t *testing.T) {
 			WriteStringList(tc.content, &buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
