@@ -143,6 +143,17 @@ func ReadIntWithSlice(b *bytes.Buffer) Int {
 		Int(tmp[3])
 }
 
+// ReadIntWithSlice reads and returns Int by reading
+// all four bytes at once to allocated byte slice.
+func ReadIntWithSliceNoAlloc(b *bytes.Buffer) Int {
+	tmp := []byte{0, 0, 0, 0}
+	_, _ = b.Read(tmp)
+	return Int(tmp[0])<<24 |
+		Int(tmp[1])<<16 |
+		Int(tmp[2])<<8 |
+		Int(tmp[3])
+}
+
 // ReadShortWithSlice reads and returns Short by reading
 // all two bytes at once to allocated byte slice.
 func ReadShortWithSlice(b *bytes.Buffer) Short {
@@ -188,6 +199,23 @@ func BenchmarkReadIntWithSlice(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r = ReadIntWithSlice(buf)
+		if buf.Len() == 0 {
+			b.StopTimer()
+			buf = fullBuffer(100000)
+			b.StartTimer()
+		}
+	}
+	result = r
+}
+
+// BenchmarkReadIntWithSlice creates and refills buffer (with B.Timer stopped)
+// so it can read Int values from it by using ReadIntWithSlice.
+func BenchmarkReadIntWithSliceNoAlloc(b *testing.B) {
+	buf := fullBuffer(100000)
+	var r Int
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		r = ReadIntWithSliceNoAlloc(buf)
 		if buf.Len() == 0 {
 			b.StopTimer()
 			buf = fullBuffer(100000)
