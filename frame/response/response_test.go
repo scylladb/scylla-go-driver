@@ -38,10 +38,11 @@ func TestSimpleSupported(t *testing.T) {
 	frame.WriteHeader(h, b)
 	frame.WriteStringMultiMap(m, b)
 	h2 := frame.ReadHeader(b)
-	s := ReadSupported(h2, b)
-	if s.head != h {
-		t.Errorf("header")
+	if h != h2 {
+		t.Errorf("Header")
 	}
+	
+	s := ReadSupported(b)
 	if !equalStringList(m["GOLang"], s.options["GOLang"]) {
 		t.Errorf("GOlang")
 	}

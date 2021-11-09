@@ -12,12 +12,11 @@ import (
 
 // Supported response message type.
 type Supported struct {
-	head    frame.Header
 	options frame.StringMultiMap
 }
 
 // ReadSupported reads and returns Supported from the buffer.
-func ReadSupported(h frame.Header, b *bytes.Buffer) Supported {
+func ReadSupported(b *bytes.Buffer) Supported {
 	m := frame.ReadStringMultiMap(b)
-	return Supported{h, m}
+	return Supported{m}
 }
