@@ -1,7 +1,3 @@
-// Package request implements functions and types used for handling
-// all types of CQL binary protocol requests.
-// Writing to buffer is done in Big Endian order.
-
 package request
 
 import (
@@ -9,8 +5,7 @@ import (
 )
 
 // Options request message type.
-type Options struct {
-}
+type Options struct {}
 
 // NewOptions creates and returns Options request.
 func NewOptions() Options {
@@ -18,4 +13,4 @@ func NewOptions() Options {
 }
 
 // WriteOptions writes Options to the buffer.
-func (Options) Write(_ *bytes.Buffer) {}
+func (Options) WriteTo(_ *bytes.Buffer) {}

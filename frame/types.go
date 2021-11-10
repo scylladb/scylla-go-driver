@@ -45,4 +45,3 @@ const (
 const CQLv4 Byte = 0x84
 
 var protocolVersionErr = errors.New("frame protocol version is not supported")
-
