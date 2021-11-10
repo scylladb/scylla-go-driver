@@ -130,39 +130,6 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 	return out
 }
 
-// ReadConsistency reads Short if it is valid consistency
-// then returns it else panics.
-func ReadConsistency(b *bytes.Buffer) Short {
-	c := ReadShort(b)
-	if c > 10 {
-		panic(unknownConsistencyErr)
-	}
-	return c
-}
-
-var writeTypes = []string{
-	"SIMPLE",
-	"BATCH",
-	"UNLOGGED_BATCH",
-	"COUNTER",
-	"BATCH_LOG",
-	"CAS",
-	"VIEW",
-	"CDC",
-}
-
-// ReadWriteType reads string if it is valid write type
-// then returns it else panics.
-func ReadWriteType(b *bytes.Buffer) string {
-	wt := ReadString(b)
-	for _, v := range writeTypes {
-		if wt == v {
-			return wt
-		}
-	}
-	panic(unknownWriteTypeErr)
-}
-
 // ReadString reads and returns string from the buffer.
 func ReadString(b *bytes.Buffer) string {
 	// Reads length of the string.
