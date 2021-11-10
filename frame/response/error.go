@@ -22,15 +22,15 @@ func ReadError(b *bytes.Buffer) Error {
 	}
 }
 
-type Unavailable struct {
+type UnavailableErr struct {
 	Error
 	consistency frame.Short
 	required    frame.Int
 	alive       frame.Int
 }
 
-func ReadUnavailable(b *bytes.Buffer) Unavailable {
-	return Unavailable{
+func ReadUnavailable(b *bytes.Buffer) UnavailableErr {
+	return UnavailableErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -41,7 +41,7 @@ func ReadUnavailable(b *bytes.Buffer) Unavailable {
 	}
 }
 
-type WriteTimeout struct {
+type WriteTimeoutErr struct {
 	Error
 	consistency frame.Short
 	received    frame.Int
@@ -49,8 +49,8 @@ type WriteTimeout struct {
 	writeType   string
 }
 
-func ReadWriteTimeout(b *bytes.Buffer) WriteTimeout {
-	return WriteTimeout{
+func ReadWriteTimeout(b *bytes.Buffer) WriteTimeoutErr {
+	return WriteTimeoutErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -62,7 +62,7 @@ func ReadWriteTimeout(b *bytes.Buffer) WriteTimeout {
 	}
 }
 
-type ReadTimeout struct {
+type ReadTimeoutErr struct {
 	Error
 	consistency frame.Short
 	received    frame.Int
@@ -70,8 +70,8 @@ type ReadTimeout struct {
 	dataPresent frame.Byte
 }
 
-func ReadRTimeout(b *bytes.Buffer) ReadTimeout {
-	return ReadTimeout{
+func ReadRTimeout(b *bytes.Buffer) ReadTimeoutErr {
+	return ReadTimeoutErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -83,7 +83,7 @@ func ReadRTimeout(b *bytes.Buffer) ReadTimeout {
 	}
 }
 
-type ReadFailure struct {
+type ReadFailureErr struct {
 	Error
 	consistency frame.Short
 	received    frame.Int
@@ -92,8 +92,8 @@ type ReadFailure struct {
 	dataPresent frame.Byte
 }
 
-func ReadRFailure(b *bytes.Buffer) ReadFailure {
-	return ReadFailure{
+func ReadRFailure(b *bytes.Buffer) ReadFailureErr {
+	return ReadFailureErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -106,15 +106,15 @@ func ReadRFailure(b *bytes.Buffer) ReadFailure {
 	}
 }
 
-type FuncFailure struct {
+type FuncFailureErr struct {
 	Error
 	keyspace string
 	function string
 	argTypes frame.StringList
 }
 
-func ReadFuncFailure(b *bytes.Buffer) FuncFailure {
-	return FuncFailure{
+func ReadFuncFailure(b *bytes.Buffer) FuncFailureErr {
+	return FuncFailureErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -125,7 +125,7 @@ func ReadFuncFailure(b *bytes.Buffer) FuncFailure {
 	}
 }
 
-type WriteFailure struct {
+type WriteFailureErr struct {
 	Error
 	consistency frame.Short
 	received    frame.Int
@@ -134,8 +134,8 @@ type WriteFailure struct {
 	writeType   string
 }
 
-func ReadWriteFailure(b *bytes.Buffer) WriteFailure {
-	return WriteFailure{
+func ReadWriteFailure(b *bytes.Buffer) WriteFailureErr {
+	return WriteFailureErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -148,14 +148,14 @@ func ReadWriteFailure(b *bytes.Buffer) WriteFailure {
 	}
 }
 
-type AlreadyExists struct {
+type AlreadyExistsErr struct {
 	Error
 	keyspace string
 	table    string
 }
 
-func ReadAlreadyExists(b *bytes.Buffer) AlreadyExists {
-	return AlreadyExists{
+func ReadAlreadyExists(b *bytes.Buffer) AlreadyExistsErr {
+	return AlreadyExistsErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),
@@ -165,13 +165,13 @@ func ReadAlreadyExists(b *bytes.Buffer) AlreadyExists {
 	}
 }
 
-type Unprepared struct {
+type UnpreparedErr struct {
 	Error
 	unknownID frame.Bytes
 }
 
-func ReadUnprepared(b *bytes.Buffer) Unprepared {
-	return Unprepared{
+func ReadUnprepared(b *bytes.Buffer) UnpreparedErr {
+	return UnpreparedErr{
 		Error{
 			code:    frame.ReadInt(b),
 			message: frame.ReadString(b),

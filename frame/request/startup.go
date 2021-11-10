@@ -44,7 +44,6 @@ func contains(s []string, e string) bool {
 	return false
 }
 
-// FIXME: is this even needed? All the error checking still happens in write
 func NewStartup(o frame.StringMap) Startup {
 	return Startup{o}
 }
