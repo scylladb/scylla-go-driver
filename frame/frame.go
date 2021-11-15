@@ -99,8 +99,8 @@ func ReadShort(b *bytes.Buffer) Short {
 
 // ReadInt reads and returns Int from the buffer.
 func ReadInt(b *bytes.Buffer) Int {
-	tmp := []byte{0, 0, 0, 0}
-	_, _ = b.Read(tmp)
+	tmp := [4]byte{0, 0, 0, 0}
+	_, _ = b.Read(tmp[:])
 	return Int(tmp[0])<<24 |
 		Int(tmp[1])<<16 |
 		Int(tmp[2])<<8 |
