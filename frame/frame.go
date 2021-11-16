@@ -116,11 +116,10 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 		return nil
 	}
 
-	var out Bytes
-	for i := Int(0); i < n; i++ {
-		out = append(out, ReadByte(b))
-	}
-	return out
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+
+	return tmp
 }
 
 // ReadConsistency reads Short if it is valid consistency

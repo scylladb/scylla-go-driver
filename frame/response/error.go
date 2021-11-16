@@ -6,11 +6,14 @@ import (
 )
 
 // Error response message type.
+// Used in non specified bellow errors, those
+// which don't have a body.
 type Error struct {
 	code    frame.Int
 	message string
 }
 
+// ReadError reads Error struct from buffer and constructs is.
 func ReadError(b *bytes.Buffer) Error {
 	return Error{
 		code:    frame.ReadInt(b),
@@ -25,6 +28,7 @@ type UnavailableErr struct {
 	alive       frame.Int
 }
 
+// ReadUnavailable reads UnavailableErr struct from buffer and constructs is.
 func ReadUnavailable(b *bytes.Buffer) UnavailableErr {
 	return UnavailableErr{
 		Error{
@@ -45,6 +49,7 @@ type WriteTimeoutErr struct {
 	writeType   string
 }
 
+// ReadWriteTimeout reads WriteTimeoutErr struct from buffer and constructs is.
 func ReadWriteTimeout(b *bytes.Buffer) WriteTimeoutErr {
 	return WriteTimeoutErr{
 		Error{
@@ -66,6 +71,7 @@ type ReadTimeoutErr struct {
 	dataPresent frame.Byte
 }
 
+// ReadRTimeout reads ReadTimeoutErr struct from buffer and constructs is.
 func ReadRTimeout(b *bytes.Buffer) ReadTimeoutErr {
 	return ReadTimeoutErr{
 		Error{
@@ -88,6 +94,7 @@ type ReadFailureErr struct {
 	dataPresent frame.Byte
 }
 
+// ReadRFailure reads ReadFailureErr struct from buffer and constructs is.
 func ReadRFailure(b *bytes.Buffer) ReadFailureErr {
 	return ReadFailureErr{
 		Error{
@@ -109,6 +116,7 @@ type FuncFailureErr struct {
 	argTypes frame.StringList
 }
 
+// ReadFuncFailure reads FuncFailureErr struct from buffer and constructs is.
 func ReadFuncFailure(b *bytes.Buffer) FuncFailureErr {
 	return FuncFailureErr{
 		Error{
@@ -130,6 +138,7 @@ type WriteFailureErr struct {
 	writeType   string
 }
 
+// ReadWriteFailure reads WriteFailureErr struct from buffer and constructs is.
 func ReadWriteFailure(b *bytes.Buffer) WriteFailureErr {
 	return WriteFailureErr{
 		Error{
@@ -150,6 +159,7 @@ type AlreadyExistsErr struct {
 	table    string
 }
 
+// ReadAlreadyExists reads AlreadyExistsErr struct from buffer and constructs is.
 func ReadAlreadyExists(b *bytes.Buffer) AlreadyExistsErr {
 	return AlreadyExistsErr{
 		Error{
@@ -166,6 +176,7 @@ type UnpreparedErr struct {
 	unknownID frame.Bytes
 }
 
+// ReadUnprepared reads UnpreparedErr struct from buffer and constructs is.
 func ReadUnprepared(b *bytes.Buffer) UnpreparedErr {
 	return UnpreparedErr{
 		Error{

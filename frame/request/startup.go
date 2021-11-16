@@ -56,7 +56,7 @@ func (s Startup) Write(b *bytes.Buffer) {
 
 	optNum := 1
 	for v, k := range possibleOptions {
-		if mv, ok := s.options[v]; ok && !contains(k, mv) {
+		if mv, ok := s.options[v]; ok && len(mv) != 0 && !contains(k, mv) {
 			panic(possibleOptionWrongKey)
 		} else if ok {
 			optNum++
