@@ -205,3 +205,14 @@ func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 	}
 	return m
 }
+
+// ----------------------- HELPER FUNCTIONS ---------------------
+
+func Contains(s StringList, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
+}

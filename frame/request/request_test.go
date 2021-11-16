@@ -10,13 +10,13 @@ import (
 // ------------------------------- STARTUP TESTS -----------------------------
 
 func StringMapEqual(a, b frame.StringMap) bool {
-	for v, k := range a {
-		if mv, ok := b[v]; !(ok && mv == k) {
+	for k, v := range a {
+		if mv, ok := b[k]; !(ok && mv == v) {
 			return false
 		}
 	}
-	for v, k := range b {
-		if mv, ok := a[v]; !(ok && mv == k) {
+	for k, v := range b {
+		if mv, ok := a[k]; !(ok && mv == v) {
 			return false
 		}
 	}
@@ -28,29 +28,35 @@ func TestWriteStartup(t *testing.T) {
 		name     string
 		content  Startup
 	}{
-		{"mandatory options only",
+		{"mandatory only",
 			Startup{
-			options: frame.StringMap{
-				"CQL_VERSION": "3.0.0",
+				options: frame.StringMap{
+					"CQL_VERSION": "3.0.0",
 				},
 			},
 		},
-		{"mandatory + some possible options",
+		{"compression",
 			Startup{
 				options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 					"COMPRESSION": "lz4",
-					"THROW_ON_OVERLOAD": "",
 				},
 			},
 		},
-		{"all possible options",
+		{"custom option",
 			Startup{
 				options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
-					"COMPRESSION": "snappy",
-					"THROW_ON_OVERLOAD": "",
-					"NO_COMPACT": "",
+					"CUSTOM_OPT1": "VALUE1",
+				},
+			},
+		},
+		{"custom option + compression",
+			Startup{
+				options: frame.StringMap{
+					"CQL_VERSION": "3.0.0",
+					"CUSTOM_OPT1": "VALUE1",
+					"COMPRESSION": "lz4",
 				},
 			},
 		},
@@ -58,7 +64,6 @@ func TestWriteStartup(t *testing.T) {
 
 	var buf bytes.Buffer
 	for _, tc := range cases {
-
 		t.Run(fmt.Sprintf("Short writing test %s", tc.name), func(t *testing.T) {
 			tc.content.Write(&buf)
 			readOptions := frame.ReadStringMap(&buf)
