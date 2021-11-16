@@ -16,23 +16,19 @@ var possibleOptionWrongKey = errors.New("possible option has invalid key in star
 
 // Mandatory values and keys that can be given in Startup body
 // value in the map means option name and key means its possible values
-var mandatoryOptions = map[string][]string{
+var mandatoryOptions = frame.StringMultiMap {
 	"CQL_VERSION": {"3.0.0"},
 }
 
 // Mandatory values and keys that can be given in Startup body
 // value in the map means option name and key means its possible values
-var possibleOptions = map[string][]string{
+var possibleOptions = frame.StringMultiMap {
 	"COMPRESSION": {
 		"lz4",
 		"snappy",
 	},
 	"NO_COMPACT":        {},
 	"THROW_ON_OVERLOAD": {},
-}
-
-func NewStartup(o frame.StringMap) Startup {
-	return Startup{o}
 }
 
 // WriteStartup checks validity of given StringMap and
@@ -45,7 +41,7 @@ func (s Startup) Write(b *bytes.Buffer) {
 	}
 
 	for k, v := range possibleOptions {
-		if mv, ok := s.options[k]; ok && len(mv) != 0 && !frame.Contains(v, mv) {
+		if mv, ok := s.options[k]; ok && !frame.Contains(v, mv) {
 			panic(possibleOptionWrongKey)
 		}
 	}
