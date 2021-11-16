@@ -35,12 +35,10 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 		return
 	}
 
-	// Writes length of the string list.
+	// Writes length of the bytes.
 	WriteInt(Int(len(t)), b)
-	// Writes consecutive strings.
-	for _, s := range t {
-		WriteByte(s, b)
-	}
+	// Writes bytes to the buffer.
+	b.Write(t)
 }
 
 // WriteString writes single string to the buffer.
