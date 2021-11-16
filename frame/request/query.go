@@ -17,11 +17,16 @@ const (
 )
 
 // Query request type message.
+type Query struct {
+	Query       string
+	Consistency frame.Short
+	Options     QueryOptions
+}
+
+// QueryOptions represents optional values defined by flags.
 // Consists of values required for all flags.
 // Values for unset flags are uninitialized.
-type Query struct {
-	Query             string
-	Consistency       frame.Short
+type QueryOptions struct {
 	Flags             frame.Byte
 	Values            []frame.Value
 	Names             []string
@@ -35,6 +40,11 @@ type Query struct {
 func (q Query) Write(b *bytes.Buffer) {
 	frame.WriteLongString(q.Query, b)
 	frame.WriteShort(q.Consistency, b)
+	q.Options.Write(b)
+}
+
+// Write writes QueryOptions to the buffer.
+func (q QueryOptions) Write(b *bytes.Buffer) {
 	frame.WriteByte(q.Flags, b)
 	// Checks the flags and writes values correspondent to the ones that are set.
 	if values&q.Flags != 0 {
