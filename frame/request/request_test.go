@@ -41,7 +41,7 @@ func TestAuthResponseWriteTo(t *testing.T) {
 			ar.WriteTo(out)
 
 			if bytesEqual(out.Bytes(), tc.expected) {
-				t.Fatal("Failure while constructing 'Unavailable' error.")
+				t.Fatal("Failure while encoding and decoding AuthResponse.")
 			}
 		})
 	}
