@@ -55,6 +55,16 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 	b.Write(t)
 }
 
+// WriteShortBytes writes Bytes to the buffer.
+// If Bytes is nil then writes -1 to the buffer.
+func WriteShortBytes(t Bytes, b *bytes.Buffer) {
+	// Writes length of the bytes.
+	WriteShort(Short(len(t)), b)
+
+	// Writes bytes to the buffer.
+	b.Write(t)
+}
+
 // WriteValue writes Value to the buffer.
 func WriteValue(v Value, b *bytes.Buffer) {
 	// Writes length of the value.
@@ -163,6 +173,21 @@ func ReadLong(b *bytes.Buffer) Long {
 func ReadBytes(b *bytes.Buffer) Bytes {
 	// Reads length of the Bytes.
 	n := ReadInt(b)
+	if n < 0 {
+		return nil
+	}
+
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+
+	return tmp
+}
+
+// ReadShortBytes reads Bytes from the buffer.
+// If read Bytes length is negative returns nil.
+func ReadShortBytes(b *bytes.Buffer) Bytes {
+	// Reads length of the Bytes.
+	n := ReadShort(b)
 	if n < 0 {
 		return nil
 	}

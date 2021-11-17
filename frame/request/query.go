@@ -37,14 +37,14 @@ type QueryOptions struct {
 }
 
 // Write writes Query to the buffer.
-func (q Query) Write(b *bytes.Buffer) {
+func (q Query) WriteTo(b *bytes.Buffer) {
 	frame.WriteLongString(q.Query, b)
 	frame.WriteShort(q.Consistency, b)
-	q.Options.Write(b)
+	q.Options.WriteTo(b)
 }
 
 // Write writes QueryOptions to the buffer.
-func (q QueryOptions) Write(b *bytes.Buffer) {
+func (q QueryOptions) WriteTo(b *bytes.Buffer) {
 	frame.WriteByte(q.Flags, b)
 	// Checks the flags and writes values correspondent to the ones that are set.
 	if values&q.Flags != 0 {

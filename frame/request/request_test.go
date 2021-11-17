@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"scylla-go-driver/frame"
 	"testing"
 )
 
-func bytesEqual(a , b []byte) bool {
+func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -83,7 +84,6 @@ func TestAuthResponseWriteTo(t *testing.T) {
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
-
 	}
 
 	for _, tc := range cases {
@@ -216,7 +216,7 @@ func TestQuery(t *testing.T) {
 	for _, v := range cases {
 		t.Run("TestQuery: "+v.name+".", func(t *testing.T) {
 			b := bytes.Buffer{}
-			v.content.Write(&b)
+			v.content.WriteTo(&b)
 			if !bytes.Equal(v.expected, b.Bytes()) {
 				t.Fatal("Writing Query request to buffer failed.")
 			}
@@ -234,12 +234,11 @@ func TestRegister(t *testing.T) {
 	}{
 		{"Should encode and decode",
 			frame.StringList{"TOPOLOGY_CHANGE", "STATUS_CHANGE", "SCHEMA_CHANGE"},
-			[]byte{0x0f, 0x00, 0x54, 0x4f, 0x50, 0x4f, 0x4c, 0x4f, 0x47, 0x59, 0x5f,  0x43,
-							0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
-							0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41,
-							0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
+			[]byte{0x0f, 0x00, 0x54, 0x4f, 0x50, 0x4f, 0x4c, 0x4f, 0x47, 0x59, 0x5f, 0x43,
+				0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
+				0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41,
+				0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
 		},
-
 	}
 
 	var out bytes.Buffer
@@ -275,8 +274,8 @@ func StringMapEqual(a, b frame.StringMap) bool {
 
 func TestWriteStartup(t *testing.T) {
 	var cases = []struct {
-		name     string
-		content  Startup
+		name    string
+		content Startup
 	}{
 		{"mandatory only",
 			Startup{
@@ -327,3 +326,89 @@ func TestWriteStartup(t *testing.T) {
 	}
 }
 
+// ------------------------------- BATCH TESTS -----------------------------
+func valueEqual(a, b frame.Value) bool {
+	if a.N != b.N {
+		return false
+	}
+	return bytesEqual(a.Bytes, b.Bytes)
+}
+
+func TestBatch(t *testing.T) {
+	var cases = []struct {
+		name    string
+		content Batch
+	}{
+		{"Should encode and decode with v4.",
+			Batch{Type: 0, Flags: 0,
+				Queries:     []BatchQuery{{Kind: 0, Query: "SELECT * FROM foo"}},
+				Consistency: 0x01, SerialConsistency: 0x08,
+				Timestamp: frame.Long(math.MinInt64)}},
+	}
+
+	var buf bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("Batch test %s", tc.name), func(t *testing.T) {
+			tc.content.WriteTo(&buf)
+
+			if batchType := frame.ReadByte(&buf); batchType != tc.content.Type {
+				t.Fatal("Invalid type.")
+			}
+
+			n := frame.ReadShort(&buf)
+			if n != frame.Short(len(tc.content.Queries)) {
+				t.Fatal("Invalid n.")
+			}
+
+			for i := frame.Short(0); i < n; i++ {
+				if kind := frame.ReadByte(&buf); kind == 0 {
+
+					if que := frame.ReadLongString(&buf); que != tc.content.Queries[i].Query {
+						t.Fatal("Invalid query.")
+					}
+				} else if kind == 1 {
+					if prep := frame.ReadShortBytes(&buf); !bytesEqual(prep, tc.content.Queries[i].Prepared) {
+						t.Fatal("Invalid prepared.")
+					}
+				} else {
+					t.Fatal("Invalid kind.")
+				}
+
+				values := frame.ReadShort(&buf)
+				for j := frame.Short(0); j < values; j++ {
+					if tc.content.Flags&WithNamesForValues != 0 {
+						if name := frame.ReadString(&buf); name != tc.content.Queries[i].Names[j] {
+							t.Fatal("Invalid name.")
+						}
+					}
+					if val := frame.ReadValue(&buf); valueEqual(val, tc.content.Queries[i].Values[j]) {
+						t.Fatal("Invalid value.")
+					}
+				}
+			}
+
+			if cons := frame.ReadShort(&buf); cons != tc.content.Consistency {
+				t.Fatal("Invalid consistency.")
+			}
+
+			flag := frame.ReadByte(&buf)
+			if flag != tc.content.Flags {
+				t.Fatal("Invalid flag.")
+			}
+
+			if flag&serialConsistency != 0 {
+				if serCons := frame.ReadShort(&buf); serCons != tc.content.SerialConsistency {
+					t.Fatal("Invalid serial consistency.")
+				}
+			}
+
+			if flag&timestamp != 0 {
+				if time := frame.ReadLong(&buf); time != tc.content.Timestamp {
+					t.Fatal("Invalid time.")
+				}
+			}
+		})
+
+		buf.Reset()
+	}
+}
