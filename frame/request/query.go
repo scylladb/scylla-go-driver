@@ -48,6 +48,8 @@ func (q QueryOptions) Write(b *bytes.Buffer) {
 	frame.WriteByte(q.Flags, b)
 	// Checks the flags and writes values correspondent to the ones that are set.
 	if values&q.Flags != 0 {
+		// Writes amount of values.
+		frame.WriteShort(frame.Short(len(q.Values)), b)
 		if namedValues&q.Flags != 0 {
 			for i := range q.Names {
 				frame.WriteString(q.Names[i], b)
