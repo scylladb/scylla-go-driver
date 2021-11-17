@@ -9,15 +9,15 @@ import (
 // Used in non specified bellow errors, those
 // which don't have a body.
 type Error struct {
-	code    frame.Int
-	message string
+	Code    frame.Int
+	Message string
 }
 
 // ReadError reads Error struct from buffer and constructs is.
 func ReadError(b *bytes.Buffer) Error {
 	return Error{
-		code:    frame.ReadInt(b),
-		message: frame.ReadString(b),
+		Code:    frame.ReadInt(b),
+		Message: frame.ReadString(b),
 	}
 }
 
@@ -32,8 +32,8 @@ type UnavailableErr struct {
 func ReadUnavailable(b *bytes.Buffer) UnavailableErr {
 	return UnavailableErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadConsistency(b),
 		frame.ReadInt(b),
@@ -53,8 +53,8 @@ type WriteTimeoutErr struct {
 func ReadWriteTimeout(b *bytes.Buffer) WriteTimeoutErr {
 	return WriteTimeoutErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadConsistency(b),
 		frame.ReadInt(b),
@@ -75,8 +75,8 @@ type ReadTimeoutErr struct {
 func ReadRTimeout(b *bytes.Buffer) ReadTimeoutErr {
 	return ReadTimeoutErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadConsistency(b),
 		frame.ReadInt(b),
@@ -98,8 +98,8 @@ type ReadFailureErr struct {
 func ReadRFailure(b *bytes.Buffer) ReadFailureErr {
 	return ReadFailureErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadConsistency(b),
 		frame.ReadInt(b),
@@ -120,8 +120,8 @@ type FuncFailureErr struct {
 func ReadFuncFailure(b *bytes.Buffer) FuncFailureErr {
 	return FuncFailureErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadString(b),
 		frame.ReadString(b),
@@ -142,8 +142,8 @@ type WriteFailureErr struct {
 func ReadWriteFailure(b *bytes.Buffer) WriteFailureErr {
 	return WriteFailureErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadConsistency(b),
 		frame.ReadInt(b),
@@ -163,8 +163,8 @@ type AlreadyExistsErr struct {
 func ReadAlreadyExists(b *bytes.Buffer) AlreadyExistsErr {
 	return AlreadyExistsErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadString(b),
 		frame.ReadString(b),
@@ -180,8 +180,8 @@ type UnpreparedErr struct {
 func ReadUnprepared(b *bytes.Buffer) UnpreparedErr {
 	return UnpreparedErr{
 		Error{
-			code:    frame.ReadInt(b),
-			message: frame.ReadString(b),
+			Code:    frame.ReadInt(b),
+			Message: frame.ReadString(b),
 		},
 		frame.ReadBytes(b),
 	}
