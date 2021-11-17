@@ -183,6 +183,21 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 	return tmp
 }
 
+// ReadShortBytes reads Bytes from the buffer.
+// If read Bytes length is negative returns nil.
+func ReadShortBytes(b *bytes.Buffer) Bytes {
+	// Reads length of the Bytes.
+	n := ReadShort(b)
+	if n < 0 {
+		return nil
+	}
+
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+
+	return tmp
+}
+
 // ReadValue reads and return Value from the buffer.
 // Length equal to -1 represents null.
 // Length equal to -2 represents not set.

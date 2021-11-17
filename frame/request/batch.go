@@ -20,6 +20,7 @@ type Batch struct {
 
 func (q Batch) WriteTo(b *bytes.Buffer) {
 	frame.WriteByte(q.Type, b)
+
 	// Write number of queries.
 	frame.WriteShort(frame.Short(len(q.Queries)), b)
 	for _, k := range q.Queries {
@@ -51,6 +52,7 @@ func (q BatchQuery) WriteTo(b *bytes.Buffer, name bool) {
 	} else {
 		frame.WriteShortBytes(q.Prepared, b)
 	}
+
 	// Write number of values.
 	frame.WriteShort(frame.Short(len(q.Values)), b)
 	for i, v := range q.Values {
