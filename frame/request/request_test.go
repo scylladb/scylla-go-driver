@@ -36,7 +36,7 @@ func TestAuthResponseWriteTo(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
-			ar := NewAuthResponse(tc.content)
+			ar := AuthResponse{tc.content}
 			out := new(bytes.Buffer)
 			ar.WriteTo(out)
 
