@@ -205,7 +205,7 @@ func ReadInet(b *bytes.Buffer) Inet {
 		panic(invalidIPLength)
 	}
 	// Reads IP address.
-	tmp := make([]Byte, n)
+	tmp := make(Bytes, n)
 	_, _ = b.Read(tmp)
 	return Inet{tmp, ReadInt(b)}
 }
@@ -247,7 +247,7 @@ func ReadWriteType(b *bytes.Buffer) string {
 func ReadString(b *bytes.Buffer) string {
 	// Reads length of the string.
 	n := ReadShort(b)
-	// Placeholder for read Bytes.
+	// Placeholder for read bytes.
 	tmp := make([]byte, n)
 	_, _ = b.Read(tmp)
 	return string(tmp)
