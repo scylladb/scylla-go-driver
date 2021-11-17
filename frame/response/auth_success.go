@@ -6,9 +6,10 @@ import (
 )
 
 type AuthSuccess struct {
-	bytes frame.Bytes
+	Bytes frame.Bytes
 }
 
+// ReadAuthSuccess reads CQL Bytes type into AuthSuccess.
 func ReadAuthSuccess(b *bytes.Buffer) AuthSuccess {
-	return AuthSuccess{bytes: frame.ReadBytes(b)}
+	return AuthSuccess{Bytes: frame.ReadBytes(b)}
 }

@@ -8,6 +8,19 @@ import (
 	"testing"
 )
 
+func bytesEqual(a , b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, _ := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
 // ------------------------------- ERROR TESTS --------------------------------
 
 func ErrToBytes(err Error) []byte {
@@ -387,7 +400,6 @@ func TestUnprepared(t *testing.T) {
 }
 
 // ------------------------------- AUTHENTICATE TESTS --------------------------------
-
 func TestAuthenticateEncodeDecode(t *testing.T) {
 	var cases = []struct {
 		name     string
@@ -412,6 +424,31 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 
 			if out.Len() != 0 {
 				t.Fatal ("Failure buffer not empty after read.")
+			}
+		})
+	}
+}
+
+// ------------------------------- AUTH SUCCESS TESTS --------------------------------
+func TestAuthSuccessEncodeDecode(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected []byte
+	}{
+		{"Should encode and decode",
+			[]byte{0x04, 0x00, 0x00, 0x00, 0xca, 0xfe, 0xba, 0xbe},
+			[]byte{0xca, 0xfe, 0xba, 0xbe},
+		},
+
+	}
+
+	var out bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
+			a := ReadAuthSuccess(&out)
+			if bytesEqual(a.Bytes, tc.expected) {
+				t.Fatal("Failure while encoding and decoding AuthResponse.")
 			}
 		})
 	}
