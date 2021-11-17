@@ -3,6 +3,7 @@ package request
 import (
 	"bytes"
 	"fmt"
+	"scylla-go-driver/frame"
 	"testing"
 )
 
@@ -44,5 +45,38 @@ func TestAuthResponseWriteTo(t *testing.T) {
 				t.Fatal("Failure while encoding and decoding AuthResponse.")
 			}
 		})
+	}
+}
+
+// ------------------------------- REGISTER TESTS --------------------------------
+
+func TestRegister(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  frame.StringList
+		expected []byte
+	}{
+		{"Should encode and decode",
+			frame.StringList{"TOPOLOGY_CHANGE", "STATUS_CHANGE", "SCHEMA_CHANGE"},
+			[]byte{0x0f, 0x00, 0x54, 0x4f, 0x50, 0x4f, 0x4c, 0x4f, 0x47, 0x59, 0x5f,  0x43,
+							0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
+							0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41,
+							0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
+		},
+
+	}
+
+	var out bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
+			r := Register{tc.content}
+			r.WriteTo(&out)
+
+			if bytesEqual(out.Bytes(), tc.expected) {
+				t.Fatal("Failure while encoding and decoding AuthResponse.")
+			}
+		})
+
+		out.Reset()
 	}
 }
