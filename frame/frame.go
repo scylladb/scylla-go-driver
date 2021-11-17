@@ -55,6 +55,16 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 	b.Write(t)
 }
 
+// WriteShortBytes writes Bytes to the buffer.
+// If Bytes is nil then writes -1 to the buffer.
+func WriteShortBytes(t Bytes, b *bytes.Buffer) {
+	// Writes length of the bytes.
+	WriteShort(Short(len(t)), b)
+
+	// Writes bytes to the buffer.
+	b.Write(t)
+}
+
 // WriteValue writes Value to the buffer.
 func WriteValue(v Value, b *bytes.Buffer) {
 	// Writes length of the value.
