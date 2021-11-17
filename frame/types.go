@@ -16,6 +16,16 @@ type (
 	StringMap      = map[string]string
 	StringList     = []string
 
+	Value struct {
+		N     Int
+		Bytes Bytes
+	}
+
+	Inet struct {
+		IP   Bytes
+		Port Int
+	}
+
 	Bytes = []byte
 
 	OpCode = byte
@@ -59,6 +69,11 @@ const (
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 
-var protocolVersionErr = errors.New("frame protocol version is not supported")
-var unknownConsistencyErr = errors.New("unknown consistency")
-var unknownWriteTypeErr = errors.New("unknown write type")
+// Errors that might occur during parsing.
+var (
+	protocolVersionErr    = errors.New("frame protocol version is not supported")
+	unknownConsistencyErr = errors.New("unknown consistency")
+	unknownWriteTypeErr   = errors.New("unknown write type")
+	invalidValueLength    = errors.New("valid Value length is greater from or equal to -2")
+	invalidIPLength       = errors.New("the only valid IP lengths are either 4 (IP4) or 16 (IP6)")
+)
