@@ -26,8 +26,8 @@ func bytesEqual(a, b []byte) bool {
 
 func ErrToBytes(err Error) []byte {
 	var out bytes.Buffer
-	frame.WriteInt(err.code, &out)
-	frame.WriteString(err.message, &out)
+	frame.WriteInt(err.Code, &out)
+	frame.WriteString(err.Message, &out)
 	return out.Bytes()
 }
 
