@@ -49,12 +49,10 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 		return
 	}
 
-	// Writes length of the string list.
+	// Writes length of the bytes.
 	WriteInt(Int(len(t)), b)
-	// Writes consecutive strings.
-	for _, s := range t {
-		WriteByte(s, b)
-	}
+	// Writes bytes to the buffer.
+	b.Write(t)
 }
 
 // WriteValue writes Value to the buffer.
@@ -169,11 +167,10 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 		return nil
 	}
 
-	var out Bytes
-	for i := Int(0); i < n; i++ {
-		out = append(out, ReadByte(b))
-	}
-	return out
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+
+	return tmp
 }
 
 // ReadValue reads and return Value from the buffer.
@@ -304,4 +301,15 @@ func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 		m[k] = l
 	}
 	return m
+}
+
+// ----------------------- HELPER FUNCTIONS ---------------------
+
+func Contains(s StringList, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
