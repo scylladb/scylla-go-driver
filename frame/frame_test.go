@@ -428,8 +428,8 @@ func TestReadHeader(t *testing.T) {
 // That's the reason why functions assign value to it.
 var result Int
 
-// fullBuffer creates and returns buffer of length n
-// that is filled with bytes of consecutive values.
+// fullBuffer creates and returns buffer of length N
+// that is filled with Bytes of consecutive values.
 func fullBuffer(n int) *bytes.Buffer {
 	buf := &bytes.Buffer{}
 	for i := 0; i <= n; i++ {
@@ -439,7 +439,7 @@ func fullBuffer(n int) *bytes.Buffer {
 }
 
 // ReadIntWithSlice reads and returns Int by reading
-// all four bytes at once to allocated byte slice.
+// all four Bytes at once to allocated byte slice.
 func ReadIntWithSlice(b *bytes.Buffer) Int {
 	tmp := make([]byte, 4)
 	_, _ = b.Read(tmp)
@@ -450,7 +450,7 @@ func ReadIntWithSlice(b *bytes.Buffer) Int {
 }
 
 // ReadIntWithSlice reads and returns Int by reading
-// all four bytes at once to allocated byte slice.
+// all four Bytes at once to allocated byte slice.
 func ReadIntWithSliceNoAlloc(b *bytes.Buffer) Int {
 	tmp := []byte{0, 0, 0, 0}
 	_, _ = b.Read(tmp)
@@ -461,7 +461,7 @@ func ReadIntWithSliceNoAlloc(b *bytes.Buffer) Int {
 }
 
 // ReadIntWithSlice reads and returns Int by reading
-// all four bytes at once to allocated byte slice.
+// all four Bytes at once to allocated byte slice.
 func ReadIntWithArray(b *bytes.Buffer) Int {
 	tmp := [4]byte{0, 0, 0, 0}
 	_, _ = b.Read(tmp[:])
@@ -472,7 +472,7 @@ func ReadIntWithArray(b *bytes.Buffer) Int {
 }
 
 // ReadShortWithSlice reads and returns Short by reading
-// all two bytes at once to allocated byte slice.
+// all two Bytes at once to allocated byte slice.
 func ReadShortWithSlice(b *bytes.Buffer) Short {
 	tmp := make([]byte, 2)
 	_, _ = b.Read(tmp)
@@ -480,7 +480,7 @@ func ReadShortWithSlice(b *bytes.Buffer) Short {
 }
 
 // ReadShortWithSlice reads and returns Short by reading
-// all two bytes at once to allocated byte slice.
+// all two Bytes at once to allocated byte slice.
 func ReadShortWithSliceNoAlloc(b *bytes.Buffer) Short {
 	tmp := []byte{0, 0}
 	_, _ = b.Read(tmp)
