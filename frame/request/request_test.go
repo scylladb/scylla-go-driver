@@ -279,14 +279,14 @@ func TestWriteStartup(t *testing.T) {
 	}{
 		{"mandatory only",
 			Startup{
-				options: frame.StringMap{
+				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 				},
 			},
 		},
 		{"compression",
 			Startup{
-				options: frame.StringMap{
+				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 					"COMPRESSION": "lz4",
 				},
@@ -294,7 +294,7 @@ func TestWriteStartup(t *testing.T) {
 		},
 		{"custom option",
 			Startup{
-				options: frame.StringMap{
+				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 					"CUSTOM_OPT1": "VALUE1",
 				},
@@ -302,7 +302,7 @@ func TestWriteStartup(t *testing.T) {
 		},
 		{"custom option + compression",
 			Startup{
-				options: frame.StringMap{
+				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 					"CUSTOM_OPT1": "VALUE1",
 					"COMPRESSION": "lz4",
@@ -317,7 +317,7 @@ func TestWriteStartup(t *testing.T) {
 			tc.content.WriteTo(&buf)
 			readOptions := frame.ReadStringMap(&buf)
 
-			if !StringMapEqual(readOptions, tc.content.options) {
+			if !StringMapEqual(readOptions, tc.content.Options) {
 				t.Fatal("Failure while constructing Startup.")
 			}
 		})

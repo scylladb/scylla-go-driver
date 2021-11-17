@@ -8,7 +8,7 @@ import (
 
 // Startup response message type.
 type Startup struct {
-	options frame.StringMap
+	Options frame.StringMap
 }
 
 var mandatoryOptionNotIncluded = errors.New("mandatory option has not been included in startup body")
@@ -35,16 +35,16 @@ var possibleOptions = frame.StringMultiMap{
 // if everything checks out then writes it into a buffer
 func (s Startup) WriteTo(b *bytes.Buffer) {
 	for k, v := range mandatoryOptions {
-		if mv, ok := s.options[k]; !(ok && frame.Contains(v, mv)) {
+		if mv, ok := s.Options[k]; !(ok && frame.Contains(v, mv)) {
 			panic(mandatoryOptionNotIncluded)
 		}
 	}
 
 	for k, v := range possibleOptions {
-		if mv, ok := s.options[k]; ok && !frame.Contains(v, mv) {
+		if mv, ok := s.Options[k]; ok && !frame.Contains(v, mv) {
 			panic(possibleOptionWrongKey)
 		}
 	}
 
-	frame.WriteStringMap(s.options, b)
+	frame.WriteStringMap(s.Options, b)
 }
