@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-func bytesEqual(a , b []byte) bool {
+func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i, _ := range a {
+	for i := range a {
 		if a[i] != b[i] {
 			return false
 		}
@@ -287,7 +287,6 @@ func TestFuncFailure(t *testing.T) {
 			buf.Write(tc.content)
 			out := ReadFuncFailure(&buf)
 
-			// TODO are reflections in tests permitted?
 			if !reflect.DeepEqual(out, tc.expected) {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
@@ -411,7 +410,6 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 			[]byte{0x00, 0x11, 0x4d, 0x6f, 0x63, 0x6b, 0x41, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74, 0x6f, 0x72},
 			"MockAuthenticator",
 		},
-
 	}
 
 	var out bytes.Buffer
@@ -424,7 +422,7 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 			}
 
 			if out.Len() != 0 {
-				t.Fatal ("Failure buffer not empty after read.")
+				t.Fatal("Failure buffer not empty after read.")
 			}
 		})
 	}
@@ -525,7 +523,6 @@ func TestSchemaChangeEvent(t *testing.T) {
 	}
 }
 
-
 // ------------------------------- AUTH SUCCESS TESTS --------------------------------
 func TestAuthSuccessEncodeDecode(t *testing.T) {
 	var cases = []struct {
@@ -537,7 +534,6 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 			[]byte{0x04, 0x00, 0x00, 0x00, 0xca, 0xfe, 0xba, 0xbe},
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
-
 	}
 
 	var out bytes.Buffer

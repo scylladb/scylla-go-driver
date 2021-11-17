@@ -13,7 +13,7 @@ func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
-	for i, _ := range a {
+	for i := range a {
 		if a[i] != b[i] {
 			return false
 		}
@@ -113,7 +113,7 @@ func TestPrepare(t *testing.T) {
 	for _, v := range cases {
 		t.Run("TestPrepare: "+v.name+".", func(t *testing.T) {
 			b := bytes.Buffer{}
-			v.content.Write(&b)
+			v.content.WriteTo(&b)
 			if !bytes.Equal(v.expected, b.Bytes()) {
 				t.Fatal("Writing Prepare request to buffer failed.")
 			}
@@ -314,7 +314,7 @@ func TestWriteStartup(t *testing.T) {
 	var buf bytes.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Short writing test %s", tc.name), func(t *testing.T) {
-			tc.content.Write(&buf)
+			tc.content.WriteTo(&buf)
 			readOptions := frame.ReadStringMap(&buf)
 
 			if !StringMapEqual(readOptions, tc.content.options) {

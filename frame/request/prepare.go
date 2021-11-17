@@ -11,6 +11,6 @@ type Prepare struct {
 }
 
 // Write writes Prepare to the buffer.
-func (p Prepare) Write(b *bytes.Buffer) {
+func (p Prepare) WriteTo(b *bytes.Buffer) {
 	frame.WriteLongString(p.Query, b)
 }

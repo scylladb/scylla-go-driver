@@ -6,12 +6,12 @@ import (
 )
 
 type Execute struct {
-	ID frame.Bytes
+	ID      frame.Bytes
 	Options QueryOptions
 }
 
 // WriteTo writes Query ID and QueryOptions into the bytes.Buffer.
-func (e Execute) WriteTo (b *bytes.Buffer) {
+func (e Execute) WriteTo(b *bytes.Buffer) {
 	_, _ = b.Write(e.ID)
 	e.Options.WriteTo(b)
 }

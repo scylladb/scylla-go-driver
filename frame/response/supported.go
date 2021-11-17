@@ -12,6 +12,5 @@ type Supported struct {
 
 // ReadSupported reads and returns Supported from the buffer.
 func ReadSupported(b *bytes.Buffer) Supported {
-	m := frame.ReadStringMultiMap(b)
-	return Supported{m}
+	return Supported{options: frame.ReadStringMultiMap(b)}
 }

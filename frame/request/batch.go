@@ -5,7 +5,6 @@ import (
 	"scylla-go-driver/frame"
 )
 
-
 const (
 	// Flag for BatchQuery. Values will have its names.
 	WithNamesForValues = 0x40
