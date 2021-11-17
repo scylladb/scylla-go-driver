@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func bytesEqual(a , b []byte) bool {
+func bytesEqual(a, b []byte) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -84,7 +84,6 @@ func TestAuthResponseWriteTo(t *testing.T) {
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
-
 	}
 
 	for _, tc := range cases {
@@ -235,12 +234,11 @@ func TestRegister(t *testing.T) {
 	}{
 		{"Should encode and decode",
 			frame.StringList{"TOPOLOGY_CHANGE", "STATUS_CHANGE", "SCHEMA_CHANGE"},
-			[]byte{0x0f, 0x00, 0x54, 0x4f, 0x50, 0x4f, 0x4c, 0x4f, 0x47, 0x59, 0x5f,  0x43,
-							0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
-							0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41,
-							0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
+			[]byte{0x0f, 0x00, 0x54, 0x4f, 0x50, 0x4f, 0x4c, 0x4f, 0x47, 0x59, 0x5f, 0x43,
+				0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x54, 0x41, 0x54, 0x55, 0x53, 0x5f,
+				0x43, 0x48, 0x41, 0x4e, 0x47, 0x45, 0x0d, 0x00, 0x53, 0x43, 0x48, 0x45, 0x4d, 0x41,
+				0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
 		},
-
 	}
 
 	var out bytes.Buffer
@@ -276,8 +274,8 @@ func StringMapEqual(a, b frame.StringMap) bool {
 
 func TestWriteStartup(t *testing.T) {
 	var cases = []struct {
-		name     string
-		content  Startup
+		name    string
+		content Startup
 	}{
 		{"mandatory only",
 			Startup{
@@ -338,14 +336,14 @@ func valueEqual(a, b frame.Value) bool {
 
 func TestBatch(t *testing.T) {
 	var cases = []struct {
-		name     string
-		content  Batch
+		name    string
+		content Batch
 	}{
 		{"Should encode and decode with v4.",
 			Batch{Type: 0, Flags: 0,
-				Queries: []BatchQuery{{Kind: 0, Query: "SELECT * FROM foo"}},
+				Queries:     []BatchQuery{{Kind: 0, Query: "SELECT * FROM foo"}},
 				Consistency: 0x01, SerialConsistency: 0x08,
-			Timestamp: frame.Long(math.MinInt64)}},
+				Timestamp: frame.Long(math.MinInt64)}},
 	}
 
 	var buf bytes.Buffer
@@ -353,12 +351,12 @@ func TestBatch(t *testing.T) {
 		t.Run(fmt.Sprintf("Batch test %s", tc.name), func(t *testing.T) {
 			tc.content.WriteTo(&buf)
 
-			if 	batchType := frame.ReadByte(&buf); batchType != tc.content.Type {
+			if batchType := frame.ReadByte(&buf); batchType != tc.content.Type {
 				t.Fatal("Invalid type.")
 			}
 
-			n := frame.ReadShort(&buf);
-			if  n != frame.Short(len(tc.content.Queries)) {
+			n := frame.ReadShort(&buf)
+			if n != frame.Short(len(tc.content.Queries)) {
 				t.Fatal("Invalid n.")
 			}
 
@@ -383,18 +381,17 @@ func TestBatch(t *testing.T) {
 							t.Fatal("Invalid name.")
 						}
 					}
-					if val := frame.ReadValue(&buf); valueEqual(val,tc.content.Queries[i].Values[j]) {
+					if val := frame.ReadValue(&buf); valueEqual(val, tc.content.Queries[i].Values[j]) {
 						t.Fatal("Invalid value.")
 					}
 				}
 			}
 
-
 			if cons := frame.ReadShort(&buf); cons != tc.content.Consistency {
 				t.Fatal("Invalid consistency.")
 			}
 
-			flag := frame.ReadByte(&buf);
+			flag := frame.ReadByte(&buf)
 			if flag != tc.content.Flags {
 				t.Fatal("Invalid flag.")
 			}

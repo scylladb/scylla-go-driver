@@ -5,19 +5,22 @@ import (
 	"scylla-go-driver/frame"
 )
 
+
 const (
+	// Flag for BatchQuery. Values will have its names.
 	WithNamesForValues = 0x40
 )
 
 type Batch struct {
-	Type frame.Byte
-	Flags frame.Byte
-	Queries []BatchQuery
-	Consistency frame.Short
+	Type              frame.Byte
+	Flags             frame.Byte
+	Queries           []BatchQuery
+	Consistency       frame.Short
 	SerialConsistency frame.Short
-	Timestamp frame.Long
+	Timestamp         frame.Long
 }
 
+// WriteTo writes Batch body into bytes.Buffer.
 func (q Batch) WriteTo(b *bytes.Buffer) {
 	frame.WriteByte(q.Type, b)
 
@@ -36,13 +39,12 @@ func (q Batch) WriteTo(b *bytes.Buffer) {
 	}
 }
 
-
 type BatchQuery struct {
-	Kind frame.Byte
-	Query string
+	Kind     frame.Byte
+	Query    string
 	Prepared frame.Bytes
-	Names frame.StringList
-	Values []frame.Value
+	Names    frame.StringList
+	Values   []frame.Value
 }
 
 func (q BatchQuery) WriteTo(b *bytes.Buffer, name bool) {
