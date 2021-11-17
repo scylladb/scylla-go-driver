@@ -188,7 +188,7 @@ func ReadValue(b *bytes.Buffer) Value {
 	}
 	// Reads value's body if there is any.
 	if n > 0 {
-		tmp := make([]Byte, n)
+		tmp := make(Bytes, n)
 		_, _ = b.Read(tmp)
 		return Value{n, tmp}
 	} else {

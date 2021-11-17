@@ -18,11 +18,11 @@ type (
 
 	Value struct {
 		N     Int
-		Bytes []Byte
+		Bytes Bytes
 	}
 
 	Inet struct {
-		IP   []Byte
+		IP   Bytes
 		Port Int
 	}
 

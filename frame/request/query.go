@@ -29,7 +29,7 @@ type Query struct {
 type QueryOptions struct {
 	Flags             frame.Byte
 	Values            []frame.Value
-	Names             []string
+	Names             frame.StringList
 	PageSize          frame.Int
 	PagingState       frame.Bytes
 	SerialConsistency frame.Short
