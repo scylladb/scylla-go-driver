@@ -9,8 +9,7 @@ type AuthResponse struct {
 	Token frame.Bytes
 }
 
-// WriteStartup checks validity of given StringMap and
-// if everything checks out then writes it into a buffer
+// WriteTo writes Token from AuthResponse into the bytes.Buffer.
 func (a AuthResponse) WriteTo(b *bytes.Buffer) {
 	frame.WriteBytes(a.Token, b)
 }
