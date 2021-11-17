@@ -353,26 +353,23 @@ func TestBatch(t *testing.T) {
 		t.Run(fmt.Sprintf("Batch test %s", tc.name), func(t *testing.T) {
 			tc.content.WriteTo(&buf)
 
-			batchType := frame.ReadByte(&buf)
-			if batchType != tc.content.Type {
+			if 	batchType := frame.ReadByte(&buf); batchType != tc.content.Type {
 				t.Fatal("Invalid type.")
 			}
 
-			n := frame.ReadShort(&buf)
-			if n != frame.Short(len(tc.content.Queries)){
+			n := frame.ReadShort(&buf);
+			if  n != frame.Short(len(tc.content.Queries)) {
 				t.Fatal("Invalid n.")
 			}
 
 			for i := frame.Short(0); i < n; i++ {
-				kind := frame.ReadByte(&buf)
-				if kind == 0 {
-					que := frame.ReadLongString(&buf)
-					if que != tc.content.Queries[i].Query {
+				if kind := frame.ReadByte(&buf); kind == 0 {
+
+					if que := frame.ReadLongString(&buf); que != tc.content.Queries[i].Query {
 						t.Fatal("Invalid query.")
 					}
 				} else if kind == 1 {
-					prep := frame.ReadShortBytes(&buf)
-					if !bytesEqual(prep, tc.content.Queries[i].Prepared) {
+					if prep := frame.ReadShortBytes(&buf); !bytesEqual(prep, tc.content.Queries[i].Prepared) {
 						t.Fatal("Invalid prepared.")
 					}
 				} else {
@@ -382,42 +379,37 @@ func TestBatch(t *testing.T) {
 				values := frame.ReadShort(&buf)
 				for j := frame.Short(0); j < values; j++ {
 					if tc.content.Flags&WithNamesForValues != 0 {
-						name := frame.ReadString(&buf)
-						if name != tc.content.Queries[i].Names[j] {
+						if name := frame.ReadString(&buf); name != tc.content.Queries[i].Names[j] {
 							t.Fatal("Invalid name.")
 						}
 					}
-					val := frame.ReadValue(&buf)
-					if valueEqual(val,tc.content.Queries[i].Values[j]) {
+					if val := frame.ReadValue(&buf); valueEqual(val,tc.content.Queries[i].Values[j]) {
 						t.Fatal("Invalid value.")
 					}
 				}
 			}
 
-			cons := frame.ReadShort(&buf)
-			if cons != tc.content.Consistency {
+
+			if cons := frame.ReadShort(&buf); cons != tc.content.Consistency {
 				t.Fatal("Invalid consistency.")
 			}
 
-			flag := frame.ReadByte(&buf)
+			flag := frame.ReadByte(&buf);
 			if flag != tc.content.Flags {
 				t.Fatal("Invalid flag.")
 			}
 
 			if flag&serialConsistency != 0 {
-				serCons := frame.ReadShort(&buf)
-				if serCons != tc.content.SerialConsistency {
+				if serCons := frame.ReadShort(&buf); serCons != tc.content.SerialConsistency {
 					t.Fatal("Invalid serial consistency.")
 				}
 			}
 
 			if flag&timestamp != 0 {
-				time := frame.ReadLong(&buf)
-				if time != tc.content.Timestamp {
+				if time := frame.ReadLong(&buf); time != tc.content.Timestamp {
 					t.Fatal("Invalid time.")
 				}
 			}
-
 		})
 
 		buf.Reset()
