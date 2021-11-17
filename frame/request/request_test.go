@@ -216,7 +216,7 @@ func TestQuery(t *testing.T) {
 	for _, v := range cases {
 		t.Run("TestQuery: "+v.name+".", func(t *testing.T) {
 			b := bytes.Buffer{}
-			v.content.Write(&b)
+			v.content.WriteTo(&b)
 			if !bytes.Equal(v.expected, b.Bytes()) {
 				t.Fatal("Writing Query request to buffer failed.")
 			}
