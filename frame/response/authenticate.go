@@ -6,9 +6,9 @@ import (
 )
 
 type Authenticate struct {
-	name string
+	Name string
 }
 
 func ReadAuthenticate(b *bytes.Buffer) Authenticate {
-	return Authenticate{name: frame.ReadString(b)}
+	return Authenticate{Name: frame.ReadString(b)}
 }

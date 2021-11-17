@@ -385,3 +385,34 @@ func TestUnprepared(t *testing.T) {
 		buf.Reset()
 	}
 }
+
+// ------------------------------- AUTHENTICATE TESTS --------------------------------
+
+func TestAuthenticateEncodeDecode(t *testing.T) {
+	var cases = []struct {
+		name     string
+		content  []byte
+		expected string
+	}{
+		{"Mock authenticator",
+			[]byte{0x00, 0x11, 0x4d, 0x6f, 0x63, 0x6b, 0x41, 0x75, 0x74, 0x68, 0x65, 0x6e, 0x74, 0x69, 0x63, 0x61, 0x74, 0x6f, 0x72},
+			"MockAuthenticator",
+		},
+
+	}
+
+	var out bytes.Buffer
+	for _, tc := range cases {
+		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
+			out.Write(tc.content)
+			a := ReadAuthenticate(&out)
+			if a.Name != tc.expected {
+				t.Fatal("Failure while encoding and decoding Authenticate.")
+			}
+
+			if out.Len() != 0 {
+				t.Fatal ("Failure buffer not empty after read.")
+			}
+		})
+	}
+}
