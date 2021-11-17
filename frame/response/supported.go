@@ -7,10 +7,10 @@ import (
 
 // Supported response message type.
 type Supported struct {
-	options frame.StringMultiMap
+	Options frame.StringMultiMap
 }
 
 // ReadSupported reads and returns Supported from the buffer.
 func ReadSupported(b *bytes.Buffer) Supported {
-	return Supported{options: frame.ReadStringMultiMap(b)}
+	return Supported{Options: frame.ReadStringMultiMap(b)}
 }
