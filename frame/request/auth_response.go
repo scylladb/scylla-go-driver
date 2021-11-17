@@ -6,7 +6,7 @@ import (
 )
 
 type AuthResponse struct {
-	token frame.Bytes
+	Token frame.Bytes
 }
 
 func NewAuthResponse(t frame.Bytes) AuthResponse {
@@ -15,6 +15,6 @@ func NewAuthResponse(t frame.Bytes) AuthResponse {
 
 // WriteStartup checks validity of given StringMap and
 // if everything checks out then writes it into a buffer
-func (a AuthResponse) Write(b *bytes.Buffer) {
-	frame.WriteBytes(a.token, b)
+func (a AuthResponse) WriteTo(b *bytes.Buffer) {
+	frame.WriteBytes(a.Token, b)
 }
