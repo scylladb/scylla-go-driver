@@ -27,7 +27,6 @@ func WriteInt(i Int, b *bytes.Buffer) {
 	})
 }
 
-
 // WriteLong writes single Long to the buffer.
 func WriteLong(l Long, b *bytes.Buffer) {
 	b.Write([]byte{
@@ -49,7 +48,6 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 		WriteInt(-1, b)
 		return
 	}
-
 	// Writes length of the bytes.
 	WriteInt(Int(len(t)), b)
 	// Writes bytes to the buffer.
@@ -177,7 +175,6 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 	if n < 0 {
 		return nil
 	}
-
 	tmp := make([]byte, n)
 	_, _ = b.Read(tmp)
 
@@ -336,4 +333,3 @@ func Contains(s StringList, e string) bool {
 	}
 	return false
 }
-

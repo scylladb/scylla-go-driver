@@ -25,7 +25,7 @@ type (
 		IP   Bytes
 		Port Int
 	}
-
+  
 	Bytes = []byte
 
 	OpCode = byte
