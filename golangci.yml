@@ -1,0 +1,59 @@
+run:
+  deadline: 5m
+  tests: false
+  skip-files:
+    - _gen\.go$
+    - _string\.go$
+    - mock_.*\.go$
+  silent: true
+
+linters-settings:
+  errcheck:
+    check-blank: true
+  gocognit:
+    min-complexity: 50
+  gocyclo:
+    min-complexity: 50
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+    disabled-checks:
+      - commentedOutCode
+      - evalOrder
+      - hugeParam
+      - importShadow
+      - regexpSimplify
+      - yodaStyleExpr
+      - whyNoLint
+  lll:
+    line-length: 180
+  nestif:
+    min-complexity: 6
+
+linters:
+  enable-all: true
+  disable:
+    - cyclop
+    - durationcheck
+    - exhaustive
+    - exhaustivestruct
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gas
+    - gochecknoglobals
+    - gochecknoinits
+    - goerr113
+    - gomnd
+    - ifshort
+    - interfacer
+    - maligned
+    - nilerr
+    - nlreturn
+    - nolintlint
+    - prealloc
+    - scopelint
+    - wrapcheck
+    - wsl
