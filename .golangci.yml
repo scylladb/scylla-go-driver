@@ -1,0 +1,61 @@
+run:
+  deadline: 5m
+  tests: true
+  skip-files:
+    - _gen\.go$
+    - _string\.go$
+    - mock_.*\.go$
+  silent: true
+
+linters-settings:
+  errcheck:
+    check-blank: true
+  gocognit:
+    min-complexity: 50
+  gocyclo:
+    min-complexity: 50
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+      - style
+
+  lll:
+    line-length: 180
+  nestif:
+    min-complexity: 6
+
+linters:
+  enable-all: true
+  disable:
+    - contextcheck
+    - cyclop
+    - durationcheck
+    - exhaustive
+    - exhaustivestruct
+    - forbidigo
+    - forcetypeassert
+    - funlen
+    - gas
+    - gci
+    - gochecknoglobals
+    - gochecknoinits
+    - goerr113
+    - gofumpt
+    - golint
+    - gomnd
+    - ifshort
+    - interfacer
+    - ireturn
+    - maligned
+    - nlreturn
+    - nolintlint
+    - prealloc
+    - promlinter
+    - scopelint
+    - tagliatelle
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+

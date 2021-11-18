@@ -1,0 +1,39 @@
+name: Sanity check
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - '*'
+      - main
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  sanity:
+    name: Sanity check
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Restore Module Cache
+        uses: actions/cache@v2
+        id: cache-go-modules
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.43
+
+      - name: Run tests
+        run: make test
+
