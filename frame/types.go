@@ -16,6 +16,16 @@ type (
 	StringMap      = map[string]string
 	StringList     = []string
 
+	Value struct {
+		N     Int
+		Bytes Bytes
+	}
+
+	Inet struct {
+		IP   Bytes
+		Port Int
+	}
+
 	Bytes = []byte
 
 	OpCode = byte
@@ -41,7 +51,29 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
+// Types of consistencies.
+const (
+	ANY          Short = 0x0000
+	ONE          Short = 0x0001
+	TWO          Short = 0x0002
+	THREE        Short = 0x0003
+	QUORUM       Short = 0x0004
+	ALL          Short = 0x0005
+	LOCAL_QUORUM Short = 0x0006
+	EACH_QUORUM  Short = 0x0007
+	SERIAL       Short = 0x0008
+	LOCAL_SERIAL Short = 0x0009
+	LOCAL_ONE    Short = 0x000A
+)
+
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 
-var protocolVersionErr = errors.New("frame protocol version is not supported")
+// Errors that might occur during parsing.
+var (
+	protocolVersionErr    = errors.New("frame protocol version is not supported")
+	unknownConsistencyErr = errors.New("unknown consistency")
+	unknownWriteTypeErr   = errors.New("unknown write type")
+	invalidValueLength    = errors.New("valid Value length is greater from or equal to -2")
+	invalidIPLength       = errors.New("the only valid IP lengths are either 4 (IP4) or 16 (IP6)")
+)

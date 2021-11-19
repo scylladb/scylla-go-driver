@@ -5,11 +5,7 @@ import (
 )
 
 // Options request message type.
-type Options struct {}
-
-// NewOptions creates and returns Options request.
-func NewOptions() Options {
-	return Options{}
+type Options struct {
 }
 
 // WriteOptions writes Options to the buffer.

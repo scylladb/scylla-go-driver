@@ -27,6 +27,20 @@ func WriteInt(i Int, b *bytes.Buffer) {
 	})
 }
 
+// WriteLong writes single Long to the buffer.
+func WriteLong(l Long, b *bytes.Buffer) {
+	b.Write([]byte{
+		byte(l >> 56),
+		byte(l >> 48),
+		byte(l >> 40),
+		byte(l >> 32),
+		byte(l >> 24),
+		byte(l >> 16),
+		byte(l >> 8),
+		byte(l),
+	})
+}
+
 // WriteBytes writes Bytes to the buffer.
 // If Bytes is nil then writes -1 to the buffer.
 func WriteBytes(t Bytes, b *bytes.Buffer) {
@@ -34,19 +48,51 @@ func WriteBytes(t Bytes, b *bytes.Buffer) {
 		WriteInt(-1, b)
 		return
 	}
-
-	// Writes length of the string list.
+	// Writes length of the bytes.
 	WriteInt(Int(len(t)), b)
-	// Writes consecutive strings.
-	for _, s := range t {
-		WriteByte(s, b)
+	// Writes bytes to the buffer.
+	b.Write(t)
+}
+
+// WriteShortBytes writes Bytes to the buffer.
+// If Bytes is nil then writes -1 to the buffer.
+func WriteShortBytes(t Bytes, b *bytes.Buffer) {
+	// Writes length of the bytes.
+	WriteShort(Short(len(t)), b)
+
+	// Writes bytes to the buffer.
+	b.Write(t)
+}
+
+// WriteValue writes Value to the buffer.
+func WriteValue(v Value, b *bytes.Buffer) {
+	// Writes length of the value.
+	WriteInt(v.N, b)
+	// Writes value's body if there is any.
+	if v.N > 0 {
+		b.Write(v.Bytes)
 	}
+}
+
+// WriteInet writes Inet to the buffer.
+func WriteInet(i Inet, b *bytes.Buffer) {
+	// Writes length of the IP address.
+	WriteByte(Byte(len(i.IP)), b)
+	b.Write(i.IP)
+	WriteInt(i.Port, b)
 }
 
 // WriteString writes single string to the buffer.
 func WriteString(s string, b *bytes.Buffer) {
 	// Writes length of the string.
 	WriteShort(Short(len(s)), b)
+	b.WriteString(s)
+}
+
+// WriteLongString writes single long string to the buffer.
+func WriteLongString(s string, b *bytes.Buffer) {
+	// Writes length of the long string.
+	WriteInt(Int(len(s)), b)
 	b.WriteString(s)
 }
 
@@ -107,20 +153,111 @@ func ReadInt(b *bytes.Buffer) Int {
 		Int(tmp[3])
 }
 
+// ReadLong reads and returns Long from the buffer.
+func ReadLong(b *bytes.Buffer) Long {
+	tmp := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+	_, _ = b.Read(tmp[:])
+	return Long(tmp[0])<<56 |
+		Long(tmp[1])<<48 |
+		Long(tmp[2])<<40 |
+		Long(tmp[3])<<32 |
+		Long(tmp[4])<<24 |
+		Long(tmp[5])<<16 |
+		Long(tmp[6])<<8 |
+		Long(tmp[7])
+}
+
 // ReadBytes reads Bytes from the buffer.
-// If read bytes length is negative returns nil.
+// If read Bytes length is negative returns nil.
 func ReadBytes(b *bytes.Buffer) Bytes {
 	// Reads length of the Bytes.
 	n := ReadInt(b)
 	if n < 0 {
 		return nil
 	}
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
 
-	var out Bytes
-	for i := Int(0); i < n; i++ {
-		out = append(out, ReadByte(b))
+	return tmp
+}
+
+// ReadShortBytes reads Bytes from the buffer.
+// If read Bytes length is negative returns nil.
+func ReadShortBytes(b *bytes.Buffer) Bytes {
+	// Reads length of the Bytes.
+	n := ReadShort(b)
+
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+
+	return tmp
+}
+
+// ReadValue reads and return Value from the buffer.
+// Length equal to -1 represents null.
+// Length equal to -2 represents not set.
+func ReadValue(b *bytes.Buffer) Value {
+	// Reads length od the value.
+	n := ReadInt(b)
+	// Checks for valid length.
+	if n < -2 {
+		panic(invalidValueLength)
 	}
-	return out
+	// Reads value's body if there is any.
+	if n > 0 {
+		tmp := make(Bytes, n)
+		_, _ = b.Read(tmp)
+		return Value{N: n, Bytes: tmp}
+	} else {
+		return Value{N: n}
+	}
+}
+
+// ReadInet reads and returns Inet from the buffer.
+func ReadInet(b *bytes.Buffer) Inet {
+	// Reads length of the IP address.
+	n := ReadByte(b)
+	// Checks for valid length of the IP address.
+	if n != 4 && n != 16 {
+		panic(invalidIPLength)
+	}
+	// Reads IP address.
+	tmp := make(Bytes, n)
+	_, _ = b.Read(tmp)
+	return Inet{tmp, ReadInt(b)}
+}
+
+// ReadConsistency reads Short if it is valid consistency
+// then returns it else panics.
+func ReadConsistency(b *bytes.Buffer) Short {
+	c := ReadShort(b)
+	if c > 10 {
+		panic(unknownConsistencyErr)
+	}
+	return c
+}
+
+var writeTypes = []string{
+	"SIMPLE",
+	"BATCH",
+	"UNLOGGED_BATCH",
+	"COUNTER",
+	"BATCH_LOG",
+	"CAS",
+	"VIEW",
+	"CDC",
+}
+
+// ReadWriteType reads string if it is valid write type
+// then returns it else panics.
+func ReadWriteType(b *bytes.Buffer) string {
+	wt := ReadString(b)
+	for _, v := range writeTypes {
+		if wt == v {
+			return wt
+		}
+	}
+	panic(unknownWriteTypeErr)
 }
 
 // ReadString reads and returns string from the buffer.
@@ -128,6 +265,16 @@ func ReadString(b *bytes.Buffer) string {
 	// Reads length of the string.
 	n := ReadShort(b)
 	// Placeholder for read bytes.
+	tmp := make([]byte, n)
+	_, _ = b.Read(tmp)
+	return string(tmp)
+}
+
+// ReadLongString reads and returns string from the buffer.
+func ReadLongString(b *bytes.Buffer) string {
+	// Reads length of the long string.
+	n := ReadInt(b)
+	// Placeholder for read Bytes.
 	tmp := make([]byte, n)
 	_, _ = b.Read(tmp)
 	return string(tmp)
@@ -174,4 +321,15 @@ func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 		m[k] = l
 	}
 	return m
+}
+
+// ----------------------- HELPER FUNCTIONS ---------------------
+
+func Contains(s StringList, e string) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
