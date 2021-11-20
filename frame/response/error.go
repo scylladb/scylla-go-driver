@@ -186,26 +186,3 @@ func ReadUnprepared(b *bytes.Buffer) UnpreparedErr {
 		frame.ReadBytes(b),
 	}
 }
-
-// Types of errors.
-const (
-	server   frame.Int = 0x0000
-	protocol frame.Int = 0x000a
-	auth     frame.Int = 0x0100
-	// Comment unused to silence linter.
-	// unavailable  frame.Int = 0x1000
-	overload  frame.Int = 0x1001
-	bootstrap frame.Int = 0x1002
-	truncate  frame.Int = 0x1003
-	// writeTimeout frame.Int = 0x1100
-	// readTimeout  frame.Int = 0x1200
-	// readFailure  frame.Int = 0x1300
-	// funcFailure  frame.Int = 0x1400
-	// writeFailure frame.Int = 0x1500
-	syntax       frame.Int = 0x2000
-	unauthorized frame.Int = 0x2100
-	invalid      frame.Int = 0x2200
-	config       frame.Int = 0x2300
-	// alreadyExits frame.Int = 0x2400
-	// unprepared   frame.Int = 0x2500
-)

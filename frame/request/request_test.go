@@ -23,31 +23,31 @@ func bytesEqual(a, b []byte) bool {
 }
 
 func ShortToBytes(x frame.Short) []byte {
-	var out bytes.Buffer
+	var out frame.Buffer
 	frame.WriteShort(x, &out)
 	return out.Bytes()
 }
 
 func IntToBytes(x frame.Int) []byte {
-	var out bytes.Buffer
+	var out frame.Buffer
 	frame.WriteInt(x, &out)
 	return out.Bytes()
 }
 
 func StringToBytes(x string) []byte {
-	var out bytes.Buffer
+	var out frame.Buffer
 	frame.WriteString(x, &out)
 	return out.Bytes()
 }
 
 func LongStringToBytes(x string) []byte {
-	var out bytes.Buffer
+	var out frame.Buffer
 	frame.WriteLongString(x, &out)
 	return out.Bytes()
 }
 
 func ByteToBytes(b frame.Byte) []byte {
-	var out bytes.Buffer
+	var out frame.Buffer
 	frame.WriteByte(b, &out)
 	return out.Bytes()
 }
@@ -62,13 +62,13 @@ func massAppendBytes(elems ...[]byte) []byte {
 
 // Comment to silence linter.
 //func StringListToBytes(sl frame.StringList) []byte {
-//	var out bytes.Buffer
+//	var out frame.Buffer
 //	frame.WriteStringList(sl, &out)
 //	return out.Bytes()
 //}
 //
 //func BytesToBytes(b frame.Bytes) []byte {
-//	var out bytes.Buffer
+//	var out frame.Buffer
 //	frame.WriteBytes(b, &out)
 //	return out.Bytes()
 //}
@@ -90,7 +90,7 @@ func TestAuthResponseWriteTo(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
 			ar := AuthResponse{tc.content}
-			out := new(bytes.Buffer)
+			out := new(frame.Buffer)
 			ar.WriteTo(out)
 
 			if bytesEqual(out.Bytes(), tc.expected) {
@@ -113,10 +113,10 @@ func TestPrepare(t *testing.T) {
 
 	for _, v := range cases {
 		t.Run("TestPrepare: "+v.name+".", func(t *testing.T) {
-			b := bytes.Buffer{}
+			b := frame.Buffer{}
 			v.content.WriteTo(&b)
 			if !bytes.Equal(v.expected, b.Bytes()) {
-				t.Fatal("Writing Prepare request to buffer failed.")
+				t.Fatal("Writing Prepare request to frame.Buffer failed.")
 			}
 		})
 	}
@@ -131,13 +131,13 @@ func HexStringToBytes(s string) []byte {
 }
 
 func ValueToBytes(v frame.Value) []byte {
-	b := bytes.Buffer{}
+	b := frame.Buffer{}
 	frame.WriteValue(v, &b)
 	return b.Bytes()
 }
 
 func LongToBytes(l frame.Long) []byte {
-	b := bytes.Buffer{}
+	b := frame.Buffer{}
 	frame.WriteLong(l, &b)
 	return b.Bytes()
 }
@@ -216,10 +216,10 @@ func TestQuery(t *testing.T) {
 
 	for _, v := range cases {
 		t.Run("TestQuery: "+v.name+".", func(t *testing.T) {
-			b := bytes.Buffer{}
+			b := frame.Buffer{}
 			v.content.WriteTo(&b)
 			if !bytes.Equal(v.expected, b.Bytes()) {
-				t.Fatal("Writing Query request to buffer failed.")
+				t.Fatal("Writing Query request to frame.Buffer failed.")
 			}
 		})
 	}
@@ -242,7 +242,7 @@ func TestRegister(t *testing.T) {
 		},
 	}
 
-	var out bytes.Buffer
+	var out frame.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
 			r := Register{tc.content}
@@ -312,7 +312,7 @@ func TestWriteStartup(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Short writing test %s", tc.name), func(t *testing.T) {
 			tc.content.WriteTo(&buf)
@@ -347,7 +347,7 @@ func TestBatch(t *testing.T) {
 				Timestamp: frame.Long(math.MinInt64)}},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Batch test %s", tc.name), func(t *testing.T) {
 			tc.content.WriteTo(&buf)

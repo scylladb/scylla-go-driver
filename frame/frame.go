@@ -2,334 +2,332 @@ package frame
 
 import (
 	"bytes"
+	"fmt"
 )
 
-// WriteByte writes single Byte to the buffer.
-func WriteByte(n Byte, b *bytes.Buffer) {
-	b.WriteByte(n)
+type Buffer struct {
+	bytes.Buffer
+	error error
 }
 
-// WriteShort writes single Short to the buffer.
-func WriteShort(s Short, b *bytes.Buffer) {
-	b.Write([]byte{
-		byte(s >> 8),
-		byte(s),
+func (b *Buffer) RecordError(err error) {
+	b.error = err
+}
+
+func (b *Buffer) PutByte(v Byte) {
+	_ = b.WriteByte(v)
+}
+
+func (b *Buffer) PutShort(v Short) {
+	_, _ = b.Write([]byte{
+		byte(v >> 8),
+		byte(v),
 	})
 }
 
-// WriteInt writes single Int to the buffer.
-func WriteInt(i Int, b *bytes.Buffer) {
-	b.Write([]byte{
-		byte(i >> 24),
-		byte(i >> 16),
-		byte(i >> 8),
-		byte(i),
+func (b *Buffer) PutInt(v Int) {
+	_, _ = b.Write([]byte{
+		byte(v >> 24),
+		byte(v >> 16),
+		byte(v >> 8),
+		byte(v),
 	})
 }
 
-// WriteLong writes single Long to the buffer.
-func WriteLong(l Long, b *bytes.Buffer) {
-	b.Write([]byte{
-		byte(l >> 56),
-		byte(l >> 48),
-		byte(l >> 40),
-		byte(l >> 32),
-		byte(l >> 24),
-		byte(l >> 16),
-		byte(l >> 8),
-		byte(l),
+func (b *Buffer) PutLong(v Long) {
+	_, _ = b.Write([]byte{
+		byte(v >> 56),
+		byte(v >> 48),
+		byte(v >> 40),
+		byte(v >> 32),
+		byte(v >> 24),
+		byte(v >> 16),
+		byte(v >> 8),
+		byte(v),
 	})
 }
 
-// WriteBytes writes Bytes to the buffer.
-// If Bytes is nil then writes -1 to the buffer.
-func WriteBytes(t Bytes, b *bytes.Buffer) {
-	if t == nil {
-		WriteInt(-1, b)
-		return
+// PutBytes writes Bytes to the bytes.buffer,
+// if v is nil then writes -1 to the buffer.
+func (b *Buffer) PutBytes(v Bytes) {
+	if v == nil {
+		b.PutInt(-1)
+	} else {
+		// Write length of the bytes.
+		b.PutInt(Int(len(v)))
+		_, _ = b.Write(v)
 	}
-	// Writes length of the bytes.
-	WriteInt(Int(len(t)), b)
-	// Writes bytes to the buffer.
-	b.Write(t)
 }
 
-// WriteShortBytes writes Bytes to the buffer.
-// If Bytes is nil then writes -1 to the buffer.
-func WriteShortBytes(t Bytes, b *bytes.Buffer) {
-	// Writes length of the bytes.
-	WriteShort(Short(len(t)), b)
-
-	// Writes bytes to the buffer.
-	b.Write(t)
+func (b *Buffer) PutShortBytes(v Bytes) {
+	// Write length of the bytes.
+	b.PutShort(Short(len(v)))
+	_, _ = b.Write(v)
 }
 
-// WriteValue writes Value to the buffer.
-func WriteValue(v Value, b *bytes.Buffer) {
-	// Writes length of the value.
-	WriteInt(v.N, b)
+func (b *Buffer) PutValue(v Value) {
+	// Write length of the value.
+	b.PutInt(v.N)
 	// Writes value's body if there is any.
 	if v.N > 0 {
-		b.Write(v.Bytes)
+		_, _ = b.Write(v.Bytes)
 	}
 }
 
-// WriteInet writes Inet to the buffer.
-func WriteInet(i Inet, b *bytes.Buffer) {
+func (b *Buffer) PutInet(v Inet) {
 	// Writes length of the IP address.
-	WriteByte(Byte(len(i.IP)), b)
-	b.Write(i.IP)
-	WriteInt(i.Port, b)
+	_ = b.WriteByte(Byte(len(v.IP)))
+	_, _ = b.Write(v.IP)
+	b.PutInt(v.Port)
 }
 
-// WriteString writes single string to the buffer.
-func WriteString(s string, b *bytes.Buffer) {
+func (b *Buffer) PutString(s string) {
 	// Writes length of the string.
-	WriteShort(Short(len(s)), b)
-	b.WriteString(s)
+	b.PutShort(Short(len(s)))
+	_, _ = b.WriteString(s)
 }
 
-// WriteLongString writes single long string to the buffer.
-func WriteLongString(s string, b *bytes.Buffer) {
+func (b *Buffer) PutLongString(s string) {
 	// Writes length of the long string.
-	WriteInt(Int(len(s)), b)
-	b.WriteString(s)
+	b.PutInt(Int(len(s)))
+	_, _ = b.WriteString(s)
 }
 
-// WriteStringList writes StringList to the buffer.
-func WriteStringList(l StringList, b *bytes.Buffer) {
+func (b *Buffer) PutStringList(l StringList) {
 	// Writes length of the string list.
-	WriteShort(Short(len(l)), b)
+	b.PutShort(Short(len(l)))
 	// Writes consecutive strings.
 	for _, s := range l {
-		WriteString(s, b)
+		_, _ = b.WriteString(s)
 	}
 }
 
-// WriteStringMap writes StringMap to the buffer.
-func WriteStringMap(m StringMap, b *bytes.Buffer) {
+func (b *Buffer) PutStringMap(m StringMap) {
 	// Writes the number of elements in the map.
-	WriteShort(Short(len(m)), b)
-	// Writes consecutive map entries.
-	for k, l := range m {
-		// Writes key.
-		WriteString(k, b)
-		// Writes value.
-		WriteString(l, b)
+	b.PutShort(Short(len(m)))
+	for k, v := range m {
+		_, _ = b.WriteString(k)
+		_, _ = b.WriteString(v)
 	}
 }
 
-// WriteStringMultiMap writes StringMultiMap to the buffer.
-func WriteStringMultiMap(m StringMultiMap, b *bytes.Buffer) {
+func (b *Buffer) PutStringMultiMap(m StringMultiMap) {
 	// Writes the number of elements in the map.
-	WriteShort(Short(len(m)), b)
+	b.PutShort(Short(len(m)))
+
 	// Writes consecutive map entries.
-	for k, l := range m {
+	for k, v := range m {
 		// Writes key.
-		WriteString(k, b)
+		_, _ = b.WriteString(k)
 		// Writes value.
-		WriteStringList(l, b)
+		b.PutStringList(v)
 	}
 }
 
-// ReadByte reads and returns next Byte from the buffer.
-func ReadByte(b *bytes.Buffer) Byte {
-	n, _ := b.ReadByte()
-	return n
-}
-
-// ReadShort reads and returns Short from the buffer.
-func ReadShort(b *bytes.Buffer) Short {
-	return Short(ReadByte(b))<<8 | Short(ReadByte(b))
-}
-
-// ReadInt reads and returns Int from the buffer.
-func ReadInt(b *bytes.Buffer) Int {
-	tmp := [4]byte{0, 0, 0, 0}
-	_, _ = b.Read(tmp[:])
-	return Int(tmp[0])<<24 |
-		Int(tmp[1])<<16 |
-		Int(tmp[2])<<8 |
-		Int(tmp[3])
-}
-
-// ReadLong reads and returns Long from the buffer.
-func ReadLong(b *bytes.Buffer) Long {
-	tmp := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
-	_, _ = b.Read(tmp[:])
-	return Long(tmp[0])<<56 |
-		Long(tmp[1])<<48 |
-		Long(tmp[2])<<40 |
-		Long(tmp[3])<<32 |
-		Long(tmp[4])<<24 |
-		Long(tmp[5])<<16 |
-		Long(tmp[6])<<8 |
-		Long(tmp[7])
-}
-
-// ReadBytes reads Bytes from the buffer.
-// If read Bytes length is negative returns nil.
-func ReadBytes(b *bytes.Buffer) Bytes {
-	// Reads length of the Bytes.
-	n := ReadInt(b)
-	if n < 0 {
-		return nil
+// Get reads n bytes from the buffer.
+func (b *Buffer) Get(n int) Bytes {
+	if b.error == nil {
+		by := make(Bytes, n)
+		_, b.error = b.Read(by)
+		return by
 	}
-	tmp := make([]byte, n)
-	_, _ = b.Read(tmp)
-
-	return tmp
+	return nil
 }
 
-// ReadShortBytes reads Bytes from the buffer.
+func (b *Buffer) GetByte() Byte {
+	if b.error == nil {
+		var n Byte
+		n, b.error = b.ReadByte()
+		return n
+	}
+	return Byte(0)
+}
+
+func (b *Buffer) GetShort() Short {
+	if b.error == nil {
+		return Short(b.GetByte())<<8 | Short(b.GetByte())
+	}
+	return Short(0)
+}
+
+func (b *Buffer) GetInt() Int {
+	if b.error == nil {
+		tmp := [4]byte{0, 0, 0, 0}
+		_, b.error = b.Read(tmp[:])
+		return Int(tmp[0])<<24 |
+			Int(tmp[1])<<16 |
+			Int(tmp[2])<<8 |
+			Int(tmp[3])
+	}
+	return Int(0)
+}
+
+func (b *Buffer) GetLong() Long {
+	if b.error == nil {
+		tmp := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
+		_, b.error = b.Read(tmp[:])
+		return Long(tmp[0])<<56 |
+			Long(tmp[1])<<48 |
+			Long(tmp[2])<<40 |
+			Long(tmp[3])<<32 |
+			Long(tmp[4])<<24 |
+			Long(tmp[5])<<16 |
+			Long(tmp[6])<<8 |
+			Long(tmp[7])
+	}
+	return Long(0)
+}
+
 // If read Bytes length is negative returns nil.
-func ReadShortBytes(b *bytes.Buffer) Bytes {
-	// Reads length of the Bytes.
-	n := ReadShort(b)
-
-	tmp := make([]byte, n)
-	_, _ = b.Read(tmp)
-
-	return tmp
+func (b *Buffer) GetBytes() Bytes {
+	if b.error == nil {
+		// Read length of the Bytes.
+		n := b.GetInt()
+		if n < 0 {
+			return nil
+		}
+		return b.Get(int(n))
+	}
+	return nil
 }
 
-// ReadValue reads and return Value from the buffer.
+// If read Bytes length is negative returns nil.
+func (b *Buffer) GetShortBytes() Bytes {
+	if b.error == nil {
+		// Read length of the Bytes.
+		n := b.GetShort()
+		return b.Get(int(n))
+	}
+	return nil
+}
+
+// GetValue reads Value from the buffer.
 // Length equal to -1 represents null.
 // Length equal to -2 represents not set.
-func ReadValue(b *bytes.Buffer) Value {
-	// Reads length od the value.
-	n := ReadInt(b)
-	// Checks for valid length.
-	if n < -2 {
-		panic(invalidValueLength)
+func (b *Buffer) GetValue() Value {
+	if b.error == nil {
+		if n := b.GetInt(); n < -2 {
+			b.RecordError(fmt.Errorf("invalid value length"))
+		} else if n > 0 {
+			return Value{N: n, Bytes: b.Get(int(n))}
+		} else {
+			return Value{N: n}
+		}
 	}
-	// Reads value's body if there is any.
-	if n > 0 {
-		tmp := make(Bytes, n)
-		_, _ = b.Read(tmp)
-		return Value{N: n, Bytes: tmp}
+	return Value{}
+}
+
+func (b *Buffer) GetInet() Inet {
+	if b.error == nil {
+		var n Byte
+		// Checks for valid length of the IP address.
+		if n, b.error = b.ReadByte(); n == 4 || n == 16 {
+			return Inet{IP: b.Get(int(n)), Port: b.GetInt()}
+		} else {
+			b.RecordError(fmt.Errorf("invalid ip length"))
+		}
+	}
+	return Inet{}
+}
+
+func (b *Buffer) GetConsistency() Short {
+	if b.error == nil {
+		if n := Short(b.GetByte())<<8 | Short(b.GetByte()); n < INVALID {
+			return n
+		}
+		b.RecordError(fmt.Errorf("unknown consistency"))
+	}
+	return ANY
+}
+
+// GetWriteType reads string. Returns if it is a valid write type, else records error onto Buffer.
+func (b *Buffer) GetWriteType() WriteType {
+	if b.error == nil {
+		t := b.Get(int(b.GetShort()))
+		var w WriteType
+		if err := w.UnMarshalText(t); err != nil {
+			b.RecordError(err)
+		} else {
+			return w
+		}
+	}
+	return ""
+}
+
+func (b *Buffer) GetString() string {
+	if b.error == nil {
+		return string(b.Get(int(b.GetShort())))
+	}
+	return ""
+}
+
+func (b *Buffer) GetLongString() string {
+	if b.error == nil {
+		return string(b.Get(int(b.GetInt())))
+	}
+	return ""
+}
+
+func (b *Buffer) GetStringList() StringList {
+	if b.error == nil {
+		// Read length of the string list.
+		n := b.GetShort()
+		l := make(StringList, n)
+		for i := Short(0); i < n; i++ {
+			// Read the strings and append them to the list.
+			s := b.GetString()
+			l = append(l, s)
+		}
+		return l
+	}
+	return StringList{}
+}
+
+func (b *Buffer) GetStringMap() StringMap {
+	if b.error == nil {
+		// Read the number of elements in the map.
+		n := b.GetShort()
+		m := make(StringMap, n)
+		for i := Short(0); i < n; i++ {
+			k := b.GetString()
+			v := b.GetString()
+			m[k] = v
+		}
+		return m
+	}
+	return StringMap{}
+}
+
+func (b *Buffer) GetStringMultiMap() StringMultiMap {
+	if b.error == nil {
+		// Read the number of elements in the map.
+		n := b.GetShort()
+		m := make(StringMultiMap, n)
+		for i := Short(0); i < n; i++ {
+			k := b.GetString()
+			v := b.GetStringList()
+			m[k] = v
+		}
+		return m
+	}
+	return StringMultiMap{}
+}
+
+func (t *WriteType) MarshalText() ([]byte, error) {
+	l := Short(len(string(*t)))
+	// Append WriteType body, which is string to its length.
+	return append([]byte{byte(l >> 8), byte(l)}, string(*t)...), nil
+}
+
+func (t *WriteType) UnMarshalText(b []byte) error {
+	// Length validation depends on flow I don't know yet.
+	// Let's assume that we don't need to validate length of string - there is pure string in the slice, without length.
+	// TODO: resolve this in the future.
+
+	*t = WriteType(b)
+	if _, ok := ValidWriteTypes[*t]; ok {
+		return nil
 	} else {
-		return Value{N: n}
+		return fmt.Errorf("unknown WriteType")
 	}
-}
-
-// ReadInet reads and returns Inet from the buffer.
-func ReadInet(b *bytes.Buffer) Inet {
-	// Reads length of the IP address.
-	n := ReadByte(b)
-	// Checks for valid length of the IP address.
-	if n != 4 && n != 16 {
-		panic(invalidIPLength)
-	}
-	// Reads IP address.
-	tmp := make(Bytes, n)
-	_, _ = b.Read(tmp)
-	return Inet{tmp, ReadInt(b)}
-}
-
-// ReadConsistency reads Short if it is valid consistency
-// then returns it else panics.
-func ReadConsistency(b *bytes.Buffer) Short {
-	c := ReadShort(b)
-	if c > 10 {
-		panic(unknownConsistencyErr)
-	}
-	return c
-}
-
-var writeTypes = []string{
-	"SIMPLE",
-	"BATCH",
-	"UNLOGGED_BATCH",
-	"COUNTER",
-	"BATCH_LOG",
-	"CAS",
-	"VIEW",
-	"CDC",
-}
-
-// ReadWriteType reads string if it is valid write type
-// then returns it else panics.
-func ReadWriteType(b *bytes.Buffer) string {
-	wt := ReadString(b)
-	for _, v := range writeTypes {
-		if wt == v {
-			return wt
-		}
-	}
-	panic(unknownWriteTypeErr)
-}
-
-// ReadString reads and returns string from the buffer.
-func ReadString(b *bytes.Buffer) string {
-	// Reads length of the string.
-	n := ReadShort(b)
-	// Placeholder for read bytes.
-	tmp := make([]byte, n)
-	_, _ = b.Read(tmp)
-	return string(tmp)
-}
-
-// ReadLongString reads and returns string from the buffer.
-func ReadLongString(b *bytes.Buffer) string {
-	// Reads length of the long string.
-	n := ReadInt(b)
-	// Placeholder for read Bytes.
-	tmp := make([]byte, n)
-	_, _ = b.Read(tmp)
-	return string(tmp)
-}
-
-// ReadStringList reads and returns StringList from the buffer.
-func ReadStringList(b *bytes.Buffer) StringList {
-	// Reads length of the string list.
-	n := ReadShort(b)
-	l := StringList{}
-	for i := Short(0); i < n; i++ {
-		// Reads the strings and append them to the list.
-		s := ReadString(b)
-		l = append(l, s)
-	}
-	return l
-}
-
-// ReadStringMap reads and returns StringMap from the buffer.
-func ReadStringMap(b *bytes.Buffer) StringMap {
-	// Reads the number of elements in the map.
-	n := ReadShort(b)
-	m := StringMap{}
-	for i := Short(0); i < n; i++ {
-		// Reads the key.
-		k := ReadString(b)
-		// Reads the value.
-		l := ReadString(b)
-		m[k] = l
-	}
-	return m
-}
-
-// ReadStringMultiMap reads and returns StringMultiMap from the buffer.
-func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
-	// Reads the number of elements in the map.
-	n := ReadShort(b)
-	m := StringMultiMap{}
-	for i := Short(0); i < n; i++ {
-		// Reads the key.
-		k := ReadString(b)
-		// Reads the value.
-		l := ReadStringList(b)
-		m[k] = l
-	}
-	return m
-}
-
-// ----------------------- HELPER FUNCTIONS ---------------------
-
-func Contains(s StringList, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }

@@ -212,7 +212,7 @@ func TestReadByte(t *testing.T) {
 		{"max byte", []byte{0xff}, 255},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Byte reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.nr)
@@ -239,7 +239,7 @@ func TestReadShort(t *testing.T) {
 		{"max short", []byte{0xff, 0xff}, 65535},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.nr)
@@ -268,7 +268,7 @@ func TestReadInt(t *testing.T) {
 		{"max integer", []byte{0x7f, 0xff, 0xff, 0xff}, 2147483647},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Integer reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.nr)
@@ -295,7 +295,7 @@ func TestReadString(t *testing.T) {
 		{"empty string", []byte{0x00, 0x00}, ""},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 
 		t.Run(fmt.Sprintf("String reading test %s", tc.name), func(t *testing.T) {
@@ -335,7 +335,7 @@ func TestReadStringList(t *testing.T) {
 		{"two strings", []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}, StringList{"a", "b"}},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("StringList reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.content)
@@ -373,7 +373,7 @@ func TestReadStringMultiMap(t *testing.T) {
 		{"Smoke test", []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}, StringMultiMap{"a": {"a"}}},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.content)
@@ -406,7 +406,7 @@ func TestReadHeader(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.content)
@@ -430,8 +430,8 @@ var result Int
 
 // fullBuffer creates and returns buffer of length N
 // that is filled with Bytes of consecutive values.
-func fullBuffer(n int) *bytes.Buffer {
-	buf := &bytes.Buffer{}
+func fullBuffer(n int) *Buffer {
+	buf := &Buffer{}
 	for i := 0; i <= n; i++ {
 		buf.WriteByte(byte(i % 255))
 	}
@@ -440,7 +440,7 @@ func fullBuffer(n int) *bytes.Buffer {
 
 // ReadIntWithSlice reads and returns Int by reading
 // all four Bytes at once to allocated byte slice.
-func ReadIntWithSlice(b *bytes.Buffer) Int {
+func ReadIntWithSlice(b *Buffer) Int {
 	tmp := make([]byte, 4)
 	_, _ = b.Read(tmp)
 	return Int(tmp[0])<<24 |
@@ -451,7 +451,7 @@ func ReadIntWithSlice(b *bytes.Buffer) Int {
 
 // ReadIntWithSliceNoAlloc reads and returns Int by reading
 // all four Bytes at once to byte slice.
-func ReadIntWithSliceNoAlloc(b *bytes.Buffer) Int {
+func ReadIntWithSliceNoAlloc(b *Buffer) Int {
 	tmp := []byte{0, 0, 0, 0}
 	_, _ = b.Read(tmp)
 	return Int(tmp[0])<<24 |
@@ -462,7 +462,7 @@ func ReadIntWithSliceNoAlloc(b *bytes.Buffer) Int {
 
 // ReadIntWithArray reads and returns Int by reading
 // all four Bytes at once.
-func ReadIntWithArray(b *bytes.Buffer) Int {
+func ReadIntWithArray(b *Buffer) Int {
 	tmp := [4]byte{0, 0, 0, 0}
 	_, _ = b.Read(tmp[:])
 	return Int(tmp[0])<<24 |
@@ -473,7 +473,7 @@ func ReadIntWithArray(b *bytes.Buffer) Int {
 
 // ReadShortWithSlice reads and returns Short by reading
 // all two Bytes at once to allocated byte slice.
-func ReadShortWithSlice(b *bytes.Buffer) Short {
+func ReadShortWithSlice(b *Buffer) Short {
 	tmp := make([]byte, 2)
 	_, _ = b.Read(tmp)
 	return Short(tmp[0])<<8 | Short(tmp[1])
@@ -481,24 +481,24 @@ func ReadShortWithSlice(b *bytes.Buffer) Short {
 
 // ReadShortWithSliceNoAlloc reads and returns Short by reading
 // all two Bytes at once to allocated byte slice.
-func ReadShortWithSliceNoAlloc(b *bytes.Buffer) Short {
+func ReadShortWithSliceNoAlloc(b *Buffer) Short {
 	tmp := []byte{0, 0}
 	_, _ = b.Read(tmp)
 	return Short(tmp[0])<<8 | Short(tmp[1])
 }
 
 // ReadIntWithByte reads and returns Int by reading two Shorts.
-func ReadIntWithByte(b *bytes.Buffer) Int {
+func ReadIntWithByte(b *Buffer) Int {
 	return Int(ReadByte(b))<<24 | Int(ReadByte(b))<<16 | Int(ReadByte(b))<<8 | Int(ReadByte(b))
 }
 
 // ReadIntWithShort reads and returns Int by reading two Shorts.
-func ReadIntWithShort(b *bytes.Buffer) Int {
+func ReadIntWithShort(b *Buffer) Int {
 	return Int(ReadShortWithByte(b))<<16 | Int(ReadShortWithByte(b))
 }
 
 // ReadShortWithByte reads and returns Short by reading two Bytes.
-func ReadShortWithByte(b *bytes.Buffer) Short {
+func ReadShortWithByte(b *Buffer) Short {
 	return Short(ReadByte(b))<<8 | Short(ReadByte(b))
 }
 

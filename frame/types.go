@@ -1,37 +1,31 @@
 package frame
 
-import (
-	"errors"
-)
-
 // Generic types from CQL binary protocol.
+// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L214
 type (
-	Byte  = byte
-	Short = uint16
-	Int   = int32
-	Long  = int64
-
+	Byte           = byte
+	Short          = uint16
+	Int            = int32
+	Long           = int64
 	UUID           = [16]byte
-	StringMultiMap = map[string][]string
-	StringMap      = map[string]string
 	StringList     = []string
-
-	Value struct {
-		N     Int
-		Bytes Bytes
-	}
-
-	Inet struct {
-		IP   Bytes
-		Port Int
-	}
-
-	Bytes = []byte
-
-	OpCode = byte
+	StringMap      = map[string]string
+	StringMultiMap = map[string][]string
+	Bytes          = []byte
 )
 
-// Types of messages.
+type Value struct {
+	N     Int
+	Bytes Bytes
+}
+
+type Inet struct {
+	IP   Bytes
+	Port Int
+}
+
+// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L183
+type OpCode = byte
 const (
 	OpError         OpCode = 0x00
 	OpStartup       OpCode = 0x01
@@ -51,29 +45,38 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
-// Types of consistencies.
+// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
+type Consistency = uint16
 const (
-	ANY          Short = 0x0000
-	ONE          Short = 0x0001
-	TWO          Short = 0x0002
-	THREE        Short = 0x0003
-	QUORUM       Short = 0x0004
-	ALL          Short = 0x0005
-	LOCAL_QUORUM Short = 0x0006
-	EACH_QUORUM  Short = 0x0007
-	SERIAL       Short = 0x0008
-	LOCAL_SERIAL Short = 0x0009
-	LOCAL_ONE    Short = 0x000A
+	ANY          Consistency = 0x0000
+	ONE          Consistency = 0x0001
+	TWO          Consistency = 0x0002
+	THREE        Consistency = 0x0003
+	QUORUM       Consistency = 0x0004
+	ALL          Consistency = 0x0005
+	LOCAL_QUORUM Consistency = 0x0006
+	EACH_QUORUM  Consistency = 0x0007
+	SERIAL       Consistency = 0x0008
+	LOCAL_SERIAL Consistency = 0x0009
+	LOCAL_ONE    Consistency = 0x000A
+	INVALID      Consistency = 0x000B
 )
+
+
+
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 
-// Errors that might occur during parsing.
-var (
-	protocolVersionErr    = errors.New("frame protocol version is not supported")
-	unknownConsistencyErr = errors.New("unknown consistency")
-	unknownWriteTypeErr   = errors.New("unknown write type")
-	invalidValueLength    = errors.New("valid Value length is greater from or equal to -2")
-	invalidIPLength       = errors.New("the only valid IP lengths are either 4 (IP4) or 16 (IP6)")
-)
+// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L1086
+type WriteType string
+var ValidWriteTypes = map[WriteType]bool{
+	"SIMPLE":         true,
+	"BATCH":          true,
+	"UNLOGGED_BATCH": true,
+	"COUNTER":        true,
+	"BATCH_LOG":      true,
+	"CAS":            true,
+	"VIEW":           true,
+	"CDC":            true,
+}

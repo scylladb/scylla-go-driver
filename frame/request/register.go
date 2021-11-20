@@ -10,6 +10,6 @@ type Register struct {
 }
 
 // WriteTo writes EventTypes into the bytes.Buffer.
-func (r Register) WriteTo(b *bytes.Buffer) {
+func (r Register) WriteTo(b *frame.Buffer) {
 	frame.WriteStringList(r.EventTypes, b)
 }
