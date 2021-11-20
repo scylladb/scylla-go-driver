@@ -13,7 +13,7 @@ type Header struct {
 
 // ReadHeader reads and returns Header from the buffer.
 // Used when handling responses.
-func ReadHeader(b *bytes.Buffer) Header {
+func ReadHeader(b *Buffer) Header {
 	h := Header{
 		Version:  ReadByte(b),
 		Flags:    ReadByte(b),

@@ -4,6 +4,15 @@ import (
 	"bytes"
 )
 
+type Buffer struct {
+	bytes.Buffer
+	errors error
+}
+
+func (b *Buffer) RecordError(err error) {
+	b.errors = err
+}
+
 // WriteByte writes single Byte to the buffer.
 func WriteByte(n Byte, b *bytes.Buffer) {
 	b.WriteByte(n)
@@ -133,18 +142,18 @@ func WriteStringMultiMap(m StringMultiMap, b *bytes.Buffer) {
 }
 
 // ReadByte reads and returns next Byte from the buffer.
-func ReadByte(b *bytes.Buffer) Byte {
+func ReadByte(b *Buffer) Byte {
 	n, _ := b.ReadByte()
 	return n
 }
 
 // ReadShort reads and returns Short from the buffer.
-func ReadShort(b *bytes.Buffer) Short {
+func ReadShort(b *Buffer) Short {
 	return Short(ReadByte(b))<<8 | Short(ReadByte(b))
 }
 
 // ReadInt reads and returns Int from the buffer.
-func ReadInt(b *bytes.Buffer) Int {
+func ReadInt(b *Buffer) Int {
 	tmp := [4]byte{0, 0, 0, 0}
 	_, _ = b.Read(tmp[:])
 	return Int(tmp[0])<<24 |
@@ -154,7 +163,7 @@ func ReadInt(b *bytes.Buffer) Int {
 }
 
 // ReadLong reads and returns Long from the buffer.
-func ReadLong(b *bytes.Buffer) Long {
+func ReadLong(b *Buffer) Long {
 	tmp := [8]byte{0, 0, 0, 0, 0, 0, 0, 0}
 	_, _ = b.Read(tmp[:])
 	return Long(tmp[0])<<56 |
@@ -169,7 +178,7 @@ func ReadLong(b *bytes.Buffer) Long {
 
 // ReadBytes reads Bytes from the buffer.
 // If read Bytes length is negative returns nil.
-func ReadBytes(b *bytes.Buffer) Bytes {
+func ReadBytes(b *Buffer) Bytes {
 	// Reads length of the Bytes.
 	n := ReadInt(b)
 	if n < 0 {
@@ -183,7 +192,7 @@ func ReadBytes(b *bytes.Buffer) Bytes {
 
 // ReadShortBytes reads Bytes from the buffer.
 // If read Bytes length is negative returns nil.
-func ReadShortBytes(b *bytes.Buffer) Bytes {
+func ReadShortBytes(b *Buffer) Bytes {
 	// Reads length of the Bytes.
 	n := ReadShort(b)
 
@@ -196,12 +205,13 @@ func ReadShortBytes(b *bytes.Buffer) Bytes {
 // ReadValue reads and return Value from the buffer.
 // Length equal to -1 represents null.
 // Length equal to -2 represents not set.
-func ReadValue(b *bytes.Buffer) Value {
+func ReadValue(b *Buffer) Value {
 	// Reads length od the value.
 	n := ReadInt(b)
 	// Checks for valid length.
 	if n < -2 {
-		panic(invalidValueLength)
+		b.RecordError(invalidValueLength)
+		return Value{}
 	}
 	// Reads value's body if there is any.
 	if n > 0 {
@@ -214,12 +224,13 @@ func ReadValue(b *bytes.Buffer) Value {
 }
 
 // ReadInet reads and returns Inet from the buffer.
-func ReadInet(b *bytes.Buffer) Inet {
+func ReadInet(b *Buffer) Inet {
 	// Reads length of the IP address.
 	n := ReadByte(b)
 	// Checks for valid length of the IP address.
 	if n != 4 && n != 16 {
-		panic(invalidIPLength)
+		b.RecordError(invalidIPLength)
+		return Inet{}
 	}
 	// Reads IP address.
 	tmp := make(Bytes, n)
@@ -229,10 +240,11 @@ func ReadInet(b *bytes.Buffer) Inet {
 
 // ReadConsistency reads Short if it is valid consistency
 // then returns it else panics.
-func ReadConsistency(b *bytes.Buffer) Short {
+func ReadConsistency(b *Buffer) Short {
 	c := ReadShort(b)
 	if c > 10 {
-		panic(unknownConsistencyErr)
+		b.RecordError(unknownConsistencyErr)
+		return 0
 	}
 	return c
 }
@@ -249,19 +261,20 @@ var writeTypes = []string{
 }
 
 // ReadWriteType reads string if it is valid write type
-// then returns it else panics.
-func ReadWriteType(b *bytes.Buffer) string {
+// then returns it else records error onto Buffer.error.
+func ReadWriteType(b *Buffer) string {
 	wt := ReadString(b)
 	for _, v := range writeTypes {
 		if wt == v {
 			return wt
 		}
 	}
-	panic(unknownWriteTypeErr)
+	b.RecordError(unknownWriteTypeErr)
+	return ""
 }
 
 // ReadString reads and returns string from the buffer.
-func ReadString(b *bytes.Buffer) string {
+func ReadString(b *Buffer) string {
 	// Reads length of the string.
 	n := ReadShort(b)
 	// Placeholder for read bytes.
@@ -271,7 +284,7 @@ func ReadString(b *bytes.Buffer) string {
 }
 
 // ReadLongString reads and returns string from the buffer.
-func ReadLongString(b *bytes.Buffer) string {
+func ReadLongString(b *Buffer) string {
 	// Reads length of the long string.
 	n := ReadInt(b)
 	// Placeholder for read Bytes.
@@ -281,10 +294,10 @@ func ReadLongString(b *bytes.Buffer) string {
 }
 
 // ReadStringList reads and returns StringList from the buffer.
-func ReadStringList(b *bytes.Buffer) StringList {
+func ReadStringList(b *Buffer) StringList {
 	// Reads length of the string list.
 	n := ReadShort(b)
-	l := StringList{}
+	l := make(StringList, n)
 	for i := Short(0); i < n; i++ {
 		// Reads the strings and append them to the list.
 		s := ReadString(b)
@@ -294,10 +307,10 @@ func ReadStringList(b *bytes.Buffer) StringList {
 }
 
 // ReadStringMap reads and returns StringMap from the buffer.
-func ReadStringMap(b *bytes.Buffer) StringMap {
+func ReadStringMap(b *Buffer) StringMap {
 	// Reads the number of elements in the map.
 	n := ReadShort(b)
-	m := StringMap{}
+	m := make(StringMap, n)
 	for i := Short(0); i < n; i++ {
 		// Reads the key.
 		k := ReadString(b)
@@ -309,10 +322,10 @@ func ReadStringMap(b *bytes.Buffer) StringMap {
 }
 
 // ReadStringMultiMap reads and returns StringMultiMap from the buffer.
-func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
+func ReadStringMultiMap(b *Buffer) StringMultiMap {
 	// Reads the number of elements in the map.
 	n := ReadShort(b)
-	m := StringMultiMap{}
+	m := make(StringMultiMap, n)
 	for i := Short(0); i < n; i++ {
 		// Reads the key.
 		k := ReadString(b)
