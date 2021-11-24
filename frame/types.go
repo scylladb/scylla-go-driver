@@ -1,9 +1,5 @@
 package frame
 
-import (
-	"errors"
-)
-
 // Generic types from CQL binary protocol.
 type (
 	Byte  = byte
@@ -15,21 +11,20 @@ type (
 	StringMultiMap = map[string][]string
 	StringMap      = map[string]string
 	StringList     = []string
-
-	Value struct {
-		N     Int
-		Bytes Bytes
-	}
-
-	Inet struct {
-		IP   Bytes
-		Port Int
-	}
-
-	Bytes = []byte
-
-	OpCode = byte
+	Bytes          = []byte
 )
+
+type Value struct {
+	N     Int
+	Bytes Bytes
+}
+
+type Inet struct {
+	IP   Bytes
+	Port Int
+}
+
+type OpCode byte
 
 // Types of messages.
 const (
@@ -69,11 +64,50 @@ const (
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 
-// Errors that might occur during parsing.
-var (
-	protocolVersionErr    = errors.New("frame protocol version is not supported")
-	unknownConsistencyErr = errors.New("unknown consistency")
-	unknownWriteTypeErr   = errors.New("unknown write type")
-	invalidValueLength    = errors.New("valid Value length is greater from or equal to -2")
-	invalidIPLength       = errors.New("the only valid IP lengths are either 4 (IP4) or 16 (IP6)")
+type TopologyChangeType string
+
+const (
+	NewNode     = "NEW_NODE"
+	RemovedNode = "REMOVED_NODE"
+)
+
+var TopologyChangeTypes = map[TopologyChangeType]bool{
+	NewNode:     true,
+	RemovedNode: true,
+}
+
+type StatusChangeType string
+
+const (
+	Up   = "UP"
+	Down = "DOWN"
+)
+
+var StatusChangeTypes = map[StatusChangeType]bool{
+	Up:   true,
+	Down: true,
+}
+
+type SchemaChangeType string
+
+const (
+	Created = "CREATED"
+	Updated = "UPDATED"
+	Dropped = "DROPPED"
+)
+
+var SchemaChangeTypes = map[SchemaChangeType]bool{
+	Created: true,
+	Updated: true,
+	Dropped: true,
+}
+
+type SchemaChangeTarget string
+
+const (
+	Keyspace  = "KEYSPACE"
+	Table     = "TABLE"
+	UserType  = "TYPE"
+	Function  = "FUNCTION"
+	Aggregate = "AGGREGATE"
 )

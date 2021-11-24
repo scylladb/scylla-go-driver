@@ -199,10 +199,6 @@ func ReadShortBytes(b *bytes.Buffer) Bytes {
 func ReadValue(b *bytes.Buffer) Value {
 	// Reads length od the value.
 	n := ReadInt(b)
-	// Checks for valid length.
-	if n < -2 {
-		panic(invalidValueLength)
-	}
 	// Reads value's body if there is any.
 	if n > 0 {
 		tmp := make(Bytes, n)
@@ -217,24 +213,30 @@ func ReadValue(b *bytes.Buffer) Value {
 func ReadInet(b *bytes.Buffer) Inet {
 	// Reads length of the IP address.
 	n := ReadByte(b)
-	// Checks for valid length of the IP address.
-	if n != 4 && n != 16 {
-		panic(invalidIPLength)
-	}
 	// Reads IP address.
 	tmp := make(Bytes, n)
 	_, _ = b.Read(tmp)
 	return Inet{tmp, ReadInt(b)}
 }
 
-// ReadConsistency reads Short if it is valid consistency
-// then returns it else panics.
 func ReadConsistency(b *bytes.Buffer) Short {
-	c := ReadShort(b)
-	if c > 10 {
-		panic(unknownConsistencyErr)
-	}
-	return c
+	return ReadShort(b)
+}
+
+func ReadTopologyChangeType(b *bytes.Buffer) TopologyChangeType {
+	return TopologyChangeType(ReadString(b))
+}
+
+func ReadStatusChangeType(b *bytes.Buffer) StatusChangeType {
+	return StatusChangeType(ReadString(b))
+}
+
+func ReadSchemaChangeType(b *bytes.Buffer) SchemaChangeType {
+	return SchemaChangeType(ReadString(b))
+}
+
+func ReadSchemaChangeTarget(b *bytes.Buffer) SchemaChangeTarget {
+	return SchemaChangeTarget(ReadString(b))
 }
 
 var writeTypes = []string{
@@ -246,18 +248,6 @@ var writeTypes = []string{
 	"CAS",
 	"VIEW",
 	"CDC",
-}
-
-// ReadWriteType reads string if it is valid write type
-// then returns it else panics.
-func ReadWriteType(b *bytes.Buffer) string {
-	wt := ReadString(b)
-	for _, v := range writeTypes {
-		if wt == v {
-			return wt
-		}
-	}
-	panic(unknownWriteTypeErr)
 }
 
 // ReadString reads and returns string from the buffer.
@@ -321,15 +311,4 @@ func ReadStringMultiMap(b *bytes.Buffer) StringMultiMap {
 		m[k] = l
 	}
 	return m
-}
-
-// ----------------------- HELPER FUNCTIONS ---------------------
-
-func Contains(s StringList, e string) bool {
-	for _, a := range s {
-		if a == e {
-			return true
-		}
-	}
-	return false
 }
