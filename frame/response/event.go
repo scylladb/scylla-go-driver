@@ -10,12 +10,11 @@ type TopologyChange struct {
 	Address frame.Inet
 }
 
-// Is returning error directly more elegant than returning it by frame.Buffer?
-func GetTopologyChange(b frame.Buffer) (TopologyChange, error) {
+func ParseTopologyChange(b *frame.Buffer) (TopologyChange, error) {
 	return TopologyChange{
-		Change:  b.GetTopologyChangeType(),
-		Address: b.GetInet(),
-	}, b.Error
+		Change:  b.ParseTopologyChangeType(),
+		Address: b.ReadInet(),
+	}, b.Error()
 }
 
 type StatusChange struct {
@@ -23,11 +22,11 @@ type StatusChange struct {
 	Address frame.Inet
 }
 
-func ReadStatusChange(b frame.Buffer) (StatusChange, error) {
+func ParseStatusChange(b *frame.Buffer) (StatusChange, error) {
 	return StatusChange{
-		Status:  b.GetStatusChangeType(),
-		Address: b.GetInet(),
-	}, b.Error
+		Status:  b.ParseStatusChangeType(),
+		Address: b.ReadInet(),
+	}, b.Error()
 }
 
 type SchemaChange struct {
@@ -38,33 +37,33 @@ type SchemaChange struct {
 	Arguments frame.StringList
 }
 
-func ReadSchemaChange(b frame.Buffer) (SchemaChange, error) {
-	c := b.GetSchemaChangeType()
-	t := b.GetSchemaChangeTarget()
+func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
+	c := b.ParseSchemaChangeType()
+	t := b.ParseSchemaChangeTarget()
 	switch t {
 	case frame.Keyspace:
 		return SchemaChange{
 			Change:   c,
 			Target:   t,
-			Keyspace: b.GetString(),
-		}, b.Error
+			Keyspace: b.ReadString(),
+		}, b.Error()
 	case frame.Table, frame.UserType:
 		return SchemaChange{
 			Change:   c,
 			Target:   t,
-			Keyspace: b.GetString(),
-			Object:   b.GetString(),
-		}, b.Error
+			Keyspace: b.ReadString(),
+			Object:   b.ReadString(),
+		}, b.Error()
 	case frame.Function, frame.Aggregate:
 		return SchemaChange{
 			Change:    c,
 			Target:    t,
-			Keyspace:  b.GetString(),
-			Object:    b.GetString(),
-			Arguments: b.GetStringList(),
-		}, b.Error
+			Keyspace:  b.ReadString(),
+			Object:    b.ReadString(),
+			Arguments: b.ReadStringList(),
+		}, b.Error()
 	default:
 		b.RecordError(fmt.Errorf("invalid SchemaChangeTarget: %s", t))
 	}
-	return SchemaChange{}, b.Error
+	return SchemaChange{}, b.Error()
 }

@@ -71,14 +71,14 @@ const CQLv4 Byte = 0x84
 type WriteType string
 
 const (
-	Simple        = "SIMPLE"
-	Batch         = "BATCH"
-	UnloggedBatch = "UNLOGGED_BATCH"
-	Counter       = "COUNTER"
-	BatchLog      = "BATCH_LOG"
-	CAS           = "CAS"
-	View          = "VIEW"
-	CDC           = "CDC"
+	Simple        WriteType = "SIMPLE"
+	Batch         WriteType = "BATCH"
+	UnloggedBatch WriteType = "UNLOGGED_BATCH"
+	Counter       WriteType = "COUNTER"
+	BatchLog      WriteType = "BATCH_LOG"
+	CAS           WriteType = "CAS"
+	View          WriteType = "VIEW"
+	CDC           WriteType = "CDC"
 )
 
 var ValidWriteTypes = map[WriteType]bool{
@@ -95,8 +95,8 @@ var ValidWriteTypes = map[WriteType]bool{
 type TopologyChangeType string
 
 const (
-	NewNode     = "NEW_NODE"
-	RemovedNode = "REMOVED_NODE"
+	NewNode     TopologyChangeType = "NEW_NODE"
+	RemovedNode TopologyChangeType = "REMOVED_NODE"
 )
 
 var topologyChangeTypes = map[TopologyChangeType]bool{
@@ -107,8 +107,8 @@ var topologyChangeTypes = map[TopologyChangeType]bool{
 type StatusChangeType string
 
 const (
-	Up   = "UP"
-	Down = "DOWN"
+	Up   StatusChangeType = "UP"
+	Down StatusChangeType = "DOWN"
 )
 
 var statusChangeTypes = map[StatusChangeType]bool{
@@ -119,9 +119,9 @@ var statusChangeTypes = map[StatusChangeType]bool{
 type SchemaChangeType string
 
 const (
-	Created = "CREATED"
-	Updated = "UPDATED"
-	Dropped = "DROPPED"
+	Created SchemaChangeType = "CREATED"
+	Updated SchemaChangeType = "UPDATED"
+	Dropped SchemaChangeType = "DROPPED"
 )
 
 var schemaChangeTypes = map[SchemaChangeType]bool{
@@ -133,9 +133,9 @@ var schemaChangeTypes = map[SchemaChangeType]bool{
 type SchemaChangeTarget string
 
 const (
-	Keyspace  = "KEYSPACE"
-	Table     = "TABLE"
-	UserType  = "TYPE"
-	Function  = "FUNCTION"
-	Aggregate = "AGGREGATE"
+	Keyspace  SchemaChangeTarget = "KEYSPACE"
+	Table     SchemaChangeTarget = "TABLE"
+	UserType  SchemaChangeTarget = "TYPE"
+	Function  SchemaChangeTarget = "FUNCTION"
+	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
