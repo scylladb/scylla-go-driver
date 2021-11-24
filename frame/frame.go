@@ -155,7 +155,7 @@ func (b *Buffer) GetTopologyChangeType() TopologyChangeType {
 
 func (b *Buffer) GetStatusChangeType() StatusChangeType {
 	t := StatusChangeType(b.GetString())
-	if _, ok := statusChangeTypes[t]; ok {
+	if _, ok := statusChangeTypes[t]; !ok {
 		b.RecordError(fmt.Errorf("invalid StatusChangeType: %s", t))
 	}
 	return t
@@ -163,7 +163,7 @@ func (b *Buffer) GetStatusChangeType() StatusChangeType {
 
 func (b *Buffer) GetSchemaChangeType() SchemaChangeType {
 	t := SchemaChangeType(b.GetString())
-	if _, ok := schemaChangeTypes[t]; ok {
+	if _, ok := schemaChangeTypes[t]; !ok {
 		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %s", t))
 	}
 	return t
