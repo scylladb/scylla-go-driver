@@ -20,6 +20,10 @@ func (b *Buffer) RecordError(err error) {
 	}
 }
 
+func (b *Buffer) Write(v Bytes) {
+	_, _ = b.buf.Write(v)
+}
+
 func (b *Buffer) WriteByte(v Byte) {
 	_ = b.buf.WriteByte(v)
 }
@@ -319,3 +323,4 @@ func (b *Buffer) ParseSchemaChangeType() SchemaChangeType {
 func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
 	return SchemaChangeTarget(b.ReadString())
 }
+

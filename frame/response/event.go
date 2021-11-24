@@ -64,6 +64,6 @@ func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
 		}, b.Error()
 	default:
 		b.RecordError(fmt.Errorf("invalid SchemaChangeTarget: %s", t))
+		return SchemaChange{}, b.Error()
 	}
-	return SchemaChange{}, b.Error()
 }
