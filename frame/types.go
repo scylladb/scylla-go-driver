@@ -26,6 +26,7 @@ type Inet struct {
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L183
 type OpCode = byte
+
 const (
 	OpError         OpCode = 0x00
 	OpStartup       OpCode = 0x01
@@ -47,6 +48,7 @@ const (
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
 type Consistency = uint16
+
 const (
 	ANY          Consistency = 0x0000
 	ONE          Consistency = 0x0001
@@ -62,21 +64,78 @@ const (
 	INVALID      Consistency = 0x000B
 )
 
-
-
-
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L1086
 type WriteType string
+
+const (
+	Simple        = "SIMPLE"
+	Batch         = "BATCH"
+	UnloggedBatch = "UNLOGGED_BATCH"
+	Counter       = "COUNTER"
+	BatchLog      = "BATCH_LOG"
+	CAS           = "CAS"
+	View          = "VIEW"
+	CDC           = "CDC"
+)
+
 var ValidWriteTypes = map[WriteType]bool{
-	"SIMPLE":         true,
-	"BATCH":          true,
-	"UNLOGGED_BATCH": true,
-	"COUNTER":        true,
-	"BATCH_LOG":      true,
-	"CAS":            true,
-	"VIEW":           true,
-	"CDC":            true,
+	Simple:        true,
+	Batch:         true,
+	UnloggedBatch: true,
+	Counter:       true,
+	BatchLog:      true,
+	CAS:           true,
+	View:          true,
+	CDC:           true,
 }
+
+type TopologyChangeType string
+
+const (
+	NewNode     = "NEW_NODE"
+	RemovedNode = "REMOVED_NODE"
+)
+
+var topologyChangeTypes = map[TopologyChangeType]bool{
+	NewNode:     true,
+	RemovedNode: true,
+}
+
+type StatusChangeType string
+
+const (
+	Up   = "UP"
+	Down = "DOWN"
+)
+
+var statusChangeTypes = map[StatusChangeType]bool{
+	Up:   true,
+	Down: true,
+}
+
+type SchemaChangeType string
+
+const (
+	Created = "CREATED"
+	Updated = "UPDATED"
+	Dropped = "DROPPED"
+)
+
+var schemaChangeTypes = map[SchemaChangeType]bool{
+	Created: true,
+	Updated: true,
+	Dropped: true,
+}
+
+type SchemaChangeTarget string
+
+const (
+	Keyspace  = "KEYSPACE"
+	Table     = "TABLE"
+	UserType  = "TYPE"
+	Function  = "FUNCTION"
+	Aggregate = "AGGREGATE"
+)

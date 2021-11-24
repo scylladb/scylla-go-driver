@@ -1,113 +1,70 @@
 package response
 
 import (
-	"bytes"
-	"errors"
+	"fmt"
 	"scylla-go-driver/frame"
 )
 
-var (
-	unknownChangeType = errors.New("unknown type of change inside the event")
-	unknownTarget     = errors.New("unknown target inside Schema Change event")
-)
-
-// TopologyChange response event type.
 type TopologyChange struct {
-	Change  string
+	Change  frame.TopologyChangeType
 	Address frame.Inet
 }
 
-// Valid types of change inside TopologyChange event.
-var (
-	newNode     = "NEW_NODE"
-	removedNode = "REMOVED_NODE"
-)
-
-// ReadTopologyChange reads and returns TopologyChange from the buffer.
-func ReadTopologyChange(b *bytes.Buffer) TopologyChange {
-	c := frame.ReadString(b)
-	if c != newNode && c != removedNode {
-		panic(unknownChangeType)
-	}
-	return TopologyChange{c, frame.ReadInet(b)}
+// Is returning error directly more elegant than returning it by frame.Buffer?
+func GetTopologyChange(b frame.Buffer) (TopologyChange, error) {
+	return TopologyChange{
+		Change:  b.GetTopologyChangeType(),
+		Address: b.GetInet(),
+	}, b.Error
 }
 
-// StatusChange response event type.
 type StatusChange struct {
-	Status  string
+	Status  frame.StatusChangeType
 	Address frame.Inet
 }
 
-// Valid types of change inside StatusChange event.
-var (
-	up   = "UP"
-	down = "DOWN"
-)
-
-// ReadStatusChange reads and returns StatusChange from the buffer.
-func ReadStatusChange(b *bytes.Buffer) StatusChange {
-	s := frame.ReadString(b)
-	if s != up && s != down {
-		panic(unknownChangeType)
-	}
-	return StatusChange{s, frame.ReadInet(b)}
+func ReadStatusChange(b frame.Buffer) (StatusChange, error) {
+	return StatusChange{
+		Status:  b.GetStatusChangeType(),
+		Address: b.GetInet(),
+	}, b.Error
 }
 
-// SchemaChange response event type.
-// Consists of attributes required for all types of target.
-// Unnecessary attributes for a given target are uninitialized.
 type SchemaChange struct {
-	Change    string
-	Target    string
+	Change    frame.SchemaChangeType
+	Target    frame.SchemaChangeTarget
 	Keyspace  string
 	Object    string
 	Arguments frame.StringList
 }
 
-var (
-	// Valid types of change inside SchemaChange event.
-	created = "CREATED"
-	updated = "UPDATED"
-	dropped = "DROPPED"
-
-	// Valid types of target inside SchemaChange event.
-	keyspace  = "KEYSPACE"
-	table     = "TABLE"
-	userType  = "TYPE"
-	function  = "FUNCTION"
-	aggregate = "AGGREGATE"
-)
-
-// ReadSchemaChange reads and return SchemaChange from the buffer.
-func ReadSchemaChange(b *bytes.Buffer) SchemaChange {
-	c := frame.ReadString(b)
-	if c != created && c != updated && c != dropped {
-		panic(unknownChangeType)
-	}
-	t := frame.ReadString(b)
+func ReadSchemaChange(b frame.Buffer) (SchemaChange, error) {
+	c := b.GetSchemaChangeType()
+	t := b.GetSchemaChangeTarget()
 	switch t {
-	case keyspace:
+	case frame.Keyspace:
 		return SchemaChange{
 			Change:   c,
 			Target:   t,
-			Keyspace: frame.ReadString(b),
-		}
-	case table, userType:
+			Keyspace: b.GetString(),
+		}, b.Error
+	case frame.Table, frame.UserType:
 		return SchemaChange{
 			Change:   c,
 			Target:   t,
-			Keyspace: frame.ReadString(b),
-			Object:   frame.ReadString(b),
-		}
-	case function, aggregate:
+			Keyspace: b.GetString(),
+			Object:   b.GetString(),
+		}, b.Error
+	case frame.Function, frame.Aggregate:
 		return SchemaChange{
 			Change:    c,
 			Target:    t,
-			Keyspace:  frame.ReadString(b),
-			Object:    frame.ReadString(b),
-			Arguments: frame.ReadStringList(b),
-		}
+			Keyspace:  b.GetString(),
+			Object:    b.GetString(),
+			Arguments: b.GetStringList(),
+		}, b.Error
 	default:
-		panic(unknownTarget)
+		b.RecordError(fmt.Errorf("invalid SchemaChangeTarget: %s", t))
 	}
+	return SchemaChange{}, b.Error
 }
