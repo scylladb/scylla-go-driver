@@ -139,3 +139,20 @@ const (
 	Function  SchemaChangeTarget = "FUNCTION"
 	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
+
+type StartupOptions StringMap
+
+// Mandatory values and keys that can be given in Startup body
+// value in the map means option name and key means its possible values.
+var mandatoryOptions = StringMultiMap{
+	"CQL_VERSION": {"3.0.0"},
+}
+
+var possibleOptions = StringMultiMap{
+	"COMPRESSION": {
+		"lz4",
+		"snappy",
+	},
+	"NO_COMPACT":        {},
+	"THROW_ON_OVERLOAD": {},
+}

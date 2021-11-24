@@ -1,7 +1,6 @@
 package request
 
 import (
-	"bytes"
 	"scylla-go-driver/frame"
 )
 
@@ -10,8 +9,7 @@ type Execute struct {
 	Options QueryOptions
 }
 
-// WriteTo writes Query ID and QueryOptions into the bytes.Buffer.
-func (e Execute) WriteTo(b *bytes.Buffer) {
-	_, _ = b.Write(e.ID)
-	e.Options.WriteTo(b)
+func (e Execute) WriteTo(b *frame.Buffer) {
+	b.Write(e.ID)
+	e.Options.WriteTo(b) // actually we want to have b.WriteQueryOptions
 }

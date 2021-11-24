@@ -295,6 +295,45 @@ func (b *Buffer) ReadStringMultiMap() StringMultiMap {
 	return StringMultiMap{}
 }
 
+func contains(l StringList, s string) bool {
+	for _, k := range l {
+		if s == k {
+			return true
+		}
+	}
+	return false
+}
+
+func (b *Buffer) WriteStartupOptions(m StartupOptions) {
+	if b.error == nil {
+		count := 0
+		for k, v := range mandatoryOptions {
+			if s, ok := m[k]; !(ok && contains(v, s)) {
+				b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
+				return
+			} else {
+				count = count + 1
+			}
+		}
+		for k, v := range possibleOptions {
+			if s, ok := m[k]; ok && !contains(v, s) {
+				b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
+				return
+			} else if ok {
+				count = count + 1
+			}
+		}
+
+		if count != len(m) {
+			b.RecordError(fmt.Errorf("invalid Startup option"))
+			return
+		}
+
+		b.WriteStringMap(m)
+	}
+}
+
+
 func (b *Buffer) ParseTopologyChangeType() TopologyChangeType {
 	t := TopologyChangeType(b.ReadString())
 	if _, ok := topologyChangeTypes[t]; !ok {

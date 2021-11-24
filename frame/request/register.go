@@ -1,7 +1,6 @@
 package request
 
 import (
-	"bytes"
 	"scylla-go-driver/frame"
 )
 
@@ -9,7 +8,6 @@ type Register struct {
 	EventTypes frame.StringList
 }
 
-// WriteTo writes EventTypes into the bytes.Buffer.
 func (r Register) WriteTo(b *frame.Buffer) {
-	frame.WriteStringList(r.EventTypes, b)
+	b.WriteStringList(r.EventTypes)
 }
