@@ -4,9 +4,8 @@ import (
 	"scylla-go-driver/frame"
 )
 
-// Options request message type.
+// Options spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L330.
 type Options struct {
 }
 
-// WriteOptions writes Options to the buffer.
 func (Options) WriteTo(_ *frame.Buffer) {}

@@ -177,7 +177,7 @@ func TestWriteTimeoutErr(t *testing.T) {
 			out := ReadWriteTimeout(&buf)
 
 			if out != tc.expected {
-				t.Fatal("Failure while constructing 'Write Timeout' error.")
+				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
 
@@ -216,7 +216,7 @@ func TestReadTimeoutErr(t *testing.T) {
 			out := ReadRTimeout(&buf)
 
 			if out != tc.expected {
-				t.Fatal("Failure while constructing 'Write Timeout' error.")
+				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
 
@@ -250,7 +250,7 @@ func TestReadFailure(t *testing.T) {
 			out := ReadRFailure(&buf)
 
 			if out != tc.expected {
-				t.Fatal("Failure while constructing 'Write Timeout' error.")
+				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
 
@@ -449,7 +449,7 @@ func TestAuthChallenge(t *testing.T) {
 
 	for _, v := range cases {
 		t.Run(fmt.Sprintf("TestAuthChallenge: %s.", v.name), func(t *testing.T) {
-			a := ReadAuthChallenge(bytes.NewBuffer(v.content))
+			a := ParseAuthChallenge(bytes.NewBuffer(v.content))
 			if !reflect.DeepEqual(a, v.expected) {
 				t.Fatal("Reading AuthChallenge response from the buffer failed.")
 			}

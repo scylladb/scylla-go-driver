@@ -1,17 +1,16 @@
 package response
 
 import (
-	"bytes"
-
 	"scylla-go-driver/frame"
 )
 
-// AuthChallenge response message type.
+// AuthChallenge spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L802.
 type AuthChallenge struct {
 	Token frame.Bytes
 }
 
-// ReadAuthChallenge reads and returns AuthChallenge from the buffer.
-func ReadAuthChallenge(b *bytes.Buffer) AuthChallenge {
-	return AuthChallenge{frame.ReadBytes(b)}
+func ParseAuthChallenge(b *frame.Buffer) AuthChallenge {
+	return AuthChallenge{
+		Token: b.ReadBytes(),
+	}
 }

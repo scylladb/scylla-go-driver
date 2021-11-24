@@ -64,6 +64,18 @@ const (
 	INVALID      Consistency = 0x000B
 )
 
+type Flags = byte
+
+const (
+	Values                = 0x01
+	SkipMetadata          = 0x02
+	PageSize              = 0x04
+	WithPagingState       = 0x08
+	WithSerialConsistency = 0x10
+	WithDefaultTimestamp  = 0x20
+	WithNamesForValues    = 0x40
+)
+
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
 

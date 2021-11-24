@@ -1,76 +1,62 @@
 package request
 
 import (
-	"bytes"
 	"scylla-go-driver/frame"
 )
 
-// Flags used inside Query.
-const (
-	values = 0x01
-	//skipMetadata      = 0x02 - silence linter.
-	pageSize          = 0x04
-	pagingState       = 0x08
-	serialConsistency = 0x10
-	timestamp         = 0x20
-	namedValues       = 0x40
-)
-
-// Query request type message.
+// Query spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L337.
 type Query struct {
 	Query       string
-	Consistency frame.Short
+	Consistency frame.Consistency
 	Options     QueryOptions
 }
 
-// QueryOptions represents optional values defined by flags.
-// Consists of values required for all flags.
+// QueryOptions represents optional Values defined by flags.
+// Consists of Values required for all flags.
 // Values for unset flags are uninitialized.
 type QueryOptions struct {
-	Flags             frame.Byte
+	Flags             frame.Flags
 	Values            []frame.Value
 	Names             frame.StringList
 	PageSize          frame.Int
 	PagingState       frame.Bytes
-	SerialConsistency frame.Short
+	SerialConsistency frame.Consistency
 	Timestamp         frame.Long
 }
 
-// Write writes Query to the buffer.
-func (q Query) WriteTo(b *bytes.Buffer) {
-	frame.WriteLongString(q.Query, b)
-	frame.WriteShort(q.Consistency, b)
+func (q Query) WriteTo(b *frame.Buffer) {
+	b.WriteLongString(q.Query)
+	b.WriteConsistency(q.Consistency)
 	q.Options.WriteTo(b)
 }
 
-// Write writes QueryOptions to the buffer.
-func (q QueryOptions) WriteTo(b *bytes.Buffer) {
-	frame.WriteByte(q.Flags, b)
-	// Checks the flags and writes values correspondent to the ones that are set.
-	if values&q.Flags != 0 {
-		// Writes amount of values.
-		frame.WriteShort(frame.Short(len(q.Values)), b)
-		if namedValues&q.Flags != 0 {
+func (q QueryOptions) WriteTo(b *frame.Buffer) {
+	b.WriteFlags(q.Flags)
+	// Checks the flags and writes Values correspondent to the ones that are set.
+	if frame.Values&q.Flags != 0 {
+		// Writes amount of Values.
+		b.WriteShort(frame.Short(len(q.Values)))
+		if frame.WithNamesForValues&q.Flags != 0 {
 			for i := range q.Names {
-				frame.WriteString(q.Names[i], b)
-				frame.WriteValue(q.Values[i], b)
+				b.WriteString(q.Names[i])
+				b.WriteValue(q.Values[i])
 			}
 		} else {
 			for _, v := range q.Values {
-				frame.WriteValue(v, b)
+				b.WriteValue(v)
 			}
 		}
 	}
-	if pageSize&q.Flags != 0 {
-		frame.WriteInt(q.PageSize, b)
+	if frame.PageSize&q.Flags != 0 {
+		b.WriteInt(q.PageSize)
 	}
-	if pagingState&q.Flags != 0 {
-		frame.WriteBytes(q.PagingState, b)
+	if frame.WithPagingState&q.Flags != 0 {
+		b.WriteBytes(q.PagingState)
 	}
-	if serialConsistency&q.Flags != 0 {
-		frame.WriteShort(q.SerialConsistency, b)
+	if frame.WithSerialConsistency&q.Flags != 0 {
+		b.WriteConsistency(q.SerialConsistency)
 	}
-	if timestamp&q.Flags != 0 {
-		frame.WriteLong(q.Timestamp, b)
+	if frame.WithDefaultTimestamp&q.Flags != 0 {
+		b.WriteLong(q.Timestamp)
 	}
 }

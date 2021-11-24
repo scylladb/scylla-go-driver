@@ -187,7 +187,7 @@ func TestWriteHeader(t *testing.T) {
 	var buf bytes.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
-			tc.content.Write(&buf)
+			tc.content.WriteTo(&buf)
 
 			if !bytes.Equal(buf.Bytes(), tc.expected) {
 				t.Fatal("Failure while reading StringMultiMap.")
@@ -410,7 +410,7 @@ func TestReadHeader(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("StringMultiMap reading test %s", tc.name), func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadHeader(&buf)
+			out := ParseHeader(&buf)
 
 			if out != tc.expected {
 				t.Fatal("Failure while reading StringMultiMap.")
