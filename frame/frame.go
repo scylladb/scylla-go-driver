@@ -3,6 +3,7 @@ package frame
 import (
 	"bytes"
 	"fmt"
+	"scylla-go-driver/frame/response"
 )
 
 type Buffer struct {
@@ -361,32 +362,21 @@ func contains(l StringList, s string) bool {
 }
 
 func (b *Buffer) WriteStartupOptions(m StartupOptions) {
-	if b.error == nil {
-		count := 0
-		for k, v := range mandatoryOptions {
-			if s, ok := m[k]; !(ok && contains(v, s)) {
-				b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
-				return
-			} else {
-				count = count + 1
-			}
-		}
-		for k, v := range possibleOptions {
-			if s, ok := m[k]; ok && !contains(v, s) {
-				b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
-				return
-			} else if ok {
-				count = count + 1
-			}
-		}
-
-		if count != len(m) {
-			b.RecordError(fmt.Errorf("invalid Startup option"))
+	for k, v := range mandatoryOptions {
+		if mv, ok := m[k]; !(ok && contains(v, mv)) {
+			b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, v))
 			return
 		}
-
-		b.WriteStringMap(m)
 	}
+
+	for k, v := range possibleOptions {
+		if mv, ok := m[k]; ok && !contains(v, mv) {
+			b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, v))
+			return
+		}
+	}
+
+	b.WriteStringMap(m)
 }
 
 func (b *Buffer) ParseTopologyChangeType() TopologyChangeType {
@@ -416,4 +406,28 @@ func (b *Buffer) ParseSchemaChangeType() SchemaChangeType {
 // Validation is not required. It is done inside SchemaChange event.
 func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
 	return SchemaChangeTarget(b.ReadString())
+}
+
+func (b *Buffer) ParseConsistency() Consistency {
+	c := Consistency(b.ReadShort())
+	if c > 10 {
+		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %d", c))
+	}
+	return c
+}
+
+func (b *Buffer) ParseErrorCode() response.ErrorCode {
+	e := response.ErrorCode(b.ReadInt())
+	if _, ok := errorCodes[e]; !ok {
+		b.RecordError(fmt.Errorf("invalid error code: %d", e))
+	}
+	return e
+}
+
+func (b *Buffer) ParseWriteType() WriteType {
+	w := WriteType(b.ReadString())
+	if _, ok := ValidWriteTypes[w]; !ok {
+		b.RecordError(fmt.Errorf("invalid write type: %s", w))
+	}
+	return w
 }

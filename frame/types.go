@@ -1,5 +1,7 @@
 package frame
 
+import "scylla-go-driver/frame/response"
+
 // Generic types from CQL binary protocol.
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L214
 type (
@@ -25,7 +27,7 @@ type Inet struct {
 }
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L183
-type OpCode = byte
+type OpCode = Byte
 
 const (
 	OpError         OpCode = 0x00
@@ -47,7 +49,7 @@ const (
 )
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
-type Consistency = uint16
+type Consistency = Short
 
 const (
 	ANY          Consistency = 0x0000
@@ -64,16 +66,16 @@ const (
 	INVALID      Consistency = 0x000B
 )
 
-type Flags = byte
+type Flags = Byte
 
 const (
-	Values                = 0x01
-	SkipMetadata          = 0x02
-	PageSize              = 0x04
-	WithPagingState       = 0x08
-	WithSerialConsistency = 0x10
-	WithDefaultTimestamp  = 0x20
-	WithNamesForValues    = 0x40
+	Values                Flags = 0x01
+	SkipMetadata          Flags = 0x02
+	PageSize              Flags = 0x04
+	WithPagingState       Flags = 0x08
+	WithSerialConsistency Flags = 0x10
+	WithDefaultTimestamp  Flags = 0x20
+	WithNamesForValues    Flags = 0x40
 )
 
 // CQLv4 is the only protocol version currently supported.
@@ -167,4 +169,27 @@ var possibleOptions = StringMultiMap{
 	},
 	"NO_COMPACT":        {},
 	"THROW_ON_OVERLOAD": {},
+}
+
+var errorCodes = map[response.ErrorCode]bool{
+	response.ErrCodeServer:          true,
+	response.ErrCodeProtocol:        true,
+	response.ErrCodeCredentials:     true,
+	response.ErrCodeUnavailable:     true,
+	response.ErrCodeOverloaded:      true,
+	response.ErrCodeBootstrapping:   true,
+	response.ErrCodeTruncate:        true,
+	response.ErrCodeWriteTimeout:    true,
+	response.ErrCodeReadTimeout:     true,
+	response.ErrCodeReadFailure:     true,
+	response.ErrCodeFunctionFailure: true,
+	response.ErrCodeWriteFailure:    true,
+	response.ErrCodeCDCWriteFailure: true,
+	response.ErrCodeCASWriteUnknown: true,
+	response.ErrCodeSyntax:          true,
+	response.ErrCodeUnauthorized:    true,
+	response.ErrCodeInvalid:         true,
+	response.ErrCodeConfig:          true,
+	response.ErrCodeAlreadyExists:   true,
+	response.ErrCodeUnprepared:      true,
 }
