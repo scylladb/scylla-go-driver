@@ -3,7 +3,6 @@ package frame
 import (
 	"bytes"
 	"fmt"
-	"scylla-go-driver/frame/response"
 )
 
 type Buffer struct {
@@ -362,21 +361,32 @@ func contains(l StringList, s string) bool {
 }
 
 func (b *Buffer) WriteStartupOptions(m StartupOptions) {
-	for k, v := range mandatoryOptions {
-		if mv, ok := m[k]; !(ok && contains(v, mv)) {
-			b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, v))
+	if b.error == nil {
+		count := 0
+		for k, v := range mandatoryOptions {
+			if s, ok := m[k]; !(ok && contains(v, s)) {
+				b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
+				return
+			} else {
+				count = count + 1
+			}
+		}
+		for k, v := range possibleOptions {
+			if s, ok := m[k]; ok && !contains(v, s) {
+				b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
+				return
+			} else if ok {
+				count = count + 1
+			}
+		}
+
+		if count != len(m) {
+			b.RecordError(fmt.Errorf("invalid Startup option"))
 			return
 		}
-	}
 
-	for k, v := range possibleOptions {
-		if mv, ok := m[k]; ok && !contains(v, mv) {
-			b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, v))
-			return
-		}
+		b.WriteStringMap(m)
 	}
-
-	b.WriteStringMap(m)
 }
 
 func (b *Buffer) ParseTopologyChangeType() TopologyChangeType {
@@ -410,14 +420,14 @@ func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
 
 func (b *Buffer) ParseConsistency() Consistency {
 	c := Consistency(b.ReadShort())
-	if c > 10 {
+	if c > ConsistencyRange {
 		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %d", c))
 	}
 	return c
 }
 
-func (b *Buffer) ParseErrorCode() response.ErrorCode {
-	e := response.ErrorCode(b.ReadInt())
+func (b *Buffer) ParseErrorCode() ErrorCode {
+	e := ErrorCode(b.ReadInt())
 	if _, ok := errorCodes[e]; !ok {
 		b.RecordError(fmt.Errorf("invalid error code: %d", e))
 	}

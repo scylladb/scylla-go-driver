@@ -30,13 +30,13 @@ type UnavailableErr struct {
 // ParseUnavailable reads UnavailableErr struct from buffer and constructs is.
 func ParseUnavailable(b *frame.Buffer) (UnavailableErr, error) {
 	return UnavailableErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ParseConsistency(),
-		b.ReadInt(),
-		b.ReadInt(),
+		Consistency: b.ParseConsistency(),
+		Required: b.ReadInt(),
+		Alive: b.ReadInt(),
 	}, b.Error()
 }
 
@@ -51,14 +51,14 @@ type WriteTimeoutErr struct {
 // ParseWriteTimeout reads WriteTimeoutErr struct from buffer and constructs is.
 func ParseWriteTimeout(b *frame.Buffer) (WriteTimeoutErr, error) {
 	return WriteTimeoutErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ParseConsistency(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ParseWriteType(),
+		Consistency: b.ParseConsistency(),
+		Received: b.ReadInt(),
+		BlockFor: b.ReadInt(),
+		WriteType: b.ParseWriteType(),
 	}, b.Error()
 }
 
@@ -73,14 +73,14 @@ type ReadTimeoutErr struct {
 // ParseReadTimeout reads ReadTimeoutErr struct from buffer and constructs is.
 func ParseReadTimeout(b *frame.Buffer) (ReadTimeoutErr, error) {
 	return ReadTimeoutErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ParseConsistency(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ReadByte(),
+		Consistency: b.ParseConsistency(),
+		Received: b.ReadInt(),
+		BlockFor: b.ReadInt(),
+		DataPresent: b.ReadByte(),
 	}, b.Error()
 }
 
@@ -96,15 +96,15 @@ type ReadFailureErr struct {
 // ParseReadFailure reads ReadFailureErr struct from buffer and constructs is.
 func ParseReadFailure(b *frame.Buffer) (ReadFailureErr, error) {
 	return ReadFailureErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ParseConsistency(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ReadByte(),
+		Consistency: b.ParseConsistency(),
+		Received: b.ReadInt(),
+		BlockFor: b.ReadInt(),
+		NumFailures: b.ReadInt(),
+		DataPresent: b.ReadByte(),
 	}, b.Error()
 }
 
@@ -118,13 +118,13 @@ type FuncFailureErr struct {
 // ParseFuncFailure reads FuncFailureErr struct from buffer and constructs is.
 func ParseFuncFailure(b *frame.Buffer) FuncFailureErr {
 	return FuncFailureErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ReadString(),
-		b.ReadString(),
-		b.ReadStringList(),
+		Keyspace: b.ReadString(),
+		Function: b.ReadString(),
+		ArgTypes: b.ReadStringList(),
 	}
 }
 
@@ -140,15 +140,15 @@ type WriteFailureErr struct {
 // ParseWriteFailure reads WriteFailureErr struct from buffer and constructs is.
 func ParseWriteFailure(b *frame.Buffer) (WriteFailureErr, error) {
 	return WriteFailureErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ParseConsistency(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ReadInt(),
-		b.ParseWriteType(),
+		Consistency: b.ParseConsistency(),
+		Received: b.ReadInt(),
+		BlockFor: b.ReadInt(),
+		NumFailures: b.ReadInt(),
+		WriteType: b.ParseWriteType(),
 	}, b.Error()
 }
 
@@ -161,12 +161,12 @@ type AlreadyExistsErr struct {
 // ParseAlreadyExists reads AlreadyExistsErr struct from buffer and constructs is.
 func ParseAlreadyExists(b *frame.Buffer) (AlreadyExistsErr, error) {
 	return AlreadyExistsErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ReadString(),
-		b.ReadString(),
+		Keyspace: b.ReadString(),
+		Table: b.ReadString(),
 	}, b.Error()
 }
 
@@ -178,10 +178,10 @@ type UnpreparedErr struct {
 // ParseUnprepared reads UnpreparedErr struct from buffer and constructs is.
 func ParseUnprepared(b *frame.Buffer) (UnpreparedErr, error) {
 	return UnpreparedErr{
-		Error{
+		Error: Error{
 			Code:    b.ParseErrorCode(),
 			Message: b.ReadString(),
 		},
-		b.ReadShortBytes(),
+		UnknownID: b.ReadShortBytes(),
 	}, b.Error()
 }
