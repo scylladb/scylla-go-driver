@@ -417,3 +417,27 @@ func (b *Buffer) ParseSchemaChangeType() SchemaChangeType {
 func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
 	return SchemaChangeTarget(b.ReadString())
 }
+
+func (b *Buffer) ParseConsistency() Consistency {
+	c := Consistency(b.ReadShort())
+	if c > ConsistencyRange {
+		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %d", c))
+	}
+	return c
+}
+
+func (b *Buffer) ParseErrorCode() ErrorCode {
+	e := ErrorCode(b.ReadInt())
+	if _, ok := errorCodes[e]; !ok {
+		b.RecordError(fmt.Errorf("invalid error code: %d", e))
+	}
+	return e
+}
+
+func (b *Buffer) ParseWriteType() WriteType {
+	w := WriteType(b.ReadString())
+	if _, ok := ValidWriteTypes[w]; !ok {
+		b.RecordError(fmt.Errorf("invalid write type: %s", w))
+	}
+	return w
+}
