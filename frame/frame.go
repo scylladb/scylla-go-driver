@@ -166,6 +166,7 @@ func (b *Buffer) WriteStringMap(m StringMap) {
 func (b *Buffer) WriteStringMultiMap(m StringMultiMap) {
 	// Writes the number of elements in the map.
 	b.WriteShort(Short(len(m)))
+
 	// Writes consecutive map entries.
 	for k, v := range m {
 		// Writes key.
