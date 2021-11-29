@@ -1,8 +1,6 @@
 package response
 
 import (
-	"bytes"
-
 	"scylla-go-driver/frame"
 )
 
@@ -11,7 +9,9 @@ type Supported struct {
 	Options frame.StringMultiMap
 }
 
-// ReadSupported reads and returns Supported from the buffer.
-func ReadSupported(b *bytes.Buffer) Supported {
-	return Supported{Options: frame.ReadStringMultiMap(b)}
+// ParseSupported reads and returns Supported from the buffer.
+func ParseSupported(b *frame.Buffer) (Supported, error) {
+	return Supported{
+		Options: b.ReadStringMultiMap(),
+	}, b.Error()
 }

@@ -21,60 +21,94 @@ func (b *Buffer) RecordError(err error) {
 }
 
 func (b *Buffer) Write(v Bytes) {
-	_, _ = b.buf.Write(v)
-}
-
-func (b *Buffer) WriteByte(v Byte) {
-	_ = b.buf.WriteByte(v)
-}
-
-func (b *Buffer) WriteShort(v Short) {
-	_, _ = b.buf.Write([]byte{
-		byte(v >> 8),
-		byte(v),
-	})
-}
-
-func (b *Buffer) WriteInt(v Int) {
-	_, _ = b.buf.Write([]byte{
-		byte(v >> 24),
-		byte(v >> 16),
-		byte(v >> 8),
-		byte(v),
-	})
-}
-
-func (b *Buffer) WriteLong(v Long) {
-	_, _ = b.buf.Write([]byte{
-		byte(v >> 56),
-		byte(v >> 48),
-		byte(v >> 40),
-		byte(v >> 32),
-		byte(v >> 24),
-		byte(v >> 16),
-		byte(v >> 8),
-		byte(v),
-	})
-}
-
-func (b *Buffer) WriteBytes(v Bytes) {
-	if v == nil {
-		b.WriteInt(-1)
-	} else {
-		// Write length of the bytes.
-		b.WriteInt(Int(len(v)))
+	if b.error == nil {
 		_, _ = b.buf.Write(v)
 	}
 }
 
+func (b *Buffer) WriteByte(v Byte) {
+	if b.error == nil {
+		_ = b.buf.WriteByte(v)
+	}
+}
+
+func (b *Buffer) WriteShort(v Short) {
+	if b.error == nil {
+		_, _ = b.buf.Write([]byte{
+			byte(v >> 8),
+			byte(v),
+		})
+	}
+}
+
+func (b *Buffer) WriteInt(v Int) {
+	if b.error == nil {
+		_, _ = b.buf.Write([]byte{
+			byte(v >> 24),
+			byte(v >> 16),
+			byte(v >> 8),
+			byte(v),
+		})
+	}
+}
+
+func (b *Buffer) WriteLong(v Long) {
+	if b.error == nil {
+		_, _ = b.buf.Write([]byte{
+			byte(v >> 56),
+			byte(v >> 48),
+			byte(v >> 40),
+			byte(v >> 32),
+			byte(v >> 24),
+			byte(v >> 16),
+			byte(v >> 8),
+			byte(v),
+		})
+	}
+}
+
+func (b *Buffer) WriteFlags(v Flags) {
+	b.WriteByte(v)
+}
+
+func (b *Buffer) WriteOpCode(v OpCode) {
+	if v > OpAuthSuccess {
+		b.RecordError(fmt.Errorf("invalid operation code: %v", v))
+	} else {
+		b.WriteByte(v)
+	}
+}
+
+func (b *Buffer) WriteConsistency(v Consistency) {
+	// INVALID holds the biggest number among consistencies.
+	if v > INVALID {
+		b.RecordError(fmt.Errorf("invalid consistency: %v", v))
+	} else {
+		b.WriteShort(v)
+	}
+}
+
+func (b *Buffer) WriteBytes(v Bytes) {
+	if b.error == nil {
+		if v == nil {
+			b.WriteInt(-1)
+		} else {
+			// Writes length of the bytes.
+			b.WriteInt(Int(len(v)))
+			_, _ = b.buf.Write(v)
+		}
+	}
+}
+
 func (b *Buffer) WriteShortBytes(v Bytes) {
-	// Write length of the bytes.
-	b.WriteShort(Short(len(v)))
-	_, _ = b.buf.Write(v)
+	if b.error == nil {
+		// WriteTo length of the bytes.
+		b.WriteShort(Short(len(v)))
+		_, _ = b.buf.Write(v)
+	}
 }
 
 func (b *Buffer) WriteValue(v Value) {
-	// Write length of the value.
 	b.WriteInt(v.N)
 	// Writes value's body if there is any.
 	if v.N > 0 {
@@ -83,22 +117,32 @@ func (b *Buffer) WriteValue(v Value) {
 }
 
 func (b *Buffer) WriteInet(v Inet) {
-	// Writes length of the IP address.
-	_ = b.buf.WriteByte(Byte(len(v.IP)))
-	_, _ = b.buf.Write(v.IP)
-	b.WriteInt(v.Port)
+	if b.error == nil {
+		if len(v.IP) != 4 && len(v.IP) != 16 {
+			b.RecordError(fmt.Errorf("invalid IP length"))
+		} else {
+			// Writes length of the IP address.
+			_ = b.buf.WriteByte(Byte(len(v.IP)))
+			_, _ = b.buf.Write(v.IP)
+			b.WriteInt(v.Port)
+		}
+	}
 }
 
 func (b *Buffer) WriteString(s string) {
-	// Writes length of the string.
-	b.WriteShort(Short(len(s)))
-	_, _ = b.buf.WriteString(s)
+	if b.error == nil {
+		// Writes length of the string.
+		b.WriteShort(Short(len(s)))
+		_, _ = b.buf.WriteString(s)
+	}
 }
 
 func (b *Buffer) WriteLongString(s string) {
-	// Writes length of the long string.
-	b.WriteInt(Int(len(s)))
-	_, _ = b.buf.WriteString(s)
+	if b.error == nil {
+		// Writes length of the long string.
+		b.WriteInt(Int(len(s)))
+		_, _ = b.buf.WriteString(s)
+	}
 }
 
 func (b *Buffer) WriteStringList(l StringList) {
@@ -141,6 +185,7 @@ func (b *Buffer) Read(n int) Bytes {
 	}
 	return nil
 }
+
 func (b *Buffer) ReadByte() Byte {
 	if b.error == nil {
 		var n Byte
@@ -185,6 +230,19 @@ func (b *Buffer) ReadLong() Long {
 	return Long(0)
 }
 
+func (b *Buffer) ReadOpCode() OpCode {
+	o := b.ReadByte()
+	// OpAuthSuccess holds the biggest number among operation codes.
+	if o > OpAuthSuccess {
+		b.RecordError(fmt.Errorf("invalid operation code: %v", o))
+	}
+	return o
+}
+
+func (b *Buffer) ReadFlags() Flags {
+	return b.ReadByte()
+}
+
 // If read Bytes length is negative returns nil.
 func (b *Buffer) ReadBytes() Bytes {
 	if b.error == nil {
@@ -208,7 +266,6 @@ func (b *Buffer) ReadShortBytes() Bytes {
 	return nil
 }
 
-// GetValue reads Value from the buffer.
 // Length equal to -1 represents null.
 // Length equal to -2 represents not set.
 func (b *Buffer) ReadValue() Value {
@@ -333,7 +390,6 @@ func (b *Buffer) WriteStartupOptions(m StartupOptions) {
 	}
 }
 
-
 func (b *Buffer) ParseTopologyChangeType() TopologyChangeType {
 	t := TopologyChangeType(b.ReadString())
 	if _, ok := topologyChangeTypes[t]; !ok {
@@ -363,3 +419,26 @@ func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
 	return SchemaChangeTarget(b.ReadString())
 }
 
+func (b *Buffer) ParseConsistency() Consistency {
+	c := Consistency(b.ReadShort())
+	if c > ConsistencyRange {
+		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %d", c))
+	}
+	return c
+}
+
+func (b *Buffer) ParseErrorCode() ErrorCode {
+	e := ErrorCode(b.ReadInt())
+	if _, ok := errorCodes[e]; !ok {
+		b.RecordError(fmt.Errorf("invalid error code: %d", e))
+	}
+	return e
+}
+
+func (b *Buffer) ParseWriteType() WriteType {
+	w := WriteType(b.ReadString())
+	if _, ok := ValidWriteTypes[w]; !ok {
+		b.RecordError(fmt.Errorf("invalid write type: %s", w))
+	}
+	return w
+}

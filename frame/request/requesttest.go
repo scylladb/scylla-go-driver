@@ -166,7 +166,7 @@ func TestQuery(t *testing.T) {
 			massAppendBytes(LongStringToBytes("select * from system.local"),
 				ShortToBytes(frame.QUORUM),
 				ByteToBytes(0))},
-		{"SELECT... Consistency ONE, FLAG: values",
+		{"SELECT... Consistency ONE, FLAG: Values",
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
@@ -180,7 +180,7 @@ func TestQuery(t *testing.T) {
 				ByteToBytes(0x01),
 				ShortToBytes(1),
 				ValueToBytes(frame.Value{N: 4, Bytes: HexStringToBytes("cafebabe")}))},
-		{"SELECT... Consistency ONE, FLAG: skipMetadata, pageSize, pagingState, serialConsistency, timestamp",
+		{"SELECT... Consistency ONE, FLAG: SkipMetadata, PageSize, WithPagingState, WithSerialConsistency, WithDefaultTimestamp",
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
@@ -198,7 +198,7 @@ func TestQuery(t *testing.T) {
 				HexStringToBytes("cafebabe"),
 				ShortToBytes(frame.LOCAL_SERIAL),
 				LongToBytes(42))},
-		{"SELECT... Consistency ONE, FLAG: values, namedValues",
+		{"SELECT... Consistency ONE, FLAG: Values, WithNamesForValues",
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
@@ -397,13 +397,13 @@ func TestBatch(t *testing.T) {
 				t.Fatal("Invalid flag.")
 			}
 
-			if flag&serialConsistency != 0 {
+			if flag&WithSerialConsistency != 0 {
 				if serCons := frame.ReadShort(&buf); serCons != tc.content.SerialConsistency {
 					t.Fatal("Invalid serial consistency.")
 				}
 			}
 
-			if flag&timestamp != 0 {
+			if flag&WithDefaultTimestamp != 0 {
 				if time := frame.ReadLong(&buf); time != tc.content.Timestamp {
 					t.Fatal("Invalid time.")
 				}

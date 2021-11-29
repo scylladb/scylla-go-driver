@@ -1,8 +1,10 @@
 package frame
 
-import "bytes"
+import (
+	"fmt"
+)
 
-// Header used both in requests and responses.
+// Header spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L101.
 type Header struct {
 	Version  Byte
 	Flags    Byte
@@ -11,29 +13,25 @@ type Header struct {
 	Length   Int
 }
 
-// ReadHeader reads and returns Header from the buffer.
-// Used when handling responses.
-func ReadHeader(b *Buffer) Header {
+func ParseHeader(b *Buffer) Header {
 	h := Header{
-		Version:  ReadByte(b),
-		Flags:    ReadByte(b),
-		StreamID: ReadShort(b),
-		Opcode:   ReadByte(b),
-		Length:   ReadInt(b),
+		Version:  b.ReadByte(),
+		Flags:    b.ReadFlags(),
+		StreamID: b.ReadShort(),
+		Opcode:   b.ReadOpCode(),
+		Length:   b.ReadInt(),
 	}
 	// Currently, we only accept CQLv4 spec response frames.
 	if h.Version != CQLv4 {
-		panic(protocolVersionErr)
+		b.RecordError(fmt.Errorf("invalid protocol version, only CQLv4 is accepted"))
 	}
 	return h
 }
 
-// WriteHeader writes Header to the buffer.
-// Used when handling requests.
-func (h Header) Write(b *bytes.Buffer) {
-	WriteByte(h.Version, b)
-	WriteByte(h.Flags, b)
-	WriteShort(h.StreamID, b)
-	WriteByte(h.Opcode, b)
-	WriteInt(h.Length, b)
+func (h Header) WriteTo(b *Buffer) {
+	b.WriteByte(h.Version)
+	b.WriteFlags(h.Flags)
+	b.WriteShort(h.StreamID)
+	b.WriteOpCode(h.Opcode)
+	b.WriteInt(h.Length)
 }

@@ -23,17 +23,17 @@ type Batch struct {
 func (q Batch) WriteTo(b *bytes.Buffer) {
 	frame.WriteByte(q.Type, b)
 
-	// Write number of queries.
+	// WriteTo number of queries.
 	frame.WriteShort(frame.Short(len(q.Queries)), b)
 	for _, k := range q.Queries {
 		k.WriteTo(b, q.Flags&WithNamesForValues != 0)
 	}
 	frame.WriteShort(q.Consistency, b)
 	frame.WriteByte(q.Flags, b)
-	if q.Flags&serialConsistency != 0 {
+	if q.Flags&WithSerialConsistency != 0 {
 		frame.WriteShort(q.SerialConsistency, b)
 	}
-	if q.Flags&timestamp != 0 {
+	if q.Flags&WithDefaultTimestamp != 0 {
 		frame.WriteLong(q.Timestamp, b)
 	}
 }
@@ -54,7 +54,7 @@ func (q BatchQuery) WriteTo(b *bytes.Buffer, name bool) {
 		frame.WriteShortBytes(q.Prepared, b)
 	}
 
-	// Write number of values.
+	// WriteTo number of Values.
 	frame.WriteShort(frame.Short(len(q.Values)), b)
 	for i, v := range q.Values {
 		if name {
