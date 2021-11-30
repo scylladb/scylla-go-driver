@@ -2,7 +2,6 @@ package frame
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 )
 
