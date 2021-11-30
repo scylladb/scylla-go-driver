@@ -612,7 +612,7 @@ func (t *StatusChangeType) Unmarshal(text []byte) error {
 		*t = v
 		return nil
 	} else {
-		return fmt.Errorf("invalid TopologyChangeType %s", text)
+		return fmt.Errorf("invalid StatusChangeType %s", text)
 	}
 }
 
@@ -627,19 +627,22 @@ func (t *SchemaChangeType) Unmarshal(text []byte) error {
 		*t = v
 		return nil
 	} else {
-		return fmt.Errorf("invalid TopologyChangeType %s", text)
+		return fmt.Errorf("invalid SchemaChangeType %s", text)
 	}
 }
-func (b *Buffer) dasda(m StringMultiMap) {
-	// Writes the number of elements in the map.
-	b.WriteShort(Short(len(m)))
 
-	// Writes consecutive map entries.
-	for k, v := range m {
-		// Writes key.
-		b.WriteString(k)
-		// Writes value.
-		b.WriteStringList(v)
+func (t SchemaChangeTarget) Marshal() ([]byte, error) {
+	l := Short(len(t))
+	return append(ShortSlice(l), t...), nil
+}
+
+func (t *SchemaChangeTarget) Unmarshal(text []byte) error {
+	v := SchemaChangeTarget(text)
+	if _, ok := schemaChangeTargets[v]; ok {
+		*t = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid SchemaChangeTarget %s", text)
 	}
 }
 
