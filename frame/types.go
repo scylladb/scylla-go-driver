@@ -25,7 +25,7 @@ type Inet struct {
 }
 
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L183
-type OpCode = Byte
+type OpCode Byte
 
 const (
 	OpError         OpCode = 0x00
@@ -46,10 +46,26 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
-// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
-type Consistency = Short
+var ValidOpCodes = map[OpCode]bool{
+	OpError:         true,
+	OpStartup:       true,
+	OpReady:         true,
+	OpAuthenticate:  true,
+	OpOptions:       true,
+	OpSupported:     true,
+	OpQuery:         true,
+	OpPrepare:       true,
+	OpExecute:       true,
+	OpRegister:      true,
+	OpEvent:         true,
+	OpBatch:         true,
+	OpAuthChallenge: true,
+	OpAuthResponse:  true,
+	OpAuthSuccess:   true,
+}
 
-const ConsistencyRange = 10
+// https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
+type Consistency Short
 
 const (
 	ANY          Consistency = 0x0000
@@ -66,7 +82,22 @@ const (
 	INVALID      Consistency = 0x000B
 )
 
-type Flags = Byte
+var ValidConsistencies = map[Consistency]bool{
+	ANY:          true,
+	ONE:          true,
+	TWO:          true,
+	THREE:        true,
+	QUORUM:       true,
+	ALL:          true,
+	LOCAL_QUORUM: true,
+	EACH_QUORUM:  true,
+	SERIAL:       true,
+	LOCAL_SERIAL: true,
+	LOCAL_ONE:    true,
+	INVALID:      true,
+}
+
+type Flags Byte
 
 const (
 	Values                Flags = 0x01
@@ -77,6 +108,16 @@ const (
 	WithDefaultTimestamp  Flags = 0x20
 	WithNamesForValues    Flags = 0x40
 )
+
+var ValidFlags = map[Flags]bool{
+	Values:                true,
+	SkipMetadata:          true,
+	PageSize:              true,
+	WithPagingState:       true,
+	WithSerialConsistency: true,
+	WithDefaultTimestamp:  true,
+	WithNamesForValues:    true,
+}
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
@@ -95,15 +136,15 @@ const (
 	CDC           WriteType = "CDC"
 )
 
-var ValidWriteTypes = map[WriteType]WriteType{
-	Simple:        Simple,
-	Batch:         Batch,
-	UnloggedBatch: UnloggedBatch,
-	Counter:       Counter,
-	BatchLog:      BatchLog,
-	CAS:           CAS,
-	View:          View,
-	CDC:           CDC,
+var ValidWriteTypes = map[WriteType]bool{
+	Simple:        true,
+	Batch:         true,
+	UnloggedBatch: true,
+	Counter:       true,
+	BatchLog:      true,
+	CAS:           true,
+	View:          true,
+	CDC:           true,
 }
 
 type TopologyChangeType string
@@ -154,6 +195,14 @@ const (
 	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
 
+var schemaChangeTargets = map[SchemaChangeTarget]bool{
+	Keyspace:  true,
+	Table:     true,
+	UserType:  true,
+	Function:  true,
+	Aggregate: true,
+}
+
 type StartupOptions StringMap
 
 // Mandatory values and keys that can be given in Startup body
@@ -171,7 +220,7 @@ var possibleOptions = StringMultiMap{
 	"THROW_ON_OVERLOAD": {},
 }
 
-type ErrorCode = Int
+type ErrorCode Int
 
 // See CQL Binary Protocol v5, section 8 for more details.
 // https://github.com/apache/cassandra/blob/7337fc0/doc/native_protocol_v5.spec
@@ -256,8 +305,7 @@ const (
 	ErrCodeUnprepared ErrorCode = 0x2500
 )
 
-
-var errorCodes = map[ErrorCode]bool{
+var ValidErrorCodes = map[ErrorCode]bool{
 	ErrCodeServer:          true,
 	ErrCodeProtocol:        true,
 	ErrCodeCredentials:     true,

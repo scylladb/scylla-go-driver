@@ -2,6 +2,7 @@ package frame
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 )
 
@@ -494,16 +495,188 @@ func (w *WriteType) ReadFrom(b *Buffer) []byte {
 	return r
 }
 
+func IntSlice(v Int) []byte{
+	return []byte{
+		byte(v >> 24),
+		byte(v >> 16),
+		byte(v >> 8),
+		byte(v),
+	}
+}
+
+func ShortSlice(v Short) []byte{
+	return []byte{
+		byte(v >> 8),
+		byte(v),
+	}
+}
+
+func ByteSlice(v Byte) []byte{
+	return []byte{
+		byte(v),
+	}
+}
+
+func ReadIntFromSlice(s []byte) Int {
+	return Int(s[0])<<24 | Int(s[1])<<16 | Int(s[2])<<8 | Int(s[3])
+}
+
+func ReadShortFromSlice(s []byte) Short {
+	return Short(s[0])<<8 | Short(s[1])
+}
+
+func ReadByteFromSlice(s []byte) byte {
+	return s[0]
+}
+
 func (w WriteType) Marshal() ([]byte, error) {
-	l := len(w)
-	return append([]byte{byte(l >> 8), byte(l)}, w...), nil
+	l := Short(len(w))
+	return append(ShortSlice(l), w...), nil
 }
 
 func (w *WriteType) Unmarshal(text []byte) error {
-	if r, ok := ValidWriteTypes[WriteType(text)]; ok {
-		*w = r
+	v := WriteType(text)
+	if _, ok := ValidWriteTypes[v]; ok {
+		*w = v
 		return nil
 	} else {
 		return fmt.Errorf("invalid WriteType %s", text)
+	}
+}
+
+func (o OpCode) Marshal() ([]byte, error) {
+	return ByteSlice(Byte(o)), nil
+}
+
+func (o *OpCode) Unmarshal(b []byte) error {
+	v := OpCode(ReadByteFromSlice(b))
+	if _, ok := ValidOpCodes[v]; ok {
+		*o = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid OpCode %d", v)
+	}
+}
+
+func (c Consistency) Marshal() ([]byte, error) {
+	return ShortSlice(Short(c)), nil
+}
+
+func (c *Consistency) Unmarshal(b []byte) error {
+	v := Consistency(ReadShortFromSlice(b))
+	if _, ok := ValidConsistencies[v]; ok {
+		*c = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid Consistency %d", v)
+	}
+}
+
+func (f Flags) Marshal() ([]byte, error) {
+	return ByteSlice(Byte(f)), nil
+}
+
+func (f *Flags) Unmarshal(b []byte) error {
+	v := Flags(ReadByteFromSlice(b))
+	if _, ok := ValidFlags[v]; ok {
+		*f = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid Flag %d", v)
+	}
+}
+
+func (t TopologyChangeType) Marshal() ([]byte, error) {
+	l := Short(len(t))
+	return append(ShortSlice(l), t...), nil
+}
+
+func (t *TopologyChangeType) Unmarshal(text []byte) error {
+	v := TopologyChangeType(text)
+	if _, ok := topologyChangeTypes[v]; ok {
+		*t = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid TopologyChangeType %s", text)
+	}
+}
+
+func (t StatusChangeType) Marshal() ([]byte, error) {
+	l := Short(len(t))
+	return append(ShortSlice(l), t...), nil
+}
+
+func (t *StatusChangeType) Unmarshal(text []byte) error {
+	v := StatusChangeType(text)
+	if _, ok := statusChangeTypes[v]; ok {
+		*t = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid TopologyChangeType %s", text)
+	}
+}
+
+func (t SchemaChangeType) Marshal() ([]byte, error) {
+	l := Short(len(t))
+	return append(ShortSlice(l), t...), nil
+}
+
+func (t *SchemaChangeType) Unmarshal(text []byte) error {
+	v := SchemaChangeType(text)
+	if _, ok := schemaChangeTypes[v]; ok {
+		*t = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid TopologyChangeType %s", text)
+	}
+}
+func (b *Buffer) dasda(m StringMultiMap) {
+	// Writes the number of elements in the map.
+	b.WriteShort(Short(len(m)))
+
+	// Writes consecutive map entries.
+	for k, v := range m {
+		// Writes key.
+		b.WriteString(k)
+		// Writes value.
+		b.WriteStringList(v)
+	}
+}
+
+func (s StartupOptions) Marshal()([]byte, error) {
+	l := Short(len(s))
+	ans := ShortSlice(l)
+	for k, v := range s {
+		//FIXME: mass append?
+		ans = append(ans, ShortSlice(Short(len(k)))...)
+		ans = append(ans, []byte(k)...)
+
+		ans = append(ans, ShortSlice(Short(len(v)))...)
+		ans = append(ans, []byte(v)...)
+	}
+	return ans, nil
+}
+
+// TODO: unmarshal startup - not doing it because I dont think the marshal/unmarshal idea is permanent
+//func (s *StartupOptions) Unmarshal(text []byte) error {
+//	if _, ok := schemaChangeTargets[v]; ok {
+//		*t = v
+//		return nil
+//	} else {
+//		return fmt.Errorf("invalid TopologyChangeType %s", text)
+//	}
+//}
+
+func (e ErrorCode) Marshal() ([]byte, error) {
+	return IntSlice(Int(e)), nil
+}
+
+func (e *ErrorCode) Unmarshal(b []byte) error {
+	v := ErrorCode(ReadIntFromSlice(b))
+	if _, ok := ValidErrorCodes[v]; ok {
+		*e = v
+		return nil
+	} else {
+		return fmt.Errorf("invalid ErrorCode %d", v)
 	}
 }
