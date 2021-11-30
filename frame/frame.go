@@ -186,6 +186,18 @@ func (b *Buffer) Read(n int) Bytes {
 	return nil
 }
 
+func (b *Buffer) RawBytes(n int) Bytes {
+	if b.error == nil {
+		r := b.buf.Next(n)
+		if len(r) == n {
+			return r
+		} else {
+			b.RecordError(fmt.Errorf("not enough bytes in buffer"))
+		}
+	}
+	return nil
+}
+
 func (b *Buffer) ReadByte() Byte {
 	if b.error == nil {
 		var n Byte
@@ -441,4 +453,57 @@ func (b *Buffer) ParseWriteType() WriteType {
 		b.RecordError(fmt.Errorf("invalid write type: %s", w))
 	}
 	return w
+}
+
+type Marshaler interface {
+	// Marshal type into bytes that can be instantly written to Buffer.
+	Marshal() ([]byte, error)
+}
+
+type Unmarshaler interface {
+	// Unmarshal type from bytes that are stripped out of additional data.
+	Unmarshal(text []byte) error
+
+	// Read all bytes that represent type in protocol logic.
+	ReadFrom(b *Buffer) []byte
+}
+
+// Generics cannot be exported yet.
+func writeEnum [T Marshaler](e T, b *Buffer) {
+	text, err := e.Marshal()
+	if err == nil {
+		b.Write(text)
+	} else {
+		b.RecordError(err)
+	}
+}
+
+func readEnum [T Unmarshaler](e *T, b *Buffer) {
+	t := e.ReadFrom(b)
+	if b.Error() == nil {
+		err := e.Unmarshal(t)
+		if err != nil {
+			b.RecordError(err)
+		}
+	}
+}
+
+func (w *WriteType) ReadFrom(b *Buffer) []byte {
+	l := b.ReadShort()
+	r := b.RawBytes(int(l))
+	return r
+}
+
+func (w WriteType) Marshal() ([]byte, error) {
+	l := len(w)
+	return append([]byte{byte(l >> 8), byte(l)}, w...), nil
+}
+
+func (w *WriteType) Unmarshal(text []byte) error {
+	if r, ok := ValidWriteTypes[WriteType(text)]; ok {
+		*w = r
+		return nil
+	} else {
+		return fmt.Errorf("invalid WriteType %s", text)
+	}
 }

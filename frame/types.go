@@ -95,15 +95,15 @@ const (
 	CDC           WriteType = "CDC"
 )
 
-var ValidWriteTypes = map[WriteType]bool{
-	Simple:        true,
-	Batch:         true,
-	UnloggedBatch: true,
-	Counter:       true,
-	BatchLog:      true,
-	CAS:           true,
-	View:          true,
-	CDC:           true,
+var ValidWriteTypes = map[WriteType]WriteType{
+	Simple:        Simple,
+	Batch:         Batch,
+	UnloggedBatch: UnloggedBatch,
+	Counter:       Counter,
+	BatchLog:      BatchLog,
+	CAS:           CAS,
+	View:          View,
+	CDC:           CDC,
 }
 
 type TopologyChangeType string
