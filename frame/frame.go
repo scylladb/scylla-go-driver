@@ -469,24 +469,24 @@ type Unmarshaler interface {
 }
 
 // Generics cannot be exported yet.
-func writeEnum [T Marshaler](e T, b *Buffer) {
-	text, err := e.Marshal()
-	if err == nil {
-		b.Write(text)
-	} else {
-		b.RecordError(err)
-	}
-}
+//func writeEnum [T Marshaler](e T, b *Buffer) {
+//	text, err := e.Marshal()
+//	if err == nil {
+//		b.Write(text)
+//	} else {
+//		b.RecordError(err)
+//	}
+//}
 
-func readEnum [T Unmarshaler](e *T, b *Buffer) {
-	t := e.ReadFrom(b)
-	if b.Error() == nil {
-		err := e.Unmarshal(t)
-		if err != nil {
-			b.RecordError(err)
-		}
-	}
-}
+//func readEnum [T Unmarshaler](e *T, b *Buffer) {
+//	t := e.ReadFrom(b)
+//	if b.Error() == nil {
+//		//err := e.Unmarshal(t)
+//		if err != nil {
+//			b.RecordError(err)
+//		}
+//	}
+//}
 
 func (w *WriteType) ReadFrom(b *Buffer) []byte {
 	l := b.ReadShort()
@@ -494,7 +494,7 @@ func (w *WriteType) ReadFrom(b *Buffer) []byte {
 	return r
 }
 
-func IntSlice(v Int) []byte{
+func IntSlice(v Int) []byte {
 	return []byte{
 		byte(v >> 24),
 		byte(v >> 16),
@@ -503,14 +503,14 @@ func IntSlice(v Int) []byte{
 	}
 }
 
-func ShortSlice(v Short) []byte{
+func ShortSlice(v Short) []byte {
 	return []byte{
 		byte(v >> 8),
 		byte(v),
 	}
 }
 
-func ByteSlice(v Byte) []byte{
+func ByteSlice(v Byte) []byte {
 	return []byte{
 		byte(v),
 	}
@@ -645,7 +645,7 @@ func (t *SchemaChangeTarget) Unmarshal(text []byte) error {
 	}
 }
 
-func (s StartupOptions) Marshal()([]byte, error) {
+func (s StartupOptions) Marshal() ([]byte, error) {
 	l := Short(len(s))
 	ans := ShortSlice(l)
 	for k, v := range s {
