@@ -106,6 +106,20 @@ var ValidWriteTypes = map[WriteType]bool{
 	CDC:           true,
 }
 
+type EventType = string
+
+const (
+	TopologyChange EventType = "TOPOLOGY_CHANGE"
+	StatusChange   EventType = "STATUS_CHANGE"
+	SchemaChange   EventType = "SCHEMA_CHANGE"
+)
+
+var ValidEventTypes = map[EventType]bool{
+	TopologyChange: true,
+	StatusChange:   true,
+	SchemaChange:   true,
+}
+
 type TopologyChangeType string
 
 const (
@@ -255,7 +269,6 @@ const (
 	// See https://github.com/apache/cassandra/blob/7337fc0/doc/native_protocol_v5.spec#L1414-L1417
 	ErrCodeUnprepared ErrorCode = 0x2500
 )
-
 
 var errorCodes = map[ErrorCode]bool{
 	ErrCodeServer:          true,

@@ -10,6 +10,6 @@ type Execute struct {
 }
 
 func (e Execute) WriteTo(b *frame.Buffer) {
-	b.Write(e.ID)
+	b.WriteShortBytes(e.ID)
 	e.Options.WriteTo(b) // actually we want to have b.WriteQueryOptions
 }

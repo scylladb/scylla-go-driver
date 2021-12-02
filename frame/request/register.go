@@ -5,9 +5,9 @@ import (
 )
 
 type Register struct {
-	EventTypes frame.StringList
+	EventTypes []frame.EventType
 }
 
 func (r Register) WriteTo(b *frame.Buffer) {
-	b.WriteStringList(r.EventTypes)
+	b.WriteEventTypes(r.EventTypes)
 }
