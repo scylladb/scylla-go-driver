@@ -4,9 +4,8 @@ import (
 	"bytes"
 )
 
-type Ready struct {
-}
+type Ready struct{}
 
-func ReadReady(_ *bytes.Buffer) Ready {
-	return Ready{}
+func ParseReady(_ *bytes.Buffer) (Ready, error) {
+	return Ready{}, nil
 }
