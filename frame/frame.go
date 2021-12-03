@@ -154,7 +154,6 @@ func (b *Buffer) WriteLongString(s string) {
 func (b *Buffer) WriteStringList(l StringList) {
 	// Writes length of the string list.
 	b.WriteShort(Short(len(l)))
-	// Writes consecutive strings.
 	for _, s := range l {
 		b.WriteString(s)
 	}
@@ -173,7 +172,6 @@ func (b *Buffer) WriteStringMultiMap(m StringMultiMap) {
 	// Writes the number of elements in the map.
 	b.WriteShort(Short(len(m)))
 
-	// Writes consecutive map entries.
 	for k, v := range m {
 		// Writes key.
 		b.WriteString(k)
@@ -193,6 +191,35 @@ func (b *Buffer) WriteEventTypes(e []EventType) {
 	}
 }
 
+func (b *Buffer) WriteQueryOptions(q QueryOptions) {
+	if b.err == nil {
+		b.WriteFlags(q.Flags)
+		// Checks the flags and writes Values correspondent to the ones that are set.
+		if Values&q.Flags != 0 {
+			// Writes amount of Values.
+			b.WriteShort(Short(len(q.Values)))
+			for i := range q.Names {
+				if WithNamesForValues&q.Flags != 0 {
+					b.WriteString(q.Names[i])
+				}
+				b.WriteValue(q.Values[i])
+			}
+		}
+		if PageSize&q.Flags != 0 {
+			b.WriteInt(q.PageSize)
+		}
+		if WithPagingState&q.Flags != 0 {
+			b.WriteBytes(q.PagingState)
+		}
+		if WithSerialConsistency&q.Flags != 0 {
+			b.WriteConsistency(q.SerialConsistency)
+		}
+		if WithDefaultTimestamp&q.Flags != 0 {
+			b.WriteLong(q.Timestamp)
+		}
+	}
+}
+
 func (b *Buffer) Read(n int) Bytes {
 	if b.err == nil {
 		p := make(Bytes, n)
@@ -207,12 +234,12 @@ func (b *Buffer) Read(n int) Bytes {
 
 func (b *Buffer) ReadRawBytes(n int) Bytes {
 	if b.err == nil {
-		 p := b.buf.Next(n)
-		 if len(p) == n {
-			 return p
-		 } else {
-			 b.RecordError(fmt.Errorf("not enough bytes"))
-		 }
+		p := b.buf.Next(n)
+		if len(p) == n {
+			return p
+		} else {
+			b.RecordError(fmt.Errorf("not enough bytes"))
+		}
 	}
 	return nil
 }

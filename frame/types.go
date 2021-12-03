@@ -185,6 +185,19 @@ var possibleOptions = StringMultiMap{
 	"THROW_ON_OVERLOAD": {},
 }
 
+// QueryOptions represent optional Values defined by flags.
+// Consists of Values required for all flags.
+// Values for unset flags are uninitialized.
+type QueryOptions struct {
+	Flags             Flags
+	Values            []Value
+	Names             StringList
+	PageSize          Int
+	PagingState       Bytes
+	SerialConsistency Consistency
+	Timestamp         Long
+}
+
 type ErrorCode = Int
 
 // See CQL Binary Protocol v5, section 8 for more details.
