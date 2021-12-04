@@ -5,6 +5,10 @@ import (
 	"scylla-go-driver/frame"
 )
 
+// Event spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L754
+// Below are types of events with different bodies.
+
+// TopologyChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L760
 type TopologyChange struct {
 	Change  frame.TopologyChangeType
 	Address frame.Inet
@@ -12,11 +16,12 @@ type TopologyChange struct {
 
 func ParseTopologyChange(b *frame.Buffer) (TopologyChange, error) {
 	return TopologyChange{
-		Change:  b.ParseTopologyChangeType(),
+		Change:  b.ReadTopologyChangeType(),
 		Address: b.ReadInet(),
 	}, b.Error()
 }
 
+// StatusChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L766
 type StatusChange struct {
 	Status  frame.StatusChangeType
 	Address frame.Inet
@@ -24,11 +29,12 @@ type StatusChange struct {
 
 func ParseStatusChange(b *frame.Buffer) (StatusChange, error) {
 	return StatusChange{
-		Status:  b.ParseStatusChangeType(),
+		Status:  b.ReadStatusChangeType(),
 		Address: b.ReadInet(),
 	}, b.Error()
 }
 
+// SchemaChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L771
 type SchemaChange struct {
 	Change    frame.SchemaChangeType
 	Target    frame.SchemaChangeTarget
@@ -38,8 +44,8 @@ type SchemaChange struct {
 }
 
 func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
-	c := b.ParseSchemaChangeType()
-	t := b.ParseSchemaChangeTarget()
+	c := b.ReadSchemaChangeType()
+	t := b.ReadSchemaChangeTarget()
 	switch t {
 	case frame.Keyspace:
 		return SchemaChange{

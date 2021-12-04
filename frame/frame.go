@@ -85,7 +85,7 @@ func (b *Buffer) WriteOpCode(v OpCode) {
 
 func (b *Buffer) WriteConsistency(v Consistency) {
 	if b.err == nil {
-		// INVALID holds the biggest number among consistencies.
+		// InvalidConsistency holds the biggest number among consistencies.
 		if v >= InvalidConsistency {
 			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
 		} else {
@@ -115,10 +115,14 @@ func (b *Buffer) WriteShortBytes(v Bytes) {
 }
 
 func (b *Buffer) WriteValue(v Value) {
-	b.WriteInt(v.N)
-	// Writes value's body if there is any.
-	if v.N > 0 {
-		_, _ = b.buf.Write(v.Bytes)
+	if b.err == nil {
+		b.WriteInt(v.N)
+		// Writes value's body if there is any.
+		if v.N > 0 {
+			_, _ = b.buf.Write(v.Bytes)
+		} else if v.N < -2 {
+			b.RecordError(fmt.Errorf("invalid value"))
+		}
 	}
 }
 
@@ -449,55 +453,75 @@ func (b *Buffer) WriteStartupOptions(m StartupOptions) {
 	}
 }
 
-func (b *Buffer) ParseTopologyChangeType() TopologyChangeType {
-	t := TopologyChangeType(b.ReadString())
-	if _, ok := topologyChangeTypes[t]; !ok {
-		b.RecordError(fmt.Errorf("invalid TopologyChangeType: %s", t))
+func (b *Buffer) ReadTopologyChangeType() TopologyChangeType {
+	if b.err == nil {
+		t := TopologyChangeType(b.ReadString())
+		if _, ok := topologyChangeTypes[t]; !ok {
+			b.RecordError(fmt.Errorf("invalid TopologyChangeType: %s", t))
+		}
+		return t
 	}
-	return t
+	return ""
 }
 
-func (b *Buffer) ParseStatusChangeType() StatusChangeType {
-	t := StatusChangeType(b.ReadString())
-	if _, ok := statusChangeTypes[t]; !ok {
-		b.RecordError(fmt.Errorf("invalid StatusChangeType: %s", t))
+func (b *Buffer) ReadStatusChangeType() StatusChangeType {
+	if b.err == nil {
+		t := StatusChangeType(b.ReadString())
+		if _, ok := statusChangeTypes[t]; !ok {
+			b.RecordError(fmt.Errorf("invalid StatusChangeType: %s", t))
+		}
+		return t
 	}
-	return t
+	return ""
 }
 
-func (b *Buffer) ParseSchemaChangeType() SchemaChangeType {
-	t := SchemaChangeType(b.ReadString())
-	if _, ok := schemaChangeTypes[t]; !ok {
-		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %s", t))
+func (b *Buffer) ReadSchemaChangeType() SchemaChangeType {
+	if b.err == nil {
+		t := SchemaChangeType(b.ReadString())
+		if _, ok := schemaChangeTypes[t]; !ok {
+			b.RecordError(fmt.Errorf("invalid SchemaChangeType: %s", t))
+		}
+		return t
 	}
-	return t
+	return ""
 }
 
 // Validation is not required. It is done inside SchemaChange event.
-func (b *Buffer) ParseSchemaChangeTarget() SchemaChangeTarget {
+func (b *Buffer) ReadSchemaChangeTarget() SchemaChangeTarget {
 	return SchemaChangeTarget(b.ReadString())
 }
 
-func (b *Buffer) ParseConsistency() Consistency {
-	c := Consistency(b.ReadShort())
-	if c > ConsistencyRange {
-		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %d", c))
+func (b *Buffer) ReadErrorCode() ErrorCode {
+	if b.err != nil {
+		v := ErrorCode(b.ReadInt())
+		if _, ok := validErrorCodes[v]; !ok {
+			b.RecordError(fmt.Errorf("invalid error code: %d", v))
+		}
+		return v
 	}
-	return c
+	return 0
 }
 
-func (b *Buffer) ParseErrorCode() ErrorCode {
-	e := ErrorCode(b.ReadInt())
-	if _, ok := errorCodes[e]; !ok {
-		b.RecordError(fmt.Errorf("invalid error code: %d", e))
+func (b *Buffer) ReadConsistency() Consistency {
+	if b.err == nil {
+		// InvalidConsistency holds the biggest number among consistencies.
+		v := Consistency(b.ReadShort())
+		if v >= InvalidConsistency {
+			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
+		} else {
+			b.WriteShort(v)
+		}
 	}
-	return e
+	return 0
 }
 
-func (b *Buffer) ParseWriteType() WriteType {
-	w := WriteType(b.ReadString())
-	if _, ok := ValidWriteTypes[w]; !ok {
-		b.RecordError(fmt.Errorf("invalid write type: %s", w))
+func (b *Buffer) ReadWriteType() WriteType {
+	if b.err == nil {
+		w := WriteType(b.ReadString())
+		if _, ok := ValidWriteTypes[w]; !ok {
+			b.RecordError(fmt.Errorf("invalid write type: %s", w))
+		}
+		return w
 	}
-	return w
+	return ""
 }
