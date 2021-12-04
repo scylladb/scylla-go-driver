@@ -1,54 +1,41 @@
 package request
 
 import (
-	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"math"
 	"scylla-go-driver/frame"
 	"testing"
 )
 
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 func ShortToBytes(x frame.Short) []byte {
 	var out frame.Buffer
-	frame.WriteShort(x, &out)
+	out.WriteShort(x)
 	return out.Bytes()
 }
 
 func IntToBytes(x frame.Int) []byte {
 	var out frame.Buffer
-	frame.WriteInt(x, &out)
+	out.WriteInt(x)
 	return out.Bytes()
 }
 
 func StringToBytes(x string) []byte {
 	var out frame.Buffer
-	frame.WriteString(x, &out)
+	out.WriteString(x)
 	return out.Bytes()
 }
 
 func LongStringToBytes(x string) []byte {
 	var out frame.Buffer
-	frame.WriteLongString(x, &out)
+	out.WriteLongString(x)
 	return out.Bytes()
 }
 
 func ByteToBytes(b frame.Byte) []byte {
 	var out frame.Buffer
-	frame.WriteByte(b, &out)
+	out.WriteByte(b)
 	return out.Bytes()
 }
 
@@ -60,19 +47,6 @@ func massAppendBytes(elems ...[]byte) []byte {
 	return ans
 }
 
-// Comment to silence linter.
-//func StringListToBytes(sl frame.StringList) []byte {
-//	var out frame.Buffer
-//	frame.WriteStringList(sl, &out)
-//	return out.Bytes()
-//}
-//
-//func BytesToBytes(b frame.Bytes) []byte {
-//	var out frame.Buffer
-//	frame.WriteBytes(b, &out)
-//	return out.Bytes()
-//}
-
 // ------------------------------- AUTH RESPONSE TESTS --------------------------------
 
 func TestAuthResponseWriteTo(t *testing.T) {
@@ -83,18 +57,17 @@ func TestAuthResponseWriteTo(t *testing.T) {
 	}{
 		{"Should encode and decode",
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
-			[]byte{0xca, 0xfe, 0xba, 0xbe},
+			[]byte{0x00, 0x00, 0x00, 0x04, 0xca, 0xfe, 0xba, 0xbe},
 		},
 	}
 
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
-			ar := AuthResponse{tc.content}
-			out := new(frame.Buffer)
-			ar.WriteTo(out)
-
-			if bytesEqual(out.Bytes(), tc.expected) {
-				t.Fatal("Failure while encoding and decoding AuthResponse.")
+		t.Run(tc.name, func(t *testing.T) {
+			ar := AuthResponse{Token: tc.content}
+			var out frame.Buffer
+			ar.WriteTo(&out)
+			if diff := cmp.Diff(out.Bytes(), tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -112,11 +85,11 @@ func TestPrepare(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run("TestPrepare: "+v.name+".", func(t *testing.T) {
+		t.Run(v.name, func(t *testing.T) {
 			b := frame.Buffer{}
 			v.content.WriteTo(&b)
-			if !bytes.Equal(v.expected, b.Bytes()) {
-				t.Fatal("Writing Prepare request to frame.Buffer failed.")
+			if diff := cmp.Diff(v.expected, b.Bytes()); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -132,13 +105,13 @@ func HexStringToBytes(s string) []byte {
 
 func ValueToBytes(v frame.Value) []byte {
 	b := frame.Buffer{}
-	frame.WriteValue(v, &b)
+	b.WriteValue(v)
 	return b.Bytes()
 }
 
 func LongToBytes(l frame.Long) []byte {
 	b := frame.Buffer{}
-	frame.WriteLong(l, &b)
+	b.WriteLong(l)
 	return b.Bytes()
 }
 
@@ -152,7 +125,7 @@ func TestQuery(t *testing.T) {
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
-				Options:     QueryOptions{Flags: 0},
+				Options:     frame.QueryOptions{Flags: 0},
 			},
 			massAppendBytes(LongStringToBytes("select * from system.local"),
 				ShortToBytes(frame.ONE),
@@ -161,7 +134,7 @@ func TestQuery(t *testing.T) {
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.QUORUM,
-				Options:     QueryOptions{Flags: 0},
+				Options:     frame.QueryOptions{Flags: 0},
 			},
 			massAppendBytes(LongStringToBytes("select * from system.local"),
 				ShortToBytes(frame.QUORUM),
@@ -170,7 +143,7 @@ func TestQuery(t *testing.T) {
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
-				Options: QueryOptions{Flags: 0x01, Values: []frame.Value{{
+				Options: frame.QueryOptions{Flags: 0x01, Values: []frame.Value{{
 					N:     4,
 					Bytes: HexStringToBytes("cafebabe"),
 				}}},
@@ -184,7 +157,7 @@ func TestQuery(t *testing.T) {
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
-				Options: QueryOptions{Flags: 0x02 | 0x04 | 0x08 | 0x10 | 0x20,
+				Options: frame.QueryOptions{Flags: 0x02 | 0x04 | 0x08 | 0x10 | 0x20,
 					PageSize:          10,
 					PagingState:       HexStringToBytes("cafebabe"),
 					SerialConsistency: frame.LOCAL_SERIAL,
@@ -202,7 +175,7 @@ func TestQuery(t *testing.T) {
 			Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
-				Options: QueryOptions{Flags: 0x01 | 0x40,
+				Options: frame.QueryOptions{Flags: 0x01 | 0x40,
 					Values: []frame.Value{{N: 4, Bytes: HexStringToBytes("cafebabe")}},
 					Names:  []string{"foo"}},
 			},
@@ -215,11 +188,11 @@ func TestQuery(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run("TestQuery: "+v.name+".", func(t *testing.T) {
+		t.Run(v.name, func(t *testing.T) {
 			b := frame.Buffer{}
 			v.content.WriteTo(&b)
-			if !bytes.Equal(v.expected, b.Bytes()) {
-				t.Fatal("Writing Query request to frame.Buffer failed.")
+			if diff := cmp.Diff(v.expected, b.Bytes()); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -247,12 +220,10 @@ func TestRegister(t *testing.T) {
 		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
 			r := Register{tc.content}
 			r.WriteTo(&out)
-
-			if bytesEqual(out.Bytes(), tc.expected) {
-				t.Fatal("Failure while encoding and decoding AuthResponse.")
+			if diff := cmp.Diff(out.Bytes(), tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
-
 		out.Reset()
 	}
 }
@@ -312,28 +283,19 @@ func TestWriteStartup(t *testing.T) {
 		},
 	}
 
-	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Short writing test %s", tc.name), func(t *testing.T) {
+			var buf frame.Buffer
 			tc.content.WriteTo(&buf)
-			readOptions := frame.ReadStringMap(&buf)
-
-			if !StringMapEqual(readOptions, tc.content.Options) {
-				t.Fatal("Failure while constructing Startup.")
+			readOptions := buf.ReadStringMap()
+			if diff := cmp.Diff(readOptions, tc.content.Options); diff != "" {
+				t.Fatal(diff)
 			}
 		})
-
-		buf.Reset()
 	}
 }
 
 // ------------------------------- BATCH TESTS -----------------------------
-func valueEqual(a, b frame.Value) bool {
-	if a.N != b.N {
-		return false
-	}
-	return bytesEqual(a.Bytes, b.Bytes)
-}
 
 func TestBatch(t *testing.T) {
 	var cases = []struct {
@@ -347,69 +309,68 @@ func TestBatch(t *testing.T) {
 				Timestamp: frame.Long(math.MinInt64)}},
 	}
 
-	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(fmt.Sprintf("Batch test %s", tc.name), func(t *testing.T) {
+			var buf frame.Buffer
 			tc.content.WriteTo(&buf)
 
-			if batchType := frame.ReadByte(&buf); batchType != tc.content.Type {
+			if batchType := buf.ReadByte(); batchType != tc.content.Type {
 				t.Fatal("Invalid type.")
 			}
 
-			n := frame.ReadShort(&buf)
+			n := buf.ReadShort()
 			if n != frame.Short(len(tc.content.Queries)) {
 				t.Fatal("Invalid n.")
 			}
 
 			for i := frame.Short(0); i < n; i++ {
-				if kind := frame.ReadByte(&buf); kind == 0 {
-
-					if que := frame.ReadLongString(&buf); que != tc.content.Queries[i].Query {
+				if kind := buf.ReadByte(); kind == 0 {
+					if que := buf.ReadLongString(); que != tc.content.Queries[i].Query {
 						t.Fatal("Invalid query.")
 					}
 				} else if kind == 1 {
-					if prep := frame.ReadShortBytes(&buf); !bytesEqual(prep, tc.content.Queries[i].Prepared) {
-						t.Fatal("Invalid prepared.")
+					prep := buf.ReadShortBytes()
+					if diff := cmp.Diff(prep, tc.content.Queries[i].Prepared); diff != "" {
+						t.Fatal(diff)
 					}
 				} else {
 					t.Fatal("Invalid kind.")
 				}
 
-				values := frame.ReadShort(&buf)
+				values := buf.ReadShort()
 				for j := frame.Short(0); j < values; j++ {
 					if tc.content.Flags&WithNamesForValues != 0 {
-						if name := frame.ReadString(&buf); name != tc.content.Queries[i].Names[j] {
+						if name := buf.ReadString(); name != tc.content.Queries[i].Names[j] {
 							t.Fatal("Invalid name.")
 						}
 					}
-					if val := frame.ReadValue(&buf); valueEqual(val, tc.content.Queries[i].Values[j]) {
-						t.Fatal("Invalid value.")
+					val := buf.ReadValue()
+					if diff := cmp.Diff(val, tc.content.Queries[i].Values[j]); diff != "" {
+						t.Fatal(diff)
 					}
 				}
 			}
 
-			if cons := frame.ReadShort(&buf); cons != tc.content.Consistency {
+			if cons := buf.ReadShort(); cons != tc.content.Consistency {
 				t.Fatal("Invalid consistency.")
 			}
 
-			flag := frame.ReadByte(&buf)
+			flag := buf.ReadByte()
 			if flag != tc.content.Flags {
 				t.Fatal("Invalid flag.")
 			}
 
-			if flag&WithSerialConsistency != 0 {
-				if serCons := frame.ReadShort(&buf); serCons != tc.content.SerialConsistency {
+			if flag&frame.WithSerialConsistency != 0 {
+				if serCons := buf.ReadShort(); serCons != tc.content.SerialConsistency {
 					t.Fatal("Invalid serial consistency.")
 				}
 			}
 
-			if flag&WithDefaultTimestamp != 0 {
-				if time := frame.ReadLong(&buf); time != tc.content.Timestamp {
+			if flag&frame.WithDefaultTimestamp != 0 {
+				if time := buf.ReadLong(); time != tc.content.Timestamp {
 					t.Fatal("Invalid time.")
 				}
 			}
 		})
-
-		buf.Reset()
 	}
 }

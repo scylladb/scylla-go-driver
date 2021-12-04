@@ -375,7 +375,7 @@ func (b *Buffer) ReadStringList() StringList {
 	if b.err == nil {
 		// Read length of the string list.
 		n := b.ReadShort()
-		l := make(StringList, n)
+		l := make(StringList, 0, n)
 		for i := Short(0); i < n; i++ {
 			// Read the strings and append them to the list.
 			l = append(l, b.ReadString())
@@ -524,4 +524,14 @@ func (b *Buffer) ReadWriteType() WriteType {
 		return w
 	}
 	return ""
+}
+
+// Bytes - for testing purposes
+func (b *Buffer) Bytes() []byte {
+	return b.buf.Bytes()
+}
+
+// Reset - for testing purposes
+func (b *Buffer) Reset() {
+	b.buf.Reset()
 }

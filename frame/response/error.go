@@ -114,7 +114,7 @@ type FuncFailureErr struct {
 	ArgTypes frame.StringList
 }
 
-func ParseFuncFailure(b *frame.Buffer) FuncFailureErr {
+func ParseFuncFailure(b *frame.Buffer) (FuncFailureErr, error) {
 	return FuncFailureErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -123,7 +123,7 @@ func ParseFuncFailure(b *frame.Buffer) FuncFailureErr {
 		Keyspace: b.ReadString(),
 		Function: b.ReadString(),
 		ArgTypes: b.ReadStringList(),
-	}
+	}, b.Error()
 }
 
 // WriteFailureErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1147

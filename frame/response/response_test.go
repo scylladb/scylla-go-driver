@@ -1,45 +1,31 @@
 package response
 
 import (
-	"bytes"
 	"encoding/hex"
-	"fmt"
+	"github.com/google/go-cmp/cmp"
 	"reflect"
 	"scylla-go-driver/frame"
 	"testing"
 )
 
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
-}
-
 // ------------------------------- ERROR TESTS --------------------------------
 
 func ErrToBytes(err Error) []byte {
-	var out bytes.Buffer
-	frame.WriteInt(err.Code, &out)
-	frame.WriteString(err.Message, &out)
+	var out frame.Buffer
+	out.WriteInt(err.Code)
+	out.WriteString(err.Message)
 	return out.Bytes()
 }
 
 func ShortToBytes(x frame.Short) []byte {
-	var out bytes.Buffer
-	frame.WriteShort(x, &out)
+	var out frame.Buffer
+	out.WriteShort(x)
 	return out.Bytes()
 }
 
 func IntToBytes(x frame.Int) []byte {
-	var out bytes.Buffer
-	frame.WriteInt(x, &out)
+	var out frame.Buffer
+	out.WriteInt(x)
 	return out.Bytes()
 }
 
@@ -59,57 +45,55 @@ func TestValidErrorCodes(t *testing.T) {
 	}{
 		{"server",
 			ErrToBytes(Error{0x0000, "message 1"}),
-			Error{ErrCodeServer, "message 1"},
+			Error{frame.ErrCodeServer, "message 1"},
 		},
 		{"protocol",
 			ErrToBytes(Error{0x000a, "message 1"}),
-			Error{ErrCodeProtocol, "message 1"},
+			Error{frame.ErrCodeProtocol, "message 1"},
 		},
 		{"authentication",
 			ErrToBytes(Error{0x0100, "message 1"}),
-			Error{ErrCodeCredentials, "message 1"},
+			Error{frame.ErrCodeCredentials, "message 1"},
 		},
 		{"overload",
 			ErrToBytes(Error{0x1001, "message 1"}),
-			Error{ErrCodeOverloaded, "message 1"},
+			Error{frame.ErrCodeOverloaded, "message 1"},
 		},
 		{"is_bootstrapping",
 			ErrToBytes(Error{0x1002, "message 1"}),
-			Error{ErrCodeBootstrapping, "message 1"},
+			Error{frame.ErrCodeBootstrapping, "message 1"},
 		},
 		{"truncate",
 			ErrToBytes(Error{0x1003, "message 1"}),
-			Error{ErrCodeTruncate, "message 1"},
+			Error{frame.ErrCodeTruncate, "message 1"},
 		},
 		{"syntax",
 			ErrToBytes(Error{0x2000, "message 1"}),
-			Error{ErrCodeSyntax, "message 1"},
+			Error{frame.ErrCodeSyntax, "message 1"},
 		},
 		{"unauthorized",
 			ErrToBytes(Error{0x2100, "message 1"}),
-			Error{ErrCodeUnauthorized, "message 1"},
+			Error{frame.ErrCodeUnauthorized, "message 1"},
 		},
 		{"invalid",
 			ErrToBytes(Error{0x2200, "message 1"}),
-			Error{ErrCodeInvalid, "message 1"},
+			Error{frame.ErrCodeInvalid, "message 1"},
 		},
 		{"config",
 			ErrToBytes(Error{0x2300, "message 1"}),
-			Error{ErrCodeConfig, "message 1"},
+			Error{frame.ErrCodeConfig, "message 1"},
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadError(&buf)
-
+			out, _ := ParseError(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
@@ -131,12 +115,11 @@ func TestUnavailableErr(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadUnavailable(&buf)
-
+			out, _ := ParseUnavailable(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
@@ -147,8 +130,8 @@ func TestUnavailableErr(t *testing.T) {
 }
 
 func StringToBytes(x string) []byte {
-	var out bytes.Buffer
-	frame.WriteString(x, &out)
+	var out frame.Buffer
+	out.WriteString(x)
 	return out.Bytes()
 }
 
@@ -170,24 +153,22 @@ func TestWriteTimeoutErr(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadWriteTimeout(&buf)
-
+			out, _ := ParseWriteTimeout(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
 
 func ByteToBytes(b frame.Byte) []byte {
-	var out bytes.Buffer
-	frame.WriteByte(b, &out)
+	var out frame.Buffer
+	out.WriteByte(b)
 	return out.Bytes()
 }
 
@@ -209,17 +190,15 @@ func TestReadTimeoutErr(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadRTimeout(&buf)
-
+			out, _ := ParseReadTimeout(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
@@ -243,24 +222,22 @@ func TestReadFailure(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadRFailure(&buf)
-
+			out, _ := ParseReadFailure(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
 
 func StringListToBytes(sl frame.StringList) []byte {
-	var out bytes.Buffer
-	frame.WriteStringList(sl, &out)
+	var out frame.Buffer
+	out.WriteStringList(sl)
 	return out.Bytes()
 }
 
@@ -281,17 +258,15 @@ func TestFuncFailure(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadFuncFailure(&buf)
-
+			out, _ := ParseFuncFailure(&buf)
 			if !reflect.DeepEqual(out, tc.expected) {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
@@ -315,17 +290,15 @@ func TestWriteFailure(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
+	var buf frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out := ReadWriteFailure(&buf)
-
+			out, _ := ParseWriteFailure(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
-
 		buf.Reset()
 	}
 }
@@ -346,24 +319,21 @@ func TestAlreadyExists(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf frame.Buffer
 			buf.Write(tc.content)
-			out := ReadAlreadyExists(&buf)
-
-			if out != tc.expected {
-				t.Fatal("Failure while constructing 'Function Failure' error.")
+			out, _ := ParseAlreadyExists(&buf)
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
-
-		buf.Reset()
 	}
 }
 
 func BytesToBytes(b frame.Bytes) []byte {
-	var out bytes.Buffer
-	frame.WriteBytes(b, &out)
+	var out frame.Buffer
+	out.WriteBytes(b)
 	return out.Bytes()
 }
 
@@ -383,19 +353,15 @@ func TestUnprepared(t *testing.T) {
 		},
 	}
 
-	var buf bytes.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("Short reading test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf frame.Buffer
 			buf.Write(tc.content)
-			out := ReadUnprepared(&buf)
-
-			// TODO are reflections in tests permitted?
-			if !reflect.DeepEqual(out, tc.expected) {
-				t.Fatal("Failure while constructing 'Function Failure' error.")
+			out, _ := ParseUnprepared(&buf)
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
-
-		buf.Reset()
 	}
 }
 
@@ -412,16 +378,15 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 		},
 	}
 
-	var out bytes.Buffer
+	var out frame.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			out.Write(tc.content)
-			a := ReadAuthenticate(&out)
-			if a.Name != tc.expected {
-				t.Fatal("Failure while encoding and decoding Authenticate.")
+			a, _ := ParseAuthenticate(&out)
+			if diff := cmp.Diff(a.Name, tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
-
-			if out.Len() != 0 {
+			if len(out.Bytes()) != 0 {
 				t.Fatal("Failure buffer not empty after read.")
 			}
 		})
@@ -448,10 +413,12 @@ func TestAuthChallenge(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run(fmt.Sprintf("TestAuthChallenge: %s.", v.name), func(t *testing.T) {
-			a := ParseAuthChallenge(bytes.NewBuffer(v.content))
-			if !reflect.DeepEqual(a, v.expected) {
-				t.Fatal("Reading AuthChallenge response from the buffer failed.")
+		t.Run(v.name, func(t *testing.T) {
+			var buf frame.Buffer
+			buf.Write(v.content)
+			a, _ := ParseAuthChallenge(&buf)
+			if diff := cmp.Diff(a, v.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -513,11 +480,12 @@ func TestSchemaChangeEvent(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run(fmt.Sprintf("TestSchemaChangeEvent: %s.", v.name), func(t *testing.T) {
-			s := ReadSchemaChange(bytes.NewBuffer(v.content))
-			if !reflect.DeepEqual(s, v.expected) {
-				t.Fatal("Reading SchemaChallenge event response from the buffer failed.")
-
+		t.Run(v.name, func(t *testing.T) {
+			var buf frame.Buffer
+			buf.Write(v.content)
+			s, _ := ParseSchemaChange(&buf)
+			if diff := cmp.Diff(s, v.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -536,12 +504,12 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 		},
 	}
 
-	var out bytes.Buffer
 	for _, tc := range cases {
-		t.Run(fmt.Sprintf("AuthResponse Test %s", tc.name), func(t *testing.T) {
-			a := ReadAuthSuccess(&out)
-			if bytesEqual(a.Bytes, tc.expected) {
-				t.Fatal("Failure while encoding and decoding AuthResponse.")
+		t.Run(tc.name, func(t *testing.T) {
+			var out frame.Buffer
+			a, _ := ParseAuthSuccess(&out)
+			if diff := cmp.Diff(a.Token, tc.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -550,8 +518,8 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 // ------------------------------- STATUS CHANGE EVENT TESTS --------------------------------
 
 func InetToBytes(i frame.Inet) []byte {
-	b := bytes.Buffer{}
-	frame.WriteInet(i, &b)
+	b := frame.Buffer{}
+	b.WriteInet(i)
 	return b.Bytes()
 }
 
@@ -576,10 +544,12 @@ func TestStatusChangeEvent(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run(fmt.Sprintf("TestStatusChange: %s.", v.name), func(t *testing.T) {
-			a := ReadStatusChange(bytes.NewBuffer(v.content))
-			if !reflect.DeepEqual(a, v.expected) {
-				t.Fatal("Reading StatusChange event response from the buffer failed.")
+		t.Run(v.name, func(t *testing.T) {
+			var buf frame.Buffer
+			buf.Write(v.content)
+			a, _ := ParseStatusChange(&buf)
+			if diff := cmp.Diff(a, v.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
@@ -608,10 +578,12 @@ func TestTopologyChangeEvent(t *testing.T) {
 	}
 
 	for _, v := range cases {
-		t.Run(fmt.Sprintf("TestTopologyChange: %s.", v.name), func(t *testing.T) {
-			a := ReadTopologyChange(bytes.NewBuffer(v.content))
-			if !reflect.DeepEqual(a, v.expected) {
-				t.Fatal("Reading TopologyChange event response from the buffer failed.")
+		t.Run(v.name, func(t *testing.T) {
+			var buf frame.Buffer
+			buf.Write(v.content)
+			a, _ := ParseTopologyChange(&buf)
+			if diff := cmp.Diff(a, v.expected); diff != "" {
+				t.Fatal(diff)
 			}
 		})
 	}
