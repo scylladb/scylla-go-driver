@@ -5,9 +5,9 @@ import (
 )
 
 type AuthResponse struct {
-	Response frame.Bytes
+	Token frame.Bytes
 }
 
 func (a AuthResponse) WriteTo(b *frame.Buffer) {
-	b.WriteBytes(a.Response)
+	b.WriteBytes(a.Token)
 }

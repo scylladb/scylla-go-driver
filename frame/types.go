@@ -46,6 +46,25 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
+var ValidOpCodes = map[OpCode]bool{
+	OpError:         true,
+	OpStartup:       true,
+	OpReady:         true,
+	OpAuthenticate:  true,
+	OpOptions:       true,
+	OpSupported:     true,
+	OpQuery:         true,
+	OpResult:        true,
+	OpPrepare:       true,
+	OpExecute:       true,
+	OpRegister:      true,
+	OpEvent:         true,
+	OpBatch:         true,
+	OpAuthChallenge: true,
+	OpAuthResponse:  true,
+	OpAuthSuccess:   true,
+}
+
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
 type Consistency = Short
 
@@ -63,8 +82,9 @@ const (
 	SERIAL       Consistency = 0x0008
 	LOCAL_SERIAL Consistency = 0x0009
 	LOCAL_ONE    Consistency = 0x000A
-	INVALID      Consistency = 0x000B
 )
+
+const InvalidConsistency Consistency = 0x000B
 
 type Flags = Byte
 
@@ -104,6 +124,20 @@ var ValidWriteTypes = map[WriteType]bool{
 	CAS:           true,
 	View:          true,
 	CDC:           true,
+}
+
+type EventType = string
+
+const (
+	TopologyChange EventType = "TOPOLOGY_CHANGE"
+	StatusChange   EventType = "STATUS_CHANGE"
+	SchemaChange   EventType = "SCHEMA_CHANGE"
+)
+
+var ValidEventTypes = map[EventType]bool{
+	TopologyChange: true,
+	StatusChange:   true,
+	SchemaChange:   true,
 }
 
 type TopologyChangeType string
@@ -169,6 +203,19 @@ var possibleOptions = StringMultiMap{
 	},
 	"NO_COMPACT":        {},
 	"THROW_ON_OVERLOAD": {},
+}
+
+// QueryOptions represent optional Values defined by flags.
+// Consists of Values required for all flags.
+// Values for unset flags are uninitialized.
+type QueryOptions struct {
+	Flags             Flags
+	Values            []Value
+	Names             StringList
+	PageSize          Int
+	PagingState       Bytes
+	SerialConsistency Consistency
+	Timestamp         Long
 }
 
 type ErrorCode = Int
@@ -255,7 +302,6 @@ const (
 	// See https://github.com/apache/cassandra/blob/7337fc0/doc/native_protocol_v5.spec#L1414-L1417
 	ErrCodeUnprepared ErrorCode = 0x2500
 )
-
 
 var errorCodes = map[ErrorCode]bool{
 	ErrCodeServer:          true,
