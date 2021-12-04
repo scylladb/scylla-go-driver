@@ -230,20 +230,6 @@ func TestRegister(t *testing.T) {
 
 // ------------------------------- STARTUP TESTS -----------------------------
 
-func StringMapEqual(a, b frame.StringMap) bool {
-	for k, v := range a {
-		if mv, ok := b[k]; !(ok && mv == v) {
-			return false
-		}
-	}
-	for k, v := range b {
-		if mv, ok := a[k]; !(ok && mv == v) {
-			return false
-		}
-	}
-	return true
-}
-
 func TestWriteStartup(t *testing.T) {
 	var cases = []struct {
 		name    string
