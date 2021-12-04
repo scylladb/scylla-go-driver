@@ -1,7 +1,6 @@
 package request
 
 import (
-	"bytes"
 	"scylla-go-driver/frame"
 )
 
@@ -10,6 +9,7 @@ const (
 	WithNamesForValues = 0x40
 )
 
+// Batch spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L414
 type Batch struct {
 	Type              frame.Byte
 	Flags             frame.Byte
@@ -20,24 +20,26 @@ type Batch struct {
 }
 
 // WriteTo writes Batch body into bytes.Buffer.
-func (q Batch) WriteTo(b *bytes.Buffer) {
-	frame.WriteByte(q.Type, b)
+//TODO: probably move part of this function into frame.
+func (q Batch) WriteTo(b *frame.Buffer) {
+	b.WriteByte(q.Type)
 
 	// WriteTo number of queries.
-	frame.WriteShort(frame.Short(len(q.Queries)), b)
+	b.WriteShort(frame.Short(len(q.Queries)))
 	for _, k := range q.Queries {
 		k.WriteTo(b, q.Flags&WithNamesForValues != 0)
 	}
-	frame.WriteShort(q.Consistency, b)
-	frame.WriteByte(q.Flags, b)
-	if q.Flags&WithSerialConsistency != 0 {
-		frame.WriteShort(q.SerialConsistency, b)
+	b.WriteShort(q.Consistency)
+	b.WriteByte(q.Flags)
+	if q.Flags&frame.WithSerialConsistency != 0 {
+		b.WriteShort(q.SerialConsistency)
 	}
-	if q.Flags&WithDefaultTimestamp != 0 {
-		frame.WriteLong(q.Timestamp, b)
+	if q.Flags&frame.WithDefaultTimestamp != 0 {
+		b.WriteLong(q.Timestamp)
 	}
 }
 
+// BatchQuery spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L452
 type BatchQuery struct {
 	Kind     frame.Byte
 	Query    string
@@ -46,20 +48,21 @@ type BatchQuery struct {
 	Values   []frame.Value
 }
 
-func (q BatchQuery) WriteTo(b *bytes.Buffer, name bool) {
-	frame.WriteByte(q.Kind, b)
+// TODO: as above?
+func (q BatchQuery) WriteTo(b *frame.Buffer, name bool) {
+	b.WriteByte(q.Kind)
 	if q.Kind == 0 {
-		frame.WriteLongString(q.Query, b)
+		b.WriteLongString(q.Query)
 	} else {
-		frame.WriteShortBytes(q.Prepared, b)
+		b.WriteShortBytes(q.Prepared)
 	}
 
 	// WriteTo number of Values.
-	frame.WriteShort(frame.Short(len(q.Values)), b)
+	b.WriteShort(frame.Short(len(q.Values)))
 	for i, v := range q.Values {
 		if name {
-			frame.WriteString(q.Names[i], b)
+			b.WriteString(q.Names[i])
 		}
-		frame.WriteValue(v, b)
+		b.WriteValue(v)
 	}
 }

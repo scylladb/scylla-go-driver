@@ -4,12 +4,14 @@ import (
 	"scylla-go-driver/frame"
 )
 
+// Execute spec:
+// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L403
 type Execute struct {
 	ID      frame.Bytes
-	Options QueryOptions
+	Options frame.QueryOptions
 }
 
 func (e Execute) WriteTo(b *frame.Buffer) {
 	b.WriteShortBytes(e.ID)
-	e.Options.WriteTo(b) // actually we want to have b.WriteQueryOptions
+	b.WriteQueryOptions(e.Options)
 }
