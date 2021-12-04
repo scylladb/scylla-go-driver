@@ -226,7 +226,7 @@ func (b *Buffer) Read(n int) Bytes {
 		p := make(Bytes, n)
 		l, err := b.buf.Read(p)
 		if l != n || err != nil {
-			b.RecordError(fmt.Errorf("invalid Read"))
+			b.RecordError(fmt.Errorf("invalid Buffer Read"))
 		}
 		return p
 	}
@@ -239,7 +239,7 @@ func (b *Buffer) ReadRawBytes(n int) Bytes {
 		if len(p) == n {
 			return p
 		} else {
-			b.RecordError(fmt.Errorf("not enough bytes"))
+			b.RecordError(fmt.Errorf("invalid Buffer ReadRawBytes"))
 		}
 	}
 	return nil
