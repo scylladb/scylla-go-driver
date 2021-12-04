@@ -75,10 +75,10 @@ func (b *Buffer) WriteFlags(v Flags) {
 
 func (b *Buffer) WriteOpCode(v OpCode) {
 	if b.err == nil {
-		if v > OpAuthSuccess {
-			b.RecordError(fmt.Errorf("invalid operation code: %v", v))
-		} else {
+		if _, ok := ValidOpCodes[v]; ok {
 			b.WriteByte(v)
+		} else {
+			b.RecordError(fmt.Errorf("invalid operation code: %v", v))
 		}
 	}
 }
@@ -86,7 +86,7 @@ func (b *Buffer) WriteOpCode(v OpCode) {
 func (b *Buffer) WriteConsistency(v Consistency) {
 	if b.err == nil {
 		// INVALID holds the biggest number among consistencies.
-		if v > INVALID {
+		if v >= InvalidConsistency {
 			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
 		} else {
 			b.WriteShort(v)
@@ -185,6 +185,7 @@ func (b *Buffer) WriteEventTypes(e []EventType) {
 		for _, k := range e {
 			if _, ok := ValidEventTypes[k]; !ok {
 				b.RecordError(fmt.Errorf("invalid EventType %s", k))
+				return
 			}
 		}
 		b.WriteStringList(e)

@@ -46,6 +46,25 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
+var ValidOpCodes = map[OpCode]bool{
+	OpError:         true,
+	OpStartup:       true,
+	OpReady:         true,
+	OpAuthenticate:  true,
+	OpOptions:       true,
+	OpSupported:     true,
+	OpQuery:         true,
+	OpResult:        true,
+	OpPrepare:       true,
+	OpExecute:       true,
+	OpRegister:      true,
+	OpEvent:         true,
+	OpBatch:         true,
+	OpAuthChallenge: true,
+	OpAuthResponse:  true,
+	OpAuthSuccess:   true,
+}
+
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
 type Consistency = Short
 
@@ -63,8 +82,9 @@ const (
 	SERIAL       Consistency = 0x0008
 	LOCAL_SERIAL Consistency = 0x0009
 	LOCAL_ONE    Consistency = 0x000A
-	INVALID      Consistency = 0x000B
 )
+
+const InvalidConsistency Consistency = 0x000B
 
 type Flags = Byte
 
