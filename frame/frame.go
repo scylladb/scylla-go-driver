@@ -21,7 +21,9 @@ func (b *Buffer) RecordError(err error) {
 }
 
 func (b *Buffer) Write(v Bytes) {
-	_, _ = b.buf.Write(v)
+	if b.err == nil {
+		_, _ = b.buf.Write(v)
+	}
 }
 
 func (b *Buffer) WriteByte(v Byte) {
@@ -407,8 +409,7 @@ func (b *Buffer) ReadInet() Inet {
 }
 
 func (b *Buffer) ReadString() string {
-	x := int(b.ReadShort())
-	return string(b.Read(x))
+	return string(b.Read(int(b.ReadShort())))
 }
 
 func (b *Buffer) ReadLongString() string {
