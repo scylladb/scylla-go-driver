@@ -88,12 +88,10 @@ func (b *Buffer) WritePreparedFlags(v PreparedFlags) {
 }
 
 func (b *Buffer) WriteOpCode(v OpCode) {
-	if b.err == nil {
-		if _, ok := ValidOpCodes[v]; ok {
-			b.WriteByte(v)
-		} else {
-			b.RecordError(fmt.Errorf("invalid operation code: %v", v))
-		}
+	if _, ok := ValidOpCodes[v]; ok {
+		b.WriteByte(v)
+	} else {
+		b.RecordError(fmt.Errorf("invalid operation code: %v", v))
 	}
 }
 
