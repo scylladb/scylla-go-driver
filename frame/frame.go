@@ -67,6 +67,10 @@ func (b *Buffer) WriteLong(v Long) {
 	}
 }
 
+func (b *Buffer) BatchTypeFlag(v BatchTypeFlag) {
+	b.WriteByte(v)
+}
+
 func (b *Buffer) WriteHeaderFlags(v HeaderFlags) {
 	b.WriteByte(v)
 }
@@ -408,7 +412,8 @@ func (b *Buffer) ReadInet() Inet {
 
 func (b *Buffer) ReadString() string {
 	if b.err == nil {
-		return string(b.Read(int(b.ReadShort())))
+		x := int(b.ReadShort())
+		return string(b.Read(x))
 	}
 	return ""
 }
@@ -555,7 +560,7 @@ func (b *Buffer) ReadSchemaChangeTarget() SchemaChangeTarget {
 }
 
 func (b *Buffer) ReadErrorCode() ErrorCode {
-	if b.err != nil {
+	if b.err == nil {
 		v := ErrorCode(b.ReadInt())
 		if _, ok := validErrorCodes[v]; !ok {
 			b.RecordError(fmt.Errorf("invalid error code: %d", v))
@@ -571,9 +576,8 @@ func (b *Buffer) ReadConsistency() Consistency {
 		v := Consistency(b.ReadShort())
 		if v >= InvalidConsistency {
 			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
-		} else {
-			b.WriteShort(v)
 		}
+		return v
 	}
 	return 0
 }
@@ -766,14 +770,4 @@ func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
 	}
 
 	return p
-}
-
-// Bytes - for testing purposes
-func (b *Buffer) Bytes() []byte {
-	return b.buf.Bytes()
-}
-
-// Reset - for testing purposes
-func (b *Buffer) Reset() {
-	b.buf.Reset()
 }

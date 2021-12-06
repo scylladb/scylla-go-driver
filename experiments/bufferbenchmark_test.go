@@ -7,7 +7,7 @@ import (
 
 type Short = uint16
 
-// result ensures that compiler won't skip operations
+// Result ensures that compiler won't skip operations
 // during optimization of the benchmark functions.
 // That's the reason why functions assign value to it.
 
@@ -72,7 +72,6 @@ func ReadShortWithSliceNoAlloc(b *bytes.Buffer) Short {
 	return Short(tmp[0])<<8 | Short(tmp[1])
 }
 
-
 func ReadByte(b *bytes.Buffer) byte {
 	r, _ := b.ReadByte()
 	return r
@@ -92,8 +91,6 @@ func ReadIntWithShort(b *bytes.Buffer) int {
 func ReadShortWithByte(b *bytes.Buffer) Short {
 	return Short(ReadByte(b))<<8 | Short(ReadByte(b))
 }
-
-
 
 // BenchmarkReadIntWithByte creates and refills buffer (with B.Timer stopped)
 // so it can read Int values from it by using ReadIntWithByte.
@@ -235,3 +232,14 @@ func BenchmarkReadShortWithByte(b *testing.B) {
 	result = int(r)
 }
 
+/*
+	Benchmark results:
+	BenchmarkReadIntWithByte-4             	159304146	         7.55 ns/op
+	BenchmarkReadIntWithShort-4            	100000000	        10.6 ns/op
+	BenchmarkReadIntWithSlice-4            	160086836	         7.46 ns/op
+	BenchmarkReadIntWithSliceNoAlloc-4     	158571973	         7.68 ns/op
+	BenchmarkReadIntWithArray-4            	157595760	         7.75 ns/op
+	BenchmarkReadShortWithSlice-4          	100000000	        10.7 ns/op
+	BenchmarkReadShortWithSliceNoAlloc-4   	100000000	        11.4 ns/op
+	BenchmarkReadShortWithByte-4           	204602593	         5.34 ns/op
+*/

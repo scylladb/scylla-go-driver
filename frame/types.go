@@ -70,8 +70,6 @@ var ValidOpCodes = map[OpCode]bool{
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
 type Consistency = Short
 
-const ConsistencyRange = 10
-
 const (
 	ANY          Consistency = 0x0000
 	ONE          Consistency = 0x0001
@@ -117,6 +115,16 @@ const (
 	HasMorePages     ResultFlags = 0x0002
 	NoMetadata       ResultFlags = 0x0004
 )
+
+type BatchTypeFlag = byte
+
+const (
+	LoggedBatchFlag   BatchTypeFlag = 0
+	UnloggedBatchFlag BatchTypeFlag = 1
+	CounterBatchFlag  BatchTypeFlag = 2
+)
+
+type BatchQueryKind = byte
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
@@ -324,29 +332,6 @@ const (
 )
 
 var validErrorCodes = map[ErrorCode]bool{
-	ErrCodeServer:          true,
-	ErrCodeProtocol:        true,
-	ErrCodeCredentials:     true,
-	ErrCodeUnavailable:     true,
-	ErrCodeOverloaded:      true,
-	ErrCodeBootstrapping:   true,
-	ErrCodeTruncate:        true,
-	ErrCodeWriteTimeout:    true,
-	ErrCodeReadTimeout:     true,
-	ErrCodeReadFailure:     true,
-	ErrCodeFunctionFailure: true,
-	ErrCodeWriteFailure:    true,
-	ErrCodeCDCWriteFailure: true,
-	ErrCodeCASWriteUnknown: true,
-	ErrCodeSyntax:          true,
-	ErrCodeUnauthorized:    true,
-	ErrCodeInvalid:         true,
-	ErrCodeConfig:          true,
-	ErrCodeAlreadyExists:   true,
-	ErrCodeUnprepared:      true,
-}
-
-var ValidErrorCodes = map[ErrorCode]bool{
 	ErrCodeServer:          true,
 	ErrCodeProtocol:        true,
 	ErrCodeCredentials:     true,
