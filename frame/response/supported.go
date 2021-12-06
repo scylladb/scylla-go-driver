@@ -9,8 +9,8 @@ type Supported struct {
 	Options frame.StringMultiMap
 }
 
-func ParseSupported(b *frame.Buffer) (Supported, error) {
+func ParseSupported(b *frame.Buffer) Supported {
 	return Supported{
 		Options: b.ReadStringMultiMap(),
-	}, b.Error()
+	}
 }

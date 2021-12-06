@@ -2,6 +2,7 @@ package response
 
 import (
 	"fmt"
+
 	"scylla-go-driver/frame"
 )
 
@@ -14,11 +15,11 @@ type TopologyChange struct {
 	Address frame.Inet
 }
 
-func ParseTopologyChange(b *frame.Buffer) (TopologyChange, error) {
+func ParseTopologyChange(b *frame.Buffer) TopologyChange {
 	return TopologyChange{
 		Change:  b.ReadTopologyChangeType(),
 		Address: b.ReadInet(),
-	}, b.Error()
+	}
 }
 
 // StatusChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L766
@@ -27,11 +28,11 @@ type StatusChange struct {
 	Address frame.Inet
 }
 
-func ParseStatusChange(b *frame.Buffer) (StatusChange, error) {
+func ParseStatusChange(b *frame.Buffer) StatusChange {
 	return StatusChange{
 		Status:  b.ReadStatusChangeType(),
 		Address: b.ReadInet(),
-	}, b.Error()
+	}
 }
 
 // SchemaChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L771
@@ -43,7 +44,7 @@ type SchemaChange struct {
 	Arguments frame.StringList
 }
 
-func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
+func ParseSchemaChange(b *frame.Buffer) SchemaChange {
 	c := b.ReadSchemaChangeType()
 	t := b.ReadSchemaChangeTarget()
 	switch t {
@@ -52,14 +53,14 @@ func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
 			Change:   c,
 			Target:   t,
 			Keyspace: b.ReadString(),
-		}, b.Error()
+		}
 	case frame.Table, frame.UserType:
 		return SchemaChange{
 			Change:   c,
 			Target:   t,
 			Keyspace: b.ReadString(),
 			Object:   b.ReadString(),
-		}, b.Error()
+		}
 	case frame.Function, frame.Aggregate:
 		return SchemaChange{
 			Change:    c,
@@ -67,9 +68,9 @@ func ParseSchemaChange(b *frame.Buffer) (SchemaChange, error) {
 			Keyspace:  b.ReadString(),
 			Object:    b.ReadString(),
 			Arguments: b.ReadStringList(),
-		}, b.Error()
+		}
 	default:
 		b.RecordError(fmt.Errorf("invalid SchemaChangeTarget: %s", t))
-		return SchemaChange{}, b.Error()
+		return SchemaChange{}
 	}
 }

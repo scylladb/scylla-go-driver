@@ -7,11 +7,13 @@ type (
 	Short          = uint16
 	Int            = int32
 	Long           = int64
-	UUID           = [16]byte
+	UUID           = []byte
 	StringList     = []string
+	Bytes          = []byte
+	ShortBytes     = []byte
 	StringMap      = map[string]string
 	StringMultiMap = map[string][]string
-	Bytes          = []byte
+	BytesMap       = map[string]Bytes
 )
 
 type Value struct {
@@ -68,8 +70,6 @@ var ValidOpCodes = map[OpCode]bool{
 // https://github.com/apache/cassandra/blob/951d72cd929d1f6c9329becbdd7604a9e709587b/doc/native_protocol_v4.spec#L246
 type Consistency = Short
 
-const ConsistencyRange = 10
-
 const (
 	ANY          Consistency = 0x0000
 	ONE          Consistency = 0x0001
@@ -86,17 +86,45 @@ const (
 
 const InvalidConsistency Consistency = 0x000B
 
-type Flags = Byte
+type HeaderFlags = Byte
 
 const (
-	Values                Flags = 0x01
-	SkipMetadata          Flags = 0x02
-	PageSize              Flags = 0x04
-	WithPagingState       Flags = 0x08
-	WithSerialConsistency Flags = 0x10
-	WithDefaultTimestamp  Flags = 0x20
-	WithNamesForValues    Flags = 0x40
+	Compression   HeaderFlags = 0x01
+	Tracing       HeaderFlags = 0x02
+	CustomPayload HeaderFlags = 0x04
+	Warning       HeaderFlags = 0x08
 )
+
+type QueryFlags = Byte
+
+const (
+	Values                QueryFlags = 0x01
+	SkipMetadata          QueryFlags = 0x02
+	PageSize              QueryFlags = 0x04
+	WithPagingState       QueryFlags = 0x08
+	WithSerialConsistency QueryFlags = 0x10
+	WithDefaultTimestamp  QueryFlags = 0x20
+	WithNamesForValues    QueryFlags = 0x40
+)
+
+type ResultFlags = Int
+type PreparedFlags = Int
+
+const (
+	GlobalTablesSpec ResultFlags = 0x0001
+	HasMorePages     ResultFlags = 0x0002
+	NoMetadata       ResultFlags = 0x0004
+)
+
+type BatchTypeFlag = byte
+
+const (
+	LoggedBatchFlag   BatchTypeFlag = 0
+	UnloggedBatchFlag BatchTypeFlag = 1
+	CounterBatchFlag  BatchTypeFlag = 2
+)
+
+type BatchQueryKind = byte
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
@@ -209,7 +237,7 @@ var possibleOptions = StringMultiMap{
 // Consists of Values required for all flags.
 // Values for unset flags are uninitialized.
 type QueryOptions struct {
-	Flags             Flags
+	Flags             QueryFlags
 	Values            []Value
 	Names             StringList
 	PageSize          Int
@@ -324,4 +352,105 @@ var validErrorCodes = map[ErrorCode]bool{
 	ErrCodeConfig:          true,
 	ErrCodeAlreadyExists:   true,
 	ErrCodeUnprepared:      true,
+}
+
+type OptionID Short
+
+const (
+	CustomID    OptionID = 0x0000
+	AsciiID     OptionID = 0x0001
+	BigintID    OptionID = 0x0002
+	BlobID      OptionID = 0x0003
+	BooleanID   OptionID = 0x0004
+	CounterID   OptionID = 0x0005
+	DecimalID   OptionID = 0x0006
+	DoubleID    OptionID = 0x0007
+	FloatID     OptionID = 0x0008
+	IntID       OptionID = 0x0009
+	TimestampID OptionID = 0x000B
+	UuidID      OptionID = 0x000C
+	VarcharID   OptionID = 0x000D
+	VarintID    OptionID = 0x000E
+	TimeuuidID  OptionID = 0x000F
+	InetID      OptionID = 0x0010
+	DateID      OptionID = 0x0011
+	TimeID      OptionID = 0x0012
+	SmallintID  OptionID = 0x0013
+	TinyintID   OptionID = 0x0014
+	ListID      OptionID = 0x0020
+	MapID       OptionID = 0x0021
+	SetID       OptionID = 0x0022
+	UDTID       OptionID = 0x0030
+	TupleID     OptionID = 0x0031
+)
+
+type CustomOption struct {
+	Name string
+}
+
+type ListOption struct {
+	Element Option
+}
+
+type MapOption struct {
+	Key   Option
+	Value Option
+}
+
+type SetOption struct {
+	Element Option
+}
+
+type UDTOption struct {
+	Keyspace   string
+	Name       string
+	fieldNames []string
+	fieldTypes []Option
+}
+
+type TupleOption struct {
+	ValueTypes []Option
+}
+
+type Option struct {
+	ID     OptionID
+	Custom *CustomOption
+	List   *ListOption
+	Map    *MapOption
+	Set    *SetOption
+	UDT    *UDTOption
+	Tuple  *TupleOption
+}
+
+type OptionList []Option
+
+type ResultMetadata struct {
+	Flags      ResultFlags
+	ColumnsCnt Int
+
+	// nil if flagPagingState is not set
+	PagingState    Bytes
+	GlobalKeyspace string
+	GlobalTable    string
+
+	Columns []ColumnSpec
+}
+
+type ColumnSpec struct {
+	Keyspace string
+	Table    string
+	Name     string
+	Type     Option
+}
+
+type Row []Bytes
+
+type PreparedMetadata struct {
+	Flags          PreparedFlags
+	ColumnsCnt     Int
+	PkCnt          Int
+	PkIndexes      []Short
+	GlobalKeyspace string
+	GlobalTable    string
+	Columns        []ColumnSpec
 }

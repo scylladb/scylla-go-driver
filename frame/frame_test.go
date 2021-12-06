@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-//------------------------------- WRITE TESTS ---------------------------------
-
 func TestWriteByte(t *testing.T) {
 	var cases = []struct {
 		name     string
@@ -20,10 +18,10 @@ func TestWriteByte(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteByte(tc.nr)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteByte(v.nr)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -45,10 +43,10 @@ func TestWriteShort(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteShort(tc.nr)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteShort(v.nr)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -71,10 +69,10 @@ func TestWriteInt(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteInt(tc.nr)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteInt(v.nr)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -95,10 +93,10 @@ func TestWriteString(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteString(tc.content)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteString(v.content)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -117,10 +115,10 @@ func TestWriteStringList(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteStringList(tc.content)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteStringList(v.content)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -138,10 +136,10 @@ func TestWriteStringMultiMap(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.WriteStringMultiMap(tc.content)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.WriteStringMultiMap(v.content)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -168,18 +166,16 @@ func TestWriteHeader(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			tc.content.WriteTo(&buf)
-			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			v.content.WriteTo(&buf)
+			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
 		buf.Reset()
 	}
 }
-
-//------------------------------- READ TESTS ----------------------------------
 
 func TestReadByte(t *testing.T) {
 	var cases = []struct {
@@ -194,11 +190,11 @@ func TestReadByte(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.nr)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.nr)
 			out := buf.ReadByte()
-			if out != tc.expected {
+			if out != v.expected {
 				t.Fatal("Failure while reading Byte.")
 			}
 		})
@@ -219,11 +215,11 @@ func TestReadShort(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.nr)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.nr)
 			out := buf.ReadShort()
-			if out != tc.expected {
+			if out != v.expected {
 				t.Fatal("Failure while reading Short.")
 			}
 		})
@@ -246,11 +242,11 @@ func TestReadInt(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.nr)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.nr)
 			out := buf.ReadInt()
-			if out != tc.expected {
+			if out != v.expected {
 				t.Fatal("Failure while reading Integer.")
 			}
 		})
@@ -271,11 +267,11 @@ func TestReadString(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.content)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.content)
 			out := buf.ReadString()
-			if out != tc.expected {
+			if out != v.expected {
 				t.Fatal("Failure while writing reading String.")
 			}
 		})
@@ -294,11 +290,11 @@ func TestReadStringList(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.content)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.content)
 			out := buf.ReadStringList()
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -316,11 +312,11 @@ func TestReadStringMultiMap(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.content)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.content)
 			out := buf.ReadStringMultiMap()
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -347,11 +343,11 @@ func TestReadHeader(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			buf.Write(tc.content)
+	for _, v := range cases {
+		t.Run(v.name, func(t *testing.T) {
+			buf.Write(v.content)
 			out := ParseHeader(&buf)
-			if out != tc.expected {
+			if out != v.expected {
 				t.Fatal("Failure while reading StringMultiMap.")
 			}
 		})

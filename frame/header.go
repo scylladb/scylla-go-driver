@@ -7,7 +7,7 @@ import (
 // Header spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L101.
 type Header struct {
 	Version  Byte
-	Flags    Byte
+	Flags    HeaderFlags
 	StreamID Short
 	Opcode   OpCode
 	Length   Int
@@ -16,7 +16,7 @@ type Header struct {
 func ParseHeader(b *Buffer) Header {
 	h := Header{
 		Version:  b.ReadByte(),
-		Flags:    b.ReadFlags(),
+		Flags:    b.ReadHeaderFlags(),
 		StreamID: b.ReadShort(),
 		Opcode:   b.ReadOpCode(),
 		Length:   b.ReadInt(),
@@ -30,7 +30,7 @@ func ParseHeader(b *Buffer) Header {
 
 func (h Header) WriteTo(b *Buffer) {
 	b.WriteByte(h.Version)
-	b.WriteFlags(h.Flags)
+	b.WriteHeaderFlags(h.Flags)
 	b.WriteShort(h.StreamID)
 	b.WriteOpCode(h.Opcode)
 	b.WriteInt(h.Length)
