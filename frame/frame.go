@@ -273,10 +273,7 @@ func (b *Buffer) ReadByte() Byte {
 }
 
 func (b *Buffer) ReadShort() Short {
-	if b.err == nil {
-		return Short(b.ReadByte())<<8 | Short(b.ReadByte())
-	}
-	return Short(0)
+	return Short(b.ReadByte())<<8 | Short(b.ReadByte())
 }
 
 func (b *Buffer) ReadInt() Int {
