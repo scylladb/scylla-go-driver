@@ -350,10 +350,7 @@ func (b *Buffer) ReadBytes() Bytes {
 
 // If read Bytes length is negative returns nil.
 func (b *Buffer) ReadShortBytes() ShortBytes {
-	if b.err == nil {
-		return b.Read(int(b.ReadShort()))
-	}
-	return nil
+	return b.Read(int(b.ReadShort()))
 }
 
 // Length equal to -1 represents null.
