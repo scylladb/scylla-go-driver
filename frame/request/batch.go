@@ -11,18 +11,17 @@ const (
 
 // Batch spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L414
 type Batch struct {
-	Type              frame.Byte
-	Flags             frame.Byte
+	Type              frame.BatchTypeFlag
+	Flags             frame.QueryFlags
 	Queries           []BatchQuery
-	Consistency       frame.Short
-	SerialConsistency frame.Short
+	Consistency       frame.Consistency
+	SerialConsistency frame.Consistency
 	Timestamp         frame.Long
 }
 
 // WriteTo writes Batch body into bytes.Buffer.
-//TODO: probably move part of this function into frame.
 func (q Batch) WriteTo(b *frame.Buffer) {
-	b.WriteByte(q.Type)
+	b.BatchTypeFlag(q.Type)
 
 	// WriteTo number of queries.
 	b.WriteShort(frame.Short(len(q.Queries)))
@@ -30,7 +29,7 @@ func (q Batch) WriteTo(b *frame.Buffer) {
 		k.WriteTo(b, q.Flags&WithNamesForValues != 0)
 	}
 	b.WriteShort(q.Consistency)
-	b.WriteByte(q.Flags)
+	b.WriteQueryFlags(q.Flags)
 	if q.Flags&frame.WithSerialConsistency != 0 {
 		b.WriteShort(q.SerialConsistency)
 	}
@@ -41,14 +40,13 @@ func (q Batch) WriteTo(b *frame.Buffer) {
 
 // BatchQuery spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L452
 type BatchQuery struct {
-	Kind     frame.Byte
+	Kind     frame.BatchQueryKind
 	Query    string
 	Prepared frame.Bytes
 	Names    frame.StringList
 	Values   []frame.Value
 }
 
-// TODO: as above?
 func (q BatchQuery) WriteTo(b *frame.Buffer, name bool) {
 	b.WriteByte(q.Kind)
 	if q.Kind == 0 {
