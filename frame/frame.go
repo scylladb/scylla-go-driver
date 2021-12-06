@@ -21,9 +21,7 @@ func (b *Buffer) RecordError(err error) {
 }
 
 func (b *Buffer) Write(v Bytes) {
-	if b.err == nil {
-		_, _ = b.buf.Write(v)
-	}
+	_, _ = b.buf.Write(v)
 }
 
 func (b *Buffer) WriteByte(v Byte) {
@@ -98,10 +96,12 @@ func (b *Buffer) WriteOpCode(v OpCode) {
 }
 
 func (b *Buffer) WriteUUID(v UUID) {
-	if len(v) != 16 {
-		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
-	} else {
-		b.Write(v)
+	if b.err == nil {
+		if len(v) != 16 {
+			b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
+		} else {
+			b.Write(v)
+		}
 	}
 }
 
@@ -170,11 +170,9 @@ func (b *Buffer) WriteString(s string) {
 }
 
 func (b *Buffer) WriteLongString(s string) {
-	if b.err == nil {
-		// Writes length of the long string.
-		b.WriteInt(Int(len(s)))
-		_, _ = b.buf.WriteString(s)
-	}
+	// Writes length of the long string.
+	b.WriteInt(Int(len(s)))
+	_, _ = b.buf.WriteString(s)
 }
 
 func (b *Buffer) WriteStringList(l StringList) {
@@ -229,31 +227,29 @@ func (b *Buffer) WriteEventTypes(e []EventType) {
 }
 
 func (b *Buffer) WriteQueryOptions(q QueryOptions) {
-	if b.err == nil {
-		b.WriteQueryFlags(q.Flags)
-		// Checks the flags and writes Values correspondent to the ones that are set.
-		if Values&q.Flags != 0 {
-			// Writes amount of Values.
-			b.WriteShort(Short(len(q.Values)))
-			for i := range q.Values {
-				if WithNamesForValues&q.Flags != 0 {
-					b.WriteString(q.Names[i])
-				}
-				b.WriteValue(q.Values[i])
+	b.WriteQueryFlags(q.Flags)
+	// Checks the flags and writes Values correspondent to the ones that are set.
+	if Values&q.Flags != 0 {
+		// Writes amount of Values.
+		b.WriteShort(Short(len(q.Values)))
+		for i := range q.Values {
+			if WithNamesForValues&q.Flags != 0 {
+				b.WriteString(q.Names[i])
 			}
+			b.WriteValue(q.Values[i])
 		}
-		if PageSize&q.Flags != 0 {
-			b.WriteInt(q.PageSize)
-		}
-		if WithPagingState&q.Flags != 0 {
-			b.WriteBytes(q.PagingState)
-		}
-		if WithSerialConsistency&q.Flags != 0 {
-			b.WriteConsistency(q.SerialConsistency)
-		}
-		if WithDefaultTimestamp&q.Flags != 0 {
-			b.WriteLong(q.Timestamp)
-		}
+	}
+	if PageSize&q.Flags != 0 {
+		b.WriteInt(q.PageSize)
+	}
+	if WithPagingState&q.Flags != 0 {
+		b.WriteBytes(q.PagingState)
+	}
+	if WithSerialConsistency&q.Flags != 0 {
+		b.WriteConsistency(q.SerialConsistency)
+	}
+	if WithDefaultTimestamp&q.Flags != 0 {
+		b.WriteLong(q.Timestamp)
 	}
 }
 
@@ -326,21 +322,26 @@ func (b *Buffer) ReadLong() Long {
 }
 
 func (b *Buffer) ReadOpCode() OpCode {
-	o := b.ReadByte()
-	// OpAuthSuccess holds the biggest number among operation codes.
-	if o > OpAuthSuccess {
-		b.RecordError(fmt.Errorf("invalid operation code: %v", o))
+	if b.err == nil {
+		o := b.ReadByte()
+		// OpAuthSuccess holds the biggest number among operation codes.
+		if o > OpAuthSuccess {
+			b.RecordError(fmt.Errorf("invalid operation code: %v", o))
+		}
 	}
-	return o
+	return 0
 }
 
 func (b *Buffer) ReadUUID() UUID {
-	if u := b.Read(16); len(u) != 16 {
-		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
-		return u
-	} else {
-		return u
+	if b.err == nil {
+		if u := b.Read(16); len(u) != 16 {
+			b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
+			return u
+		} else {
+			return u
+		}
 	}
+	return nil
 }
 
 func (b *Buffer) ReadHeaderFlags() QueryFlags {
@@ -361,23 +362,18 @@ func (b *Buffer) ReadPreparedFlags() PreparedFlags {
 
 // If read Bytes length is negative returns nil.
 func (b *Buffer) ReadBytes() Bytes {
-	if b.err == nil {
-		// Read length of the Bytes.
-		n := b.ReadInt()
-		if n < 0 {
-			return nil
-		}
-		return b.Read(int(n))
+	// Read length of the Bytes.
+	n := b.ReadInt()
+	if n < 0 {
+		return nil
 	}
-	return nil
+	return b.Read(int(n))
 }
 
 // If read Bytes length is negative returns nil.
 func (b *Buffer) ReadShortBytes() ShortBytes {
 	if b.err == nil {
-		// Read length of the Bytes.
-		n := b.ReadShort()
-		return b.Read(int(n))
+		return b.Read(int(b.ReadShort()))
 	}
 	return nil
 }
@@ -411,62 +407,47 @@ func (b *Buffer) ReadInet() Inet {
 }
 
 func (b *Buffer) ReadString() string {
-	if b.err == nil {
-		x := int(b.ReadShort())
-		return string(b.Read(x))
-	}
-	return ""
+	x := int(b.ReadShort())
+	return string(b.Read(x))
 }
 
 func (b *Buffer) ReadLongString() string {
-	if b.err == nil {
-		return string(b.Read(int(b.ReadInt())))
-	}
-	return ""
+	return string(b.Read(int(b.ReadInt())))
 }
 
 func (b *Buffer) ReadStringList() StringList {
-	if b.err == nil {
-		// Read length of the string list.
-		n := b.ReadShort()
-		l := make(StringList, 0, n)
-		for i := Short(0); i < n; i++ {
-			// Read the strings and append them to the list.
-			l = append(l, b.ReadString())
-		}
-		return l
+	// Read length of the string list.
+	n := b.ReadShort()
+	l := make(StringList, 0, n)
+	for i := Short(0); i < n; i++ {
+		// Read the strings and append them to the list.
+		l = append(l, b.ReadString())
 	}
-	return StringList{}
+	return l
 }
 
 func (b *Buffer) ReadStringMap() StringMap {
-	if b.err == nil {
-		// Read the number of elements in the map.
-		n := b.ReadShort()
-		m := make(StringMap, n)
-		for i := Short(0); i < n; i++ {
-			k := b.ReadString()
-			v := b.ReadString()
-			m[k] = v
-		}
-		return m
+	// Read the number of elements in the map.
+	n := b.ReadShort()
+	m := make(StringMap, n)
+	for i := Short(0); i < n; i++ {
+		k := b.ReadString()
+		v := b.ReadString()
+		m[k] = v
 	}
-	return StringMap{}
+	return m
 }
 
 func (b *Buffer) ReadStringMultiMap() StringMultiMap {
-	if b.err == nil {
-		// Read the number of elements in the map.
-		n := b.ReadShort()
-		m := make(StringMultiMap, n)
-		for i := Short(0); i < n; i++ {
-			k := b.ReadString()
-			v := b.ReadStringList()
-			m[k] = v
-		}
-		return m
+	// Read the number of elements in the map.
+	n := b.ReadShort()
+	m := make(StringMultiMap, n)
+	for i := Short(0); i < n; i++ {
+		k := b.ReadString()
+		v := b.ReadStringList()
+		m[k] = v
 	}
-	return StringMultiMap{}
+	return m
 }
 
 func (b *Buffer) ReadBytesMap() BytesMap {
