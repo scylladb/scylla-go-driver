@@ -98,68 +98,56 @@ func (b *Buffer) WriteOpCode(v OpCode) {
 }
 
 func (b *Buffer) WriteUUID(v UUID) {
-	if b.err == nil {
-		if len(v) != 16 {
-			b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
-		} else {
-			b.Write(v)
-		}
+	if len(v) != 16 {
+		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
+	} else {
+		b.Write(v)
 	}
 }
 
 func (b *Buffer) WriteConsistency(v Consistency) {
-	if b.err == nil {
-		// InvalidConsistency holds the biggest number among consistencies.
-		if v >= InvalidConsistency {
-			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
-		} else {
-			b.WriteShort(v)
-		}
+	// InvalidConsistency holds the biggest number among consistencies.
+	if v >= InvalidConsistency {
+		b.RecordError(fmt.Errorf("invalid consistency: %v", v))
+	} else {
+		b.WriteShort(v)
 	}
 }
 
 func (b *Buffer) WriteBytes(v Bytes) {
-	if b.err == nil {
-		if v == nil {
-			b.WriteInt(-1)
-		} else {
-			// Writes length of the bytes.
-			b.WriteInt(Int(len(v)))
-			_, _ = b.buf.Write(v)
-		}
+	if v == nil {
+		b.WriteInt(-1)
+	} else {
+		// Writes length of the bytes.
+		b.WriteInt(Int(len(v)))
+		b.Write(v)
 	}
 }
 
 func (b *Buffer) WriteShortBytes(v Bytes) {
-	if b.err == nil {
-		// WriteTo length of the bytes.
-		b.WriteShort(Short(len(v)))
-		_, _ = b.buf.Write(v)
-	}
+	// WriteTo length of the bytes.
+	b.WriteShort(Short(len(v)))
+	b.Write(v)
 }
 
 func (b *Buffer) WriteValue(v Value) {
-	if b.err == nil {
-		b.WriteInt(v.N)
-		// Writes value's body if there is any.
-		if v.N > 0 {
-			_, _ = b.buf.Write(v.Bytes)
-		} else if v.N < -2 {
-			b.RecordError(fmt.Errorf("invalid value"))
-		}
+	b.WriteInt(v.N)
+	// Writes value's body if there is any.
+	if v.N > 0 {
+		_, _ = b.buf.Write(v.Bytes)
+	} else if v.N < -2 {
+		b.RecordError(fmt.Errorf("invalid value"))
 	}
 }
 
 func (b *Buffer) WriteInet(v Inet) {
-	if b.err == nil {
-		if len(v.IP) != 4 && len(v.IP) != 16 {
-			b.RecordError(fmt.Errorf("invalid IP length"))
-		} else {
-			// Writes length of the IP address.
-			_ = b.buf.WriteByte(Byte(len(v.IP)))
-			_, _ = b.buf.Write(v.IP)
-			b.WriteInt(v.Port)
-		}
+	if len(v.IP) != 4 && len(v.IP) != 16 {
+		b.RecordError(fmt.Errorf("invalid IP length"))
+	} else {
+		// Writes length of the IP address.
+		b.WriteByte(Byte(len(v.IP)))
+		b.Write(v.IP)
+		b.WriteInt(v.Port)
 	}
 }
 
@@ -174,7 +162,7 @@ func (b *Buffer) WriteString(s string) {
 func (b *Buffer) WriteLongString(s string) {
 	// Writes length of the long string.
 	b.WriteInt(Int(len(s)))
-	_, _ = b.buf.WriteString(s)
+	b.WriteString(s)
 }
 
 func (b *Buffer) WriteStringList(l StringList) {
@@ -217,15 +205,13 @@ func (b *Buffer) WriteBytesMap(m BytesMap) {
 }
 
 func (b *Buffer) WriteEventTypes(e []EventType) {
-	if b.err == nil {
-		for _, k := range e {
-			if _, ok := ValidEventTypes[k]; !ok {
-				b.RecordError(fmt.Errorf("invalid EventType %s", k))
-				return
-			}
+	for _, k := range e {
+		if _, ok := ValidEventTypes[k]; !ok {
+			b.RecordError(fmt.Errorf("invalid EventType %s", k))
+			return
 		}
-		b.WriteStringList(e)
 	}
+	b.WriteStringList(e)
 }
 
 func (b *Buffer) WriteQueryOptions(q QueryOptions) {
@@ -324,26 +310,21 @@ func (b *Buffer) ReadLong() Long {
 }
 
 func (b *Buffer) ReadOpCode() OpCode {
-	if b.err == nil {
-		o := b.ReadByte()
-		// OpAuthSuccess holds the biggest number among operation codes.
-		if o > OpAuthSuccess {
-			b.RecordError(fmt.Errorf("invalid operation code: %v", o))
-		}
+	o := b.ReadByte()
+	// OpAuthSuccess holds the biggest number among operation codes.
+	if o > OpAuthSuccess {
+		b.RecordError(fmt.Errorf("invalid operation code: %v", o))
 	}
-	return 0
+	return o
 }
 
 func (b *Buffer) ReadUUID() UUID {
-	if b.err == nil {
-		if u := b.Read(16); len(u) != 16 {
-			b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
-			return u
-		} else {
-			return u
-		}
+	if u := b.Read(16); len(u) != 16 {
+		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
+		return u
+	} else {
+		return u
 	}
-	return nil
 }
 
 func (b *Buffer) ReadHeaderFlags() QueryFlags {
@@ -383,27 +364,23 @@ func (b *Buffer) ReadShortBytes() ShortBytes {
 // Length equal to -1 represents null.
 // Length equal to -2 represents not set.
 func (b *Buffer) ReadValue() Value {
-	if b.err == nil {
-		if n := b.ReadInt(); n < -2 {
-			b.RecordError(fmt.Errorf("invalid value length"))
-		} else if n > 0 {
-			return Value{N: n, Bytes: b.Read(int(n))}
-		} else {
-			return Value{N: n}
-		}
+	if n := b.ReadInt(); n < -2 {
+		b.RecordError(fmt.Errorf("invalid value length"))
+	} else if n > 0 {
+		return Value{N: n, Bytes: b.Read(int(n))}
+	} else {
+		return Value{N: n}
 	}
 	return Value{}
 }
 
 func (b *Buffer) ReadInet() Inet {
-	if b.err == nil {
-		var n Byte
-		// Checks for valid length of the IP address.
-		if n, b.err = b.buf.ReadByte(); n == 4 || n == 16 {
-			return Inet{IP: b.Read(int(n)), Port: b.ReadInt()}
-		} else {
-			b.RecordError(fmt.Errorf("invalid ip length"))
-		}
+	var n Byte
+	// Checks for valid length of the IP address.
+	if n, b.err = b.buf.ReadByte(); n == 4 || n == 16 {
+		return Inet{IP: b.Read(int(n)), Port: b.ReadInt()}
+	} else {
+		b.RecordError(fmt.Errorf("invalid ip length"))
 	}
 	return Inet{}
 }
@@ -476,64 +453,53 @@ func contains(l StringList, s string) bool {
 }
 
 func (b *Buffer) WriteStartupOptions(m StartupOptions) {
-	if b.err == nil {
-		count := 0
-		for k, v := range mandatoryOptions {
-			if s, ok := m[k]; !(ok && contains(v, s)) {
-				b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
-				return
-			} else {
-				count = count + 1
-			}
-		}
-		for k, v := range possibleOptions {
-			if s, ok := m[k]; ok && !contains(v, s) {
-				b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
-				return
-			} else if ok {
-				count = count + 1
-			}
-		}
-		if count != len(m) {
-			b.RecordError(fmt.Errorf("invalid Startup option"))
+	count := 0
+	for k, v := range mandatoryOptions {
+		if s, ok := m[k]; !(ok && contains(v, s)) {
+			b.RecordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
 			return
+		} else {
+			count = count + 1
 		}
-
-		b.WriteStringMap(m)
 	}
+	for k, v := range possibleOptions {
+		if s, ok := m[k]; ok && !contains(v, s) {
+			b.RecordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
+			return
+		} else if ok {
+			count = count + 1
+		}
+	}
+	if count != len(m) {
+		b.RecordError(fmt.Errorf("invalid Startup option"))
+		return
+	}
+
+	b.WriteStringMap(m)
 }
 
 func (b *Buffer) ReadTopologyChangeType() TopologyChangeType {
-	if b.err == nil {
-		t := TopologyChangeType(b.ReadString())
-		if _, ok := topologyChangeTypes[t]; !ok {
-			b.RecordError(fmt.Errorf("invalid TopologyChangeType: %s", t))
-		}
-		return t
+	t := TopologyChangeType(b.ReadString())
+	if _, ok := topologyChangeTypes[t]; !ok {
+		b.RecordError(fmt.Errorf("invalid TopologyChangeType: %s", t))
 	}
-	return ""
+	return t
 }
 
 func (b *Buffer) ReadStatusChangeType() StatusChangeType {
-	if b.err == nil {
-		t := StatusChangeType(b.ReadString())
-		if _, ok := statusChangeTypes[t]; !ok {
-			b.RecordError(fmt.Errorf("invalid StatusChangeType: %s", t))
-		}
-		return t
+	t := StatusChangeType(b.ReadString())
+	if _, ok := statusChangeTypes[t]; !ok {
+		b.RecordError(fmt.Errorf("invalid StatusChangeType: %s", t))
 	}
-	return ""
+	return t
 }
 
 func (b *Buffer) ReadSchemaChangeType() SchemaChangeType {
-	if b.err == nil {
-		t := SchemaChangeType(b.ReadString())
-		if _, ok := schemaChangeTypes[t]; !ok {
-			b.RecordError(fmt.Errorf("invalid SchemaChangeType: %s", t))
-		}
-		return t
+	t := SchemaChangeType(b.ReadString())
+	if _, ok := schemaChangeTypes[t]; !ok {
+		b.RecordError(fmt.Errorf("invalid SchemaChangeType: %s", t))
 	}
-	return ""
+	return t
 }
 
 // Validation is not required. It is done inside SchemaChange event.
@@ -542,37 +508,28 @@ func (b *Buffer) ReadSchemaChangeTarget() SchemaChangeTarget {
 }
 
 func (b *Buffer) ReadErrorCode() ErrorCode {
-	if b.err == nil {
-		v := ErrorCode(b.ReadInt())
-		if _, ok := validErrorCodes[v]; !ok {
-			b.RecordError(fmt.Errorf("invalid error code: %d", v))
-		}
-		return v
+	v := ErrorCode(b.ReadInt())
+	if _, ok := validErrorCodes[v]; !ok {
+		b.RecordError(fmt.Errorf("invalid error code: %d", v))
 	}
-	return 0
+	return v
 }
 
 func (b *Buffer) ReadConsistency() Consistency {
-	if b.err == nil {
-		// InvalidConsistency holds the biggest number among consistencies.
-		v := Consistency(b.ReadShort())
-		if v >= InvalidConsistency {
-			b.RecordError(fmt.Errorf("invalid consistency: %v", v))
-		}
-		return v
+	// InvalidConsistency holds the biggest number among consistencies.
+	v := Consistency(b.ReadShort())
+	if v >= InvalidConsistency {
+		b.RecordError(fmt.Errorf("invalid consistency: %v", v))
 	}
-	return 0
+	return v
 }
 
 func (b *Buffer) ReadWriteType() WriteType {
-	if b.err == nil {
-		w := WriteType(b.ReadString())
-		if _, ok := ValidWriteTypes[w]; !ok {
-			b.RecordError(fmt.Errorf("invalid write type: %s", w))
-		}
-		return w
+	w := WriteType(b.ReadString())
+	if _, ok := ValidWriteTypes[w]; !ok {
+		b.RecordError(fmt.Errorf("invalid write type: %s", w))
 	}
-	return ""
+	return w
 }
 
 func (b *Buffer) ReadCustomOption() *CustomOption {
