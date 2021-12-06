@@ -67,7 +67,7 @@ func (b *Buffer) WriteLong(v Long) {
 	}
 }
 
-func (b *Buffer) BatchTypeFlag(v BatchTypeFlag) {
+func (b *Buffer) WriteBatchTypeFlag(v BatchTypeFlag) {
 	b.WriteByte(v)
 }
 

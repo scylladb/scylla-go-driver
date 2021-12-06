@@ -21,7 +21,7 @@ type Batch struct {
 
 // WriteTo writes Batch body into bytes.Buffer.
 func (q Batch) WriteTo(b *frame.Buffer) {
-	b.BatchTypeFlag(q.Type)
+	b.WriteBatchTypeFlag(q.Type)
 
 	// WriteTo number of queries.
 	b.WriteShort(frame.Short(len(q.Queries)))
