@@ -67,10 +67,20 @@ func (b *Buffer) WriteLong(v Long) {
 	}
 }
 
-func (b *Buffer) WriteFlags(v Flags) {
-	if b.err == nil {
-		b.WriteByte(v)
-	}
+func (b *Buffer) WriteHeaderFlags(v HeaderFlags) {
+	b.WriteByte(v)
+}
+
+func (b *Buffer) WriteQueryFlags(v QueryFlags) {
+	b.WriteByte(v)
+}
+
+func (b *Buffer) WriteResultFlags(v ResultFlags) {
+	b.WriteInt(v)
+}
+
+func (b *Buffer) WritePreparedFlags(v PreparedFlags) {
+	b.WriteInt(v)
 }
 
 func (b *Buffer) WriteOpCode(v OpCode) {
@@ -80,6 +90,14 @@ func (b *Buffer) WriteOpCode(v OpCode) {
 		} else {
 			b.RecordError(fmt.Errorf("invalid operation code: %v", v))
 		}
+	}
+}
+
+func (b *Buffer) WriteUUID(v UUID) {
+	if len(v) != 16 {
+		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
+	} else {
+		b.Write(v)
 	}
 }
 
@@ -175,12 +193,22 @@ func (b *Buffer) WriteStringMap(m StringMap) {
 func (b *Buffer) WriteStringMultiMap(m StringMultiMap) {
 	// Writes the number of elements in the map.
 	b.WriteShort(Short(len(m)))
-
 	for k, v := range m {
 		// Writes key.
 		b.WriteString(k)
 		// Writes value.
 		b.WriteStringList(v)
+	}
+}
+
+func (b *Buffer) WriteBytesMap(m BytesMap) {
+	// Writes the number of elements in the map.
+	b.WriteShort(Short(len(m)))
+	for k, v := range m {
+		// Writes key.
+		b.WriteString(k)
+		// Writes value.
+		b.WriteBytes(v)
 	}
 }
 
@@ -198,12 +226,12 @@ func (b *Buffer) WriteEventTypes(e []EventType) {
 
 func (b *Buffer) WriteQueryOptions(q QueryOptions) {
 	if b.err == nil {
-		b.WriteFlags(q.Flags)
+		b.WriteQueryFlags(q.Flags)
 		// Checks the flags and writes Values correspondent to the ones that are set.
 		if Values&q.Flags != 0 {
 			// Writes amount of Values.
 			b.WriteShort(Short(len(q.Values)))
-			for i := range q.Names {
+			for i := range q.Values {
 				if WithNamesForValues&q.Flags != 0 {
 					b.WriteString(q.Names[i])
 				}
@@ -302,8 +330,29 @@ func (b *Buffer) ReadOpCode() OpCode {
 	return o
 }
 
-func (b *Buffer) ReadFlags() Flags {
+func (b *Buffer) ReadUUID() UUID {
+	if u := b.Read(16); len(u) != 16 {
+		b.RecordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
+		return u
+	} else {
+		return u
+	}
+}
+
+func (b *Buffer) ReadHeaderFlags() QueryFlags {
 	return b.ReadByte()
+}
+
+func (b *Buffer) ReadQueryFlags() QueryFlags {
+	return b.ReadByte()
+}
+
+func (b *Buffer) ReadResultFlags() ResultFlags {
+	return b.ReadInt()
+}
+
+func (b *Buffer) ReadPreparedFlags() PreparedFlags {
+	return b.ReadInt()
 }
 
 // If read Bytes length is negative returns nil.
@@ -320,7 +369,7 @@ func (b *Buffer) ReadBytes() Bytes {
 }
 
 // If read Bytes length is negative returns nil.
-func (b *Buffer) ReadShortBytes() Bytes {
+func (b *Buffer) ReadShortBytes() ShortBytes {
 	if b.err == nil {
 		// Read length of the Bytes.
 		n := b.ReadShort()
@@ -415,6 +464,21 @@ func (b *Buffer) ReadStringMultiMap() StringMultiMap {
 	return StringMultiMap{}
 }
 
+func (b *Buffer) ReadBytesMap() BytesMap {
+	n := b.ReadShort()
+	m := make(BytesMap, n)
+	for i := Short(0); i < n; i++ {
+		k := b.ReadString()
+		v := b.ReadBytes()
+		m[k] = v
+	}
+	return m
+}
+
+func (b *Buffer) ReadStartupOptions() StartupOptions {
+	return b.ReadStringMap()
+}
+
 func contains(l StringList, s string) bool {
 	for _, k := range l {
 		if s == k {
@@ -443,7 +507,6 @@ func (b *Buffer) WriteStartupOptions(m StartupOptions) {
 				count = count + 1
 			}
 		}
-
 		if count != len(m) {
 			b.RecordError(fmt.Errorf("invalid Startup option"))
 			return
@@ -524,6 +587,185 @@ func (b *Buffer) ReadWriteType() WriteType {
 		return w
 	}
 	return ""
+}
+
+func (b *Buffer) ReadCustomOption() *CustomOption {
+	return &CustomOption{
+		Name: b.ReadString(),
+	}
+}
+
+func (b *Buffer) ReadListOption() *ListOption {
+	return &ListOption{
+		Element: b.ReadOption(),
+	}
+}
+
+func (b *Buffer) ReadMapOption() *MapOption {
+	return &MapOption{
+		Key:   b.ReadOption(),
+		Value: b.ReadOption(),
+	}
+}
+
+func (b *Buffer) ReadSetOption() *SetOption {
+	return &SetOption{
+		Element: b.ReadOption(),
+	}
+}
+
+func (b *Buffer) ReadUDTOption() *UDTOption {
+	ks := b.ReadString()
+	name := b.ReadString()
+	n := b.ReadShort()
+	fn := make(StringList, n)
+	ft := make(OptionList, n)
+
+	for i := range fn {
+		fn[i] = b.ReadString()
+		ft[i] = b.ReadOption()
+	}
+
+	return &UDTOption{
+		Keyspace:   ks,
+		Name:       name,
+		fieldNames: fn,
+		fieldTypes: ft,
+	}
+}
+
+func (b *Buffer) ReadTupleOption() *TupleOption {
+	return &TupleOption{
+		ValueTypes: b.ReadOptionList(),
+	}
+}
+
+func (b *Buffer) ReadOptionList() OptionList {
+	n := b.ReadShort()
+	ol := make(OptionList, n)
+	for i := range ol {
+		ol[i] = b.ReadOption()
+	}
+	return ol
+}
+
+func (b *Buffer) ReadOption() Option {
+	id := OptionID(b.ReadShort())
+	switch id {
+	case CustomID:
+		return Option{
+			ID:     id,
+			Custom: b.ReadCustomOption(),
+		}
+	case ListID:
+		return Option{
+			ID:   id,
+			List: b.ReadListOption(),
+		}
+	case MapID:
+		return Option{
+			ID:  id,
+			Map: b.ReadMapOption(),
+		}
+	case SetID:
+		return Option{
+			ID:  id,
+			Set: b.ReadSetOption(),
+		}
+	case UDTID:
+		return Option{
+			ID:  id,
+			UDT: b.ReadUDTOption(),
+		}
+	case TupleID:
+		return Option{
+			ID:    id,
+			Tuple: b.ReadTupleOption(),
+		}
+	default:
+		if id < AsciiID || TinyintID < id {
+			b.RecordError(fmt.Errorf("invalid Option ID: %d", id))
+		}
+		return Option{
+			ID: id,
+		}
+	}
+}
+
+func (b *Buffer) ReadRow(n Int) Row {
+	r := make([]Bytes, n)
+	for i := range r {
+		r[i] = b.ReadBytes()
+	}
+	return r
+}
+
+func (b *Buffer) ReadColumnSpec(f ResultFlags) ColumnSpec {
+	if f&GlobalTablesSpec == 0 {
+		return ColumnSpec{
+			Keyspace: b.ReadString(),
+			Table:    b.ReadString(),
+			Name:     b.ReadString(),
+			Type:     b.ReadOption(),
+		}
+	} else {
+		return ColumnSpec{
+			Name: b.ReadString(),
+			Type: b.ReadOption(),
+		}
+	}
+}
+
+func (b *Buffer) ReadResultMetadata() ResultMetadata {
+	r := ResultMetadata{
+		Flags:      b.ReadResultFlags(),
+		ColumnsCnt: b.ReadInt(),
+	}
+
+	if r.Flags&HasMorePages != 0 {
+		r.PagingState = b.ReadBytes()
+	}
+
+	if r.Flags&NoMetadata != 0 {
+		return r
+	}
+
+	if r.Flags&GlobalTablesSpec != 0 {
+		r.GlobalKeyspace = b.ReadString()
+		r.GlobalTable = b.ReadString()
+	}
+
+	r.Columns = make([]ColumnSpec, r.ColumnsCnt)
+	for i := range r.Columns {
+		r.Columns[i] = b.ReadColumnSpec(r.Flags)
+	}
+
+	return r
+}
+
+func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
+	p := PreparedMetadata{
+		Flags:      b.ReadPreparedFlags(),
+		ColumnsCnt: b.ReadInt(),
+		PkCnt:      b.ReadInt(),
+	}
+
+	p.PkIndexes = make([]Short, p.PkCnt)
+	for i := range p.PkIndexes {
+		p.PkIndexes[i] = b.ReadShort()
+	}
+
+	if p.Flags&GlobalTablesSpec != 0 {
+		p.GlobalKeyspace = b.ReadString()
+		p.GlobalTable = b.ReadString()
+	}
+
+	p.Columns = make([]ColumnSpec, p.ColumnsCnt)
+	for i := range p.Columns {
+		p.Columns[i] = b.ReadColumnSpec(p.Flags)
+	}
+
+	return p
 }
 
 // Bytes - for testing purposes

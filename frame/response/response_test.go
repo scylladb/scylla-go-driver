@@ -2,10 +2,12 @@ package response
 
 import (
 	"encoding/hex"
-	"github.com/google/go-cmp/cmp"
 	"reflect"
-	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+
+	"scylla-go-driver/frame"
 )
 
 // ------------------------------- ERROR TESTS --------------------------------
@@ -89,7 +91,7 @@ func TestValidErrorCodes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseError(&buf)
+			out := ParseError(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
@@ -119,7 +121,7 @@ func TestUnavailableErr(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseUnavailable(&buf)
+			out := ParseUnavailable(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
@@ -157,7 +159,7 @@ func TestWriteTimeoutErr(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseWriteTimeout(&buf)
+			out := ParseWriteTimeout(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
@@ -194,7 +196,7 @@ func TestReadTimeoutErr(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseReadTimeout(&buf)
+			out := ParseReadTimeout(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
@@ -226,7 +228,7 @@ func TestReadFailure(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseReadFailure(&buf)
+			out := ParseReadFailure(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
@@ -262,7 +264,7 @@ func TestFuncFailure(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseFuncFailure(&buf)
+			out := ParseFuncFailure(&buf)
 			if !reflect.DeepEqual(out, tc.expected) {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
@@ -294,7 +296,7 @@ func TestWriteFailure(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
-			out, _ := ParseWriteFailure(&buf)
+			out := ParseWriteFailure(&buf)
 			if out != tc.expected {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
@@ -323,7 +325,7 @@ func TestAlreadyExists(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
-			out, _ := ParseAlreadyExists(&buf)
+			out := ParseAlreadyExists(&buf)
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -357,7 +359,7 @@ func TestUnprepared(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
-			out, _ := ParseUnprepared(&buf)
+			out := ParseUnprepared(&buf)
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -382,7 +384,7 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			out.Write(tc.content)
-			a, _ := ParseAuthenticate(&out)
+			a := ParseAuthenticate(&out)
 			if diff := cmp.Diff(a.Name, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -416,7 +418,7 @@ func TestAuthChallenge(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(v.content)
-			a, _ := ParseAuthChallenge(&buf)
+			a := ParseAuthChallenge(&buf)
 			if diff := cmp.Diff(a, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -483,7 +485,7 @@ func TestSchemaChangeEvent(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(v.content)
-			s, _ := ParseSchemaChange(&buf)
+			s := ParseSchemaChange(&buf)
 			if diff := cmp.Diff(s, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -499,7 +501,7 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 		expected []byte
 	}{
 		{"Should encode and decode",
-			[]byte{0x04, 0x00, 0x00, 0x00, 0xca, 0xfe, 0xba, 0xbe},
+			[]byte{0x00, 0x00, 0x00, 0x04, 0xca, 0xfe, 0xba, 0xbe},
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
 	}
@@ -507,7 +509,8 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out frame.Buffer
-			a, _ := ParseAuthSuccess(&out)
+			out.Write(tc.content)
+			a := ParseAuthSuccess(&out)
 			if diff := cmp.Diff(a.Token, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -547,7 +550,7 @@ func TestStatusChangeEvent(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(v.content)
-			a, _ := ParseStatusChange(&buf)
+			a := ParseStatusChange(&buf)
 			if diff := cmp.Diff(a, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
@@ -581,7 +584,7 @@ func TestTopologyChangeEvent(t *testing.T) {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(v.content)
-			a, _ := ParseTopologyChange(&buf)
+			a := ParseTopologyChange(&buf)
 			if diff := cmp.Diff(a, v.expected); diff != "" {
 				t.Fatal(diff)
 			}

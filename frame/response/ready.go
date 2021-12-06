@@ -1,12 +1,12 @@
 package response
 
 import (
-	"bytes"
+	"scylla-go-driver/frame"
 )
 
 // Ready spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L507
 type Ready struct{}
 
-func ParseReady(_ *bytes.Buffer) (Ready, error) {
-	return Ready{}, nil
+func ParseReady(_ *frame.Buffer) Ready {
+	return Ready{}
 }

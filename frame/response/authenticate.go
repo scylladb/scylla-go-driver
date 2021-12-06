@@ -9,8 +9,8 @@ type Authenticate struct {
 	Name string
 }
 
-func ParseAuthenticate(b *frame.Buffer) (Authenticate, error) {
+func ParseAuthenticate(b *frame.Buffer) Authenticate {
 	return Authenticate{
 		Name: b.ReadString(),
-	}, b.Error()
+	}
 }

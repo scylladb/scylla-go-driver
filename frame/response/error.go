@@ -4,18 +4,18 @@ import (
 	"scylla-go-driver/frame"
 )
 
-// Error response message type. Used in non specified bellow errors, those which don't have a body.
+// Error response message type used in non specified errors which don't have a body.
 // Error spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1046
 type Error struct {
-	Code    frame.Int
+	Code    frame.ErrorCode
 	Message string
 }
 
-func ParseError(b *frame.Buffer) (Error, error) {
+func ParseError(b *frame.Buffer) Error {
 	return Error{
 		Code:    b.ReadErrorCode(),
 		Message: b.ReadString(),
-	}, b.Error()
+	}
 }
 
 // UnavailableErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1060
@@ -26,7 +26,7 @@ type UnavailableErr struct {
 	Alive       frame.Int
 }
 
-func ParseUnavailable(b *frame.Buffer) (UnavailableErr, error) {
+func ParseUnavailable(b *frame.Buffer) UnavailableErr {
 	return UnavailableErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -35,7 +35,7 @@ func ParseUnavailable(b *frame.Buffer) (UnavailableErr, error) {
 		Consistency: b.ReadConsistency(),
 		Required:    b.ReadInt(),
 		Alive:       b.ReadInt(),
-	}, b.Error()
+	}
 }
 
 // WriteTimeoutErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1076
@@ -47,7 +47,7 @@ type WriteTimeoutErr struct {
 	WriteType   frame.WriteType
 }
 
-func ParseWriteTimeout(b *frame.Buffer) (WriteTimeoutErr, error) {
+func ParseWriteTimeout(b *frame.Buffer) WriteTimeoutErr {
 	return WriteTimeoutErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -57,7 +57,7 @@ func ParseWriteTimeout(b *frame.Buffer) (WriteTimeoutErr, error) {
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
 		WriteType:   b.ReadWriteType(),
-	}, b.Error()
+	}
 }
 
 // ReadTimeoutErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1108
@@ -69,7 +69,7 @@ type ReadTimeoutErr struct {
 	DataPresent frame.Byte
 }
 
-func ParseReadTimeout(b *frame.Buffer) (ReadTimeoutErr, error) {
+func ParseReadTimeout(b *frame.Buffer) ReadTimeoutErr {
 	return ReadTimeoutErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -79,7 +79,7 @@ func ParseReadTimeout(b *frame.Buffer) (ReadTimeoutErr, error) {
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
 		DataPresent: b.ReadByte(),
-	}, b.Error()
+	}
 }
 
 // ReadFailureErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1125
@@ -92,7 +92,7 @@ type ReadFailureErr struct {
 	DataPresent frame.Byte
 }
 
-func ParseReadFailure(b *frame.Buffer) (ReadFailureErr, error) {
+func ParseReadFailure(b *frame.Buffer) ReadFailureErr {
 	return ReadFailureErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -103,7 +103,7 @@ func ParseReadFailure(b *frame.Buffer) (ReadFailureErr, error) {
 		BlockFor:    b.ReadInt(),
 		NumFailures: b.ReadInt(),
 		DataPresent: b.ReadByte(),
-	}, b.Error()
+	}
 }
 
 // FuncFailureErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1140
@@ -114,7 +114,7 @@ type FuncFailureErr struct {
 	ArgTypes frame.StringList
 }
 
-func ParseFuncFailure(b *frame.Buffer) (FuncFailureErr, error) {
+func ParseFuncFailure(b *frame.Buffer) FuncFailureErr {
 	return FuncFailureErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -123,7 +123,7 @@ func ParseFuncFailure(b *frame.Buffer) (FuncFailureErr, error) {
 		Keyspace: b.ReadString(),
 		Function: b.ReadString(),
 		ArgTypes: b.ReadStringList(),
-	}, b.Error()
+	}
 }
 
 // WriteFailureErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1147
@@ -136,7 +136,7 @@ type WriteFailureErr struct {
 	WriteType   frame.WriteType
 }
 
-func ParseWriteFailure(b *frame.Buffer) (WriteFailureErr, error) {
+func ParseWriteFailure(b *frame.Buffer) WriteFailureErr {
 	return WriteFailureErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -147,7 +147,7 @@ func ParseWriteFailure(b *frame.Buffer) (WriteFailureErr, error) {
 		BlockFor:    b.ReadInt(),
 		NumFailures: b.ReadInt(),
 		WriteType:   b.ReadWriteType(),
-	}, b.Error()
+	}
 }
 
 // AlreadyExistsErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1187
@@ -157,7 +157,7 @@ type AlreadyExistsErr struct {
 	Table    string
 }
 
-func ParseAlreadyExists(b *frame.Buffer) (AlreadyExistsErr, error) {
+func ParseAlreadyExists(b *frame.Buffer) AlreadyExistsErr {
 	return AlreadyExistsErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
@@ -165,7 +165,7 @@ func ParseAlreadyExists(b *frame.Buffer) (AlreadyExistsErr, error) {
 		},
 		Keyspace: b.ReadString(),
 		Table:    b.ReadString(),
-	}, b.Error()
+	}
 }
 
 // UnpreparedErr spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1197
@@ -174,12 +174,12 @@ type UnpreparedErr struct {
 	UnknownID frame.Bytes
 }
 
-func ParseUnprepared(b *frame.Buffer) (UnpreparedErr, error) {
+func ParseUnprepared(b *frame.Buffer) UnpreparedErr {
 	return UnpreparedErr{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
 		},
 		UnknownID: b.ReadShortBytes(),
-	}, b.Error()
+	}
 }
