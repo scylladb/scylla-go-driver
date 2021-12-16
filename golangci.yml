@@ -1,6 +1,6 @@
 run:
   deadline: 5m
-  tests: false
+  tests: true
   skip-files:
     - _gen\.go$
     - _string\.go$
@@ -19,7 +19,6 @@ linters-settings:
       - diagnostic
       - performance
       - style
-    disabled-checks:
       - commentedOutCode
       - evalOrder
       - hugeParam
@@ -27,6 +26,7 @@ linters-settings:
       - regexpSimplify
       - yodaStyleExpr
       - whyNoLint
+
   lll:
     line-length: 180
   nestif:
@@ -34,26 +34,4 @@ linters-settings:
 
 linters:
   enable-all: true
-  disable:
-    - cyclop
-    - durationcheck
-    - exhaustive
-    - exhaustivestruct
-    - forbidigo
-    - forcetypeassert
-    - funlen
-    - gas
-    - gochecknoglobals
-    - gochecknoinits
-    - goerr113
-    - gomnd
-    - ifshort
-    - interfacer
-    - maligned
-    - nilerr
-    - nlreturn
-    - nolintlint
-    - prealloc
-    - scopelint
-    - wrapcheck
-    - wsl
+

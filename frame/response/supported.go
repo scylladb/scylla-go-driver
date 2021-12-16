@@ -1,17 +1,16 @@
 package response
 
 import (
-	"bytes"
 	"scylla-go-driver/frame"
 )
 
-// Supported response message type.
+// Supported spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L537
 type Supported struct {
-	options frame.StringMultiMap
+	Options frame.StringMultiMap
 }
 
-// ReadSupported reads and returns Supported from the buffer.
-func ReadSupported(b *bytes.Buffer) Supported {
-	m := frame.ReadStringMultiMap(b)
-	return Supported{m}
+func ParseSupported(b *frame.Buffer) Supported {
+	return Supported{
+		Options: b.ReadStringMultiMap(),
+	}
 }
