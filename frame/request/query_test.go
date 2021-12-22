@@ -77,7 +77,7 @@ func TestQuery(t *testing.T) {
 				frame.StringToBytes("foo"),
 				frame.ValueToBytes(frame.Value{N: 4, Bytes: frame.HexStringToBytes("cafebabe")}))},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			b := frame.Buffer{}

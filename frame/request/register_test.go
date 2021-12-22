@@ -20,7 +20,7 @@ func TestRegister(t *testing.T) {
 				0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
 		},
 	}
-
+	t.Parallel()
 	var out frame.Buffer
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {

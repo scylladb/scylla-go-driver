@@ -18,7 +18,7 @@ func TestBatch(t *testing.T) {
 				Consistency: 0x01, SerialConsistency: 0x08,
 				Timestamp: frame.Long(math.MinInt64)}},
 	}
-
+	t.Parallel()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer

@@ -17,7 +17,7 @@ func TestExecuteWriteTo(t *testing.T) {
 			[]byte{0x00, 0x02, 0x01, 0x02, 0x00},
 		},
 	}
-
+	t.Parallel()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out frame.Buffer
@@ -28,4 +28,3 @@ func TestExecuteWriteTo(t *testing.T) {
 		})
 	}
 }
-

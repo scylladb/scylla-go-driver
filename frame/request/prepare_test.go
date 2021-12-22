@@ -14,7 +14,7 @@ func TestPrepare(t *testing.T) {
 	}{
 		{"SELECT", Prepare{"SELECT * FROM foo"}, frame.LongStringToBytes("SELECT * FROM foo")},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			b := frame.Buffer{}

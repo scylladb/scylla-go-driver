@@ -17,7 +17,7 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 			"MockAuthenticator",
 		},
 	}
-
+	t.Parallel()
 	var out frame.Buffer
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
