@@ -1,14 +1,15 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"math"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestBatch(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name    string
 		content Batch
 	}{
@@ -18,8 +19,8 @@ func TestBatch(t *testing.T) {
 				Consistency: 0x01, SerialConsistency: 0x08,
 				Timestamp: frame.Long(math.MinInt64)}},
 	}
-
-	for _, tc := range cases {
+	t.Parallel()
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
 			tc.content.WriteTo(&buf)

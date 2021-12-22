@@ -1,12 +1,13 @@
 package frame
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestWriteByte(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       Byte
 		expected []byte
@@ -18,10 +19,10 @@ func TestWriteByte(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteByte(v.nr)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteByte(tc.nr)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -30,7 +31,7 @@ func TestWriteByte(t *testing.T) {
 }
 
 func TestWriteShort(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       Short
 		expected []byte
@@ -43,10 +44,10 @@ func TestWriteShort(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteShort(v.nr)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteShort(tc.nr)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -55,7 +56,7 @@ func TestWriteShort(t *testing.T) {
 }
 
 func TestWriteInt(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       Int
 		expected []byte
@@ -69,10 +70,10 @@ func TestWriteInt(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteInt(v.nr)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteInt(tc.nr)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -81,7 +82,7 @@ func TestWriteInt(t *testing.T) {
 }
 
 func TestWriteString(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  string
 		expected []byte
@@ -93,10 +94,10 @@ func TestWriteString(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteString(v.content)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteString(tc.content)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -105,7 +106,7 @@ func TestWriteString(t *testing.T) {
 }
 
 func TestWriteStringList(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  StringList
 		expected []byte
@@ -115,10 +116,10 @@ func TestWriteStringList(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteStringList(v.content)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteStringList(tc.content)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -127,7 +128,7 @@ func TestWriteStringList(t *testing.T) {
 }
 
 func TestWriteStringMultiMap(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  StringMultiMap
 		expected []byte
@@ -136,10 +137,10 @@ func TestWriteStringMultiMap(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.WriteStringMultiMap(v.content)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.WriteStringMultiMap(tc.content)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -148,7 +149,7 @@ func TestWriteStringMultiMap(t *testing.T) {
 }
 
 func TestWriteHeader(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  Header
 		expected []byte
@@ -166,10 +167,10 @@ func TestWriteHeader(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			v.content.WriteTo(&buf)
-			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.content.WriteTo(&buf)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -178,7 +179,7 @@ func TestWriteHeader(t *testing.T) {
 }
 
 func TestReadByte(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       []byte
 		expected Byte
@@ -190,11 +191,11 @@ func TestReadByte(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.nr)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.nr)
 			out := buf.ReadByte()
-			if out != v.expected {
+			if out != tc.expected {
 				t.Fatal("Failure while reading Byte.")
 			}
 		})
@@ -203,7 +204,7 @@ func TestReadByte(t *testing.T) {
 }
 
 func TestReadShort(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       []byte
 		expected Short
@@ -215,11 +216,11 @@ func TestReadShort(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.nr)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.nr)
 			out := buf.ReadShort()
-			if out != v.expected {
+			if out != tc.expected {
 				t.Fatal("Failure while reading Short.")
 			}
 		})
@@ -228,7 +229,7 @@ func TestReadShort(t *testing.T) {
 }
 
 func TestReadInt(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		nr       []byte
 		expected Int
@@ -242,11 +243,11 @@ func TestReadInt(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.nr)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.nr)
 			out := buf.ReadInt()
-			if out != v.expected {
+			if out != tc.expected {
 				t.Fatal("Failure while reading Integer.")
 			}
 		})
@@ -255,7 +256,7 @@ func TestReadInt(t *testing.T) {
 }
 
 func TestReadString(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected string
@@ -267,11 +268,11 @@ func TestReadString(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.content)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.content)
 			out := buf.ReadString()
-			if out != v.expected {
+			if out != tc.expected {
 				t.Fatal("Failure while writing reading String.")
 			}
 		})
@@ -280,7 +281,7 @@ func TestReadString(t *testing.T) {
 }
 
 func TestReadStringList(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected StringList
@@ -290,11 +291,11 @@ func TestReadStringList(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.content)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.content)
 			out := buf.ReadStringList()
-			if diff := cmp.Diff(out, v.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -303,7 +304,7 @@ func TestReadStringList(t *testing.T) {
 }
 
 func TestReadStringMultiMap(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected StringMultiMap
@@ -312,11 +313,11 @@ func TestReadStringMultiMap(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.content)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.content)
 			out := buf.ReadStringMultiMap()
-			if diff := cmp.Diff(out, v.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -325,7 +326,7 @@ func TestReadStringMultiMap(t *testing.T) {
 }
 
 func TestReadHeader(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected Header
@@ -343,11 +344,11 @@ func TestReadHeader(t *testing.T) {
 	}
 
 	var buf Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			buf.Write(v.content)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			buf.Write(tc.content)
 			out := ParseHeader(&buf)
-			if out != v.expected {
+			if out != tc.expected {
 				t.Fatal("Failure while reading StringMultiMap.")
 			}
 		})

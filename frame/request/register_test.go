@@ -1,13 +1,14 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestRegister(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  frame.StringList
 		expected []byte
@@ -20,13 +21,13 @@ func TestRegister(t *testing.T) {
 				0x5f, 0x43, 0x48, 0x41, 0x4e, 0x47, 0x45},
 		},
 	}
-
+	t.Parallel()
 	var out frame.Buffer
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
-			r := Register{v.content}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			r := Register{tc.content}
 			r.WriteTo(&out)
-			if diff := cmp.Diff(out.Bytes(), v.expected); diff != "" {
+			if diff := cmp.Diff(out.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

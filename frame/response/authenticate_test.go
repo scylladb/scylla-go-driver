@@ -1,13 +1,14 @@
 package response
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAuthenticateEncodeDecode(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected string
@@ -17,9 +18,9 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 			"MockAuthenticator",
 		},
 	}
-
+	t.Parallel()
 	var out frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			out.Write(tc.content)
 			a := ParseAuthenticate(&out)

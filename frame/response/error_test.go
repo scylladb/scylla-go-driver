@@ -1,9 +1,10 @@
 package response
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func ErrToBytes(err Error) []byte {
@@ -14,7 +15,7 @@ func ErrToBytes(err Error) []byte {
 }
 
 func TestValidErrorCodes(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected Error
@@ -62,7 +63,7 @@ func TestValidErrorCodes(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseError(&buf)
@@ -75,7 +76,7 @@ func TestValidErrorCodes(t *testing.T) {
 }
 
 func TestUnavailableError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected UnavailableError
@@ -92,7 +93,7 @@ func TestUnavailableError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseUnavailableError(&buf)
@@ -106,7 +107,7 @@ func TestUnavailableError(t *testing.T) {
 }
 
 func TestWriteTimeoutError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected WriteTimeoutError
@@ -124,7 +125,7 @@ func TestWriteTimeoutError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseWriteTimeoutError(&buf)
@@ -137,7 +138,7 @@ func TestWriteTimeoutError(t *testing.T) {
 }
 
 func TestReadTimeoutError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected ReadTimeoutError
@@ -155,7 +156,7 @@ func TestReadTimeoutError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseReadTimeoutError(&buf)
@@ -168,7 +169,7 @@ func TestReadTimeoutError(t *testing.T) {
 }
 
 func TestReadFailureError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected ReadFailureError
@@ -187,7 +188,7 @@ func TestReadFailureError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseReadFailureError(&buf)
@@ -200,7 +201,7 @@ func TestReadFailureError(t *testing.T) {
 }
 
 func TestFuncFailureError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected FuncFailureError
@@ -217,7 +218,7 @@ func TestFuncFailureError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseFuncFailureError(&buf)
@@ -230,7 +231,7 @@ func TestFuncFailureError(t *testing.T) {
 }
 
 func TestWriteFailureError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected WriteFailureError
@@ -249,7 +250,7 @@ func TestWriteFailureError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseWriteFailureError(&buf)
@@ -262,7 +263,7 @@ func TestWriteFailureError(t *testing.T) {
 }
 
 func TestAlreadyExistsError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected AlreadyExistsError
@@ -276,9 +277,9 @@ func TestAlreadyExistsError(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseAlreadyExistsError(&buf)
@@ -292,7 +293,7 @@ func TestAlreadyExistsError(t *testing.T) {
 
 // There are no tests for unprepared error in rust nor java
 func TestUnpreparedError(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected UnpreparedError
@@ -305,9 +306,9 @@ func TestUnpreparedError(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	var buf frame.Buffer
-	for _, tc := range cases {
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseUnpreparedError(&buf)

@@ -1,13 +1,14 @@
 package response
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStatusChangeEvent(t *testing.T) {
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected StatusChange
@@ -25,13 +26,13 @@ func TestStatusChangeEvent(t *testing.T) {
 					Port: 9042,
 				}}},
 	}
-
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			a := ParseStatusChange(&buf)
-			if diff := cmp.Diff(a, v.expected); diff != "" {
+			if diff := cmp.Diff(a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -39,7 +40,7 @@ func TestStatusChangeEvent(t *testing.T) {
 }
 
 func TestTopologyChangeEvent(t *testing.T) {
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected TopologyChange
@@ -57,13 +58,13 @@ func TestTopologyChangeEvent(t *testing.T) {
 					Port: 9042,
 				}}},
 	}
-
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			a := ParseTopologyChange(&buf)
-			if diff := cmp.Diff(a, v.expected); diff != "" {
+			if diff := cmp.Diff(a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -71,7 +72,7 @@ func TestTopologyChangeEvent(t *testing.T) {
 }
 
 func TestSchemaChangeEvent(t *testing.T) {
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected SchemaChange
@@ -122,13 +123,13 @@ func TestSchemaChangeEvent(t *testing.T) {
 				Object:    "myaggregate",
 				Arguments: []string{"int", "int"}}},
 	}
-
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			s := ParseSchemaChange(&buf)
-			if diff := cmp.Diff(s, v.expected); diff != "" {
+			if diff := cmp.Diff(s, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

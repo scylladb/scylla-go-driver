@@ -1,13 +1,14 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestWriteStartup(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name    string
 		content Startup
 	}{
@@ -27,13 +28,13 @@ func TestWriteStartup(t *testing.T) {
 			},
 		},
 	}
-
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			var buf frame.Buffer
-			v.content.WriteTo(&buf)
+			tc.content.WriteTo(&buf)
 			readOptions := buf.ReadStartupOptions()
-			if diff := cmp.Diff(readOptions, v.content.Options); diff != "" {
+			if diff := cmp.Diff(readOptions, tc.content.Options); diff != "" {
 				t.Fatal(diff)
 			}
 		})

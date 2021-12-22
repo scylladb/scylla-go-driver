@@ -1,13 +1,14 @@
 package response
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAuthSuccessEncodeDecode(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  []byte
 		expected []byte
@@ -17,8 +18,8 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
 	}
-
-	for _, tc := range cases {
+	t.Parallel()
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out frame.Buffer
 			out.Write(tc.content)

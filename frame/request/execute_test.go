@@ -1,13 +1,14 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteWriteTo(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  Execute
 		expected []byte
@@ -17,8 +18,8 @@ func TestExecuteWriteTo(t *testing.T) {
 			[]byte{0x00, 0x02, 0x01, 0x02, 0x00},
 		},
 	}
-
-	for _, tc := range cases {
+	t.Parallel()
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out frame.Buffer
 			tc.content.WriteTo(&out)
@@ -28,4 +29,3 @@ func TestExecuteWriteTo(t *testing.T) {
 		})
 	}
 }
-

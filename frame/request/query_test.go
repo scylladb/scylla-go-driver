@@ -1,13 +1,14 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"scylla-go-driver/frame"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestQuery(t *testing.T) {
-	var cases = []struct {
+	var testCases = []struct {
 		name     string
 		content  Query
 		expected []byte
@@ -77,12 +78,12 @@ func TestQuery(t *testing.T) {
 				frame.StringToBytes("foo"),
 				frame.ValueToBytes(frame.Value{N: 4, Bytes: frame.HexStringToBytes("cafebabe")}))},
 	}
-
-	for _, v := range cases {
-		t.Run(v.name, func(t *testing.T) {
+	t.Parallel()
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
 			b := frame.Buffer{}
-			v.content.WriteTo(&b)
-			if diff := cmp.Diff(v.expected, b.Bytes()); diff != "" {
+			tc.content.WriteTo(&b)
+			if diff := cmp.Diff(tc.expected, b.Bytes()); diff != "" {
 				t.Fatal(diff)
 			}
 		})
