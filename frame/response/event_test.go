@@ -25,7 +25,7 @@ func TestStatusChangeEvent(t *testing.T) {
 					Port: 9042,
 				}}},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
@@ -57,7 +57,7 @@ func TestTopologyChangeEvent(t *testing.T) {
 					Port: 9042,
 				}}},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
@@ -122,7 +122,7 @@ func TestSchemaChangeEvent(t *testing.T) {
 				Object:    "myaggregate",
 				Arguments: []string{"int", "int"}}},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer

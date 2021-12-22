@@ -17,7 +17,7 @@ func TestAuthSuccessEncodeDecode(t *testing.T) {
 			[]byte{0xca, 0xfe, 0xba, 0xbe},
 		},
 	}
-
+	t.Parallel()
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var out frame.Buffer

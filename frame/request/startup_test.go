@@ -27,7 +27,7 @@ func TestWriteStartup(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer

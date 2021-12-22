@@ -276,7 +276,7 @@ func TestAlreadyExistsError(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -305,7 +305,7 @@ func TestUnpreparedError(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	var buf frame.Buffer
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

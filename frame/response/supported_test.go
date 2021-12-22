@@ -15,11 +15,11 @@ func TestSupportedEncodeDecode(t *testing.T) {
 		{"Smoke test",
 			[]byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62},
 			Supported{
-			Options: frame.StringMultiMap{"a": {"a", "b"}},
+				Options: frame.StringMultiMap{"a": {"a", "b"}},
 			},
 		},
 	}
-
+	t.Parallel()
 	var out frame.Buffer
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

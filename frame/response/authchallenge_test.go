@@ -16,7 +16,7 @@ func TestAuthChallenge(t *testing.T) {
 			frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
 			AuthChallenge{frame.HexStringToBytes("cafebabe")}},
 	}
-
+	t.Parallel()
 	for _, v := range cases {
 		t.Run(v.name, func(t *testing.T) {
 			var buf frame.Buffer
