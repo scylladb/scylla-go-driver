@@ -1,24 +1,30 @@
 package response
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"scylla-go-driver/frame"
 	"testing"
+
+	"scylla-go-driver/frame"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestAuthChallenge(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name     string
 		content  []byte
 		expected AuthChallenge
 	}{
-		{"simple",
+		{
+			"simple",
 			frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
-			AuthChallenge{frame.HexStringToBytes("cafebabe")}},
+			AuthChallenge{frame.HexStringToBytes("cafebabe")},
+		},
 	}
-	t.Parallel()
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
 			var buf frame.Buffer
 			buf.Write(v.content)
 			a := ParseAuthChallenge(&buf)

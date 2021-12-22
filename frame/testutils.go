@@ -44,7 +44,10 @@ func MassAppendBytes(elems ...[]byte) []byte {
 
 // HexStringToBytes does begin with string's length.
 func HexStringToBytes(s string) []byte {
-	tmp, _ := hex.DecodeString(s)
+	tmp, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
 	return tmp
 }
 

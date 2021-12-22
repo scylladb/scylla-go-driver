@@ -1,25 +1,30 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"scylla-go-driver/frame"
 	"testing"
+
+	"scylla-go-driver/frame"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteWriteTo(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	testCases := []struct {
 		name     string
 		content  Execute
 		expected []byte
 	}{
-		{"Smoke encode",
+		{
+			"Smoke encode",
 			Execute{ID: frame.Bytes{0x01, 0x02}},
 			[]byte{0x00, 0x02, 0x01, 0x02, 0x00},
 		},
 	}
-	t.Parallel()
-	for _, tc := range cases {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var out frame.Buffer
 			tc.content.WriteTo(&out)
 			if diff := cmp.Diff(out.Bytes(), tc.expected); diff != "" {

@@ -1,12 +1,14 @@
 package frame
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestWriteByte(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       Byte
 		expected []byte
@@ -16,21 +18,23 @@ func TestWriteByte(t *testing.T) {
 		{"random big byte", 173, []byte{0xad}},
 		{"max byte", 255, []byte{0xff}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteByte(v.nr)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteShort(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       Short
 		expected []byte
@@ -41,21 +45,23 @@ func TestWriteShort(t *testing.T) {
 		{"random big short", 7919, []byte{0x1e, 0xef}},
 		{"max short", 65535, []byte{0xff, 0xff}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteShort(v.nr)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteInt(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       Int
 		expected []byte
@@ -67,21 +73,23 @@ func TestWriteInt(t *testing.T) {
 		{"random 3 byte numer", 123335, []byte{0x0, 0x01, 0xe1, 0xc7}},
 		{"max integer", 2147483647, []byte{0x7f, 0xff, 0xff, 0xff}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteInt(v.nr)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteString(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  string
 		expected []byte
@@ -91,21 +99,23 @@ func TestWriteString(t *testing.T) {
 		{"UTF-8 characters", "πœę©ß", []byte{0x00, 0x0a, 0xcf, 0x80, 0xc5, 0x93, 0xc4, 0x99, 0xc2, 0xa9, 0xc3, 0x9f}},
 		{"empty string", "", []byte{0x00, 0x00}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteString(v.content)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteStringList(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  StringList
 		expected []byte
@@ -113,47 +123,50 @@ func TestWriteStringList(t *testing.T) {
 		{"one string", StringList{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
 		{"two strings", StringList{"a", "b"}, []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteStringList(v.content)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteStringMultiMap(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  StringMultiMap
 		expected []byte
 	}{
 		{"Smoke test", StringMultiMap{"a": {"a"}}, []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.WriteStringMultiMap(v.content)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestWriteHeader(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  Header
 		expected []byte
 	}{
-		{"plain supported",
+		{
+			"plain supported",
 			Header{
 				Version:  CQLv4,
 				Flags:    0,
@@ -164,21 +177,22 @@ func TestWriteHeader(t *testing.T) {
 			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
 		},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			v.content.WriteTo(&buf)
 			if diff := cmp.Diff(buf.Bytes(), v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadByte(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       []byte
 		expected Byte
@@ -188,22 +202,23 @@ func TestReadByte(t *testing.T) {
 		{"random large byte", []byte{0x7d}, 125},
 		{"max byte", []byte{0xff}, 255},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.nr)
 			out := buf.ReadByte()
 			if out != v.expected {
 				t.Fatal("Failure while reading Byte.")
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadShort(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       []byte
 		expected Short
@@ -213,22 +228,23 @@ func TestReadShort(t *testing.T) {
 		{"random large short", []byte{0xa7, 0xf3}, 42995},
 		{"max short", []byte{0xff, 0xff}, 65535},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.nr)
 			out := buf.ReadShort()
 			if out != v.expected {
 				t.Fatal("Failure while reading Short.")
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadInt(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		nr       []byte
 		expected Int
@@ -240,22 +256,23 @@ func TestReadInt(t *testing.T) {
 		{"random 3 byte numer", []byte{0x0, 0x01, 0xe1, 0xc7}, 123335},
 		{"max integer", []byte{0x7f, 0xff, 0xff, 0xff}, 2147483647},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.nr)
 			out := buf.ReadInt()
 			if out != v.expected {
 				t.Fatal("Failure while reading Integer.")
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadString(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  []byte
 		expected string
@@ -265,22 +282,23 @@ func TestReadString(t *testing.T) {
 		{"UTF-8 characters", []byte{0x00, 0x0a, 0xcf, 0x80, 0xc5, 0x93, 0xc4, 0x99, 0xc2, 0xa9, 0xc3, 0x9f}, "πœę©ß"},
 		{"empty string", []byte{0x00, 0x00}, ""},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.content)
 			out := buf.ReadString()
 			if out != v.expected {
 				t.Fatal("Failure while writing reading String.")
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadStringList(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  []byte
 		expected StringList
@@ -288,49 +306,52 @@ func TestReadStringList(t *testing.T) {
 		{"one string", []byte{0x00, 0x01, 0x00, 0x01, 0x61}, StringList{"a"}},
 		{"two strings", []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}, StringList{"a", "b"}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.content)
 			out := buf.ReadStringList()
 			if diff := cmp.Diff(out, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadStringMultiMap(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  []byte
 		expected StringMultiMap
 	}{
 		{"Smoke test", []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}, StringMultiMap{"a": {"a"}}},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.content)
 			out := buf.ReadStringMultiMap()
 			if diff := cmp.Diff(out, v.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
-		buf.Reset()
 	}
 }
 
 func TestReadHeader(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name     string
 		content  []byte
 		expected Header
 	}{
-		{"plain supported",
+		{
+			"plain supported",
 			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
 			Header{
 				Version:  CQLv4,
@@ -341,16 +362,16 @@ func TestReadHeader(t *testing.T) {
 			},
 		},
 	}
-	t.Parallel()
-	var buf Buffer
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
 			buf.Write(v.content)
 			out := ParseHeader(&buf)
 			if out != v.expected {
 				t.Fatal("Failure while reading StringMultiMap.")
 			}
 		})
-		buf.Reset()
 	}
 }

@@ -10,7 +10,7 @@ type Execute struct {
 	Options frame.QueryOptions
 }
 
-func (e Execute) WriteTo(b *frame.Buffer) {
+func (e Execute) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	b.WriteShortBytes(e.ID)
 	b.WriteQueryOptions(e.Options)
 }

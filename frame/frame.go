@@ -60,7 +60,6 @@ func (b *Buffer) WriteInt(v Int) {
 		byte(v >> 8),
 		byte(v),
 	})
-
 }
 
 func (b *Buffer) WriteLong(v Long) {
@@ -298,7 +297,7 @@ func (b *Buffer) WriteEventTypes(e []EventType) {
 	b.WriteStringList(e)
 }
 
-func (b *Buffer) WriteQueryOptions(q QueryOptions) {
+func (b *Buffer) WriteQueryOptions(q QueryOptions) { // nolint:gocritic
 	if b.err != nil {
 		return
 	}
@@ -350,10 +349,10 @@ func (b *Buffer) ReadRawBytes(n int) Bytes {
 	p := b.buf.Next(n)
 	if len(p) == n {
 		return p
-	} else {
-		b.recordError(fmt.Errorf("invalid Buffer ReadRawBytes"))
-		return nil
 	}
+	b.recordError(fmt.Errorf("invalid Buffer ReadRawBytes"))
+
+	return nil
 }
 
 func (b *Buffer) ReadByte() Byte {
@@ -488,14 +487,14 @@ func (b *Buffer) ReadValue() Value {
 		return Value{}
 	}
 
-	if n := b.ReadInt(); n < -2 {
+	n := b.ReadInt()
+	if n < -2 {
 		b.recordError(fmt.Errorf("invalid value length"))
 	} else if n > 0 {
 		return Value{N: n, Bytes: b.Read(int(n))}
-	} else {
-		return Value{N: n}
 	}
-	return Value{}
+
+	return Value{N: n}
 }
 
 func (b *Buffer) ReadInet() Inet {
@@ -507,9 +506,9 @@ func (b *Buffer) ReadInet() Inet {
 	// Checks for valid length of the IP address.
 	if n, b.err = b.buf.ReadByte(); n == 4 || n == 16 {
 		return Inet{IP: b.Read(int(n)), Port: b.ReadInt()}
-	} else {
-		b.recordError(fmt.Errorf("invalid ip length"))
 	}
+
+	b.recordError(fmt.Errorf("invalid ip length"))
 	return Inet{}
 }
 
@@ -618,16 +617,15 @@ func (b *Buffer) WriteStartupOptions(m StartupOptions) {
 		if s, ok := m[k]; !(ok && contains(v, s)) {
 			b.recordError(fmt.Errorf("invalid mandatory Startup option %s: %s", k, s))
 			return
-		} else {
-			count = count + 1
 		}
+		count++
 	}
 	for k, v := range possibleOptions {
 		if s, ok := m[k]; ok && !contains(v, s) {
 			b.recordError(fmt.Errorf("invalid Startup option %s: %s", k, s))
 			return
 		} else if ok {
-			count = count + 1
+			count++
 		}
 	}
 	if count != len(m) {
@@ -849,7 +847,7 @@ func (b *Buffer) ReadOption() Option {
 			Tuple: b.ReadTupleOption(),
 		}
 	default:
-		if id < AsciiID || TinyintID < id {
+		if id < ASCIIID || TinyintID < id {
 			b.recordError(fmt.Errorf("invalid Option ID: %d", id))
 		}
 		return Option{
@@ -882,11 +880,11 @@ func (b *Buffer) ReadColumnSpec(f ResultFlags) ColumnSpec {
 			Name:     b.ReadString(),
 			Type:     b.ReadOption(),
 		}
-	} else {
-		return ColumnSpec{
-			Name: b.ReadString(),
-			Type: b.ReadOption(),
-		}
+	}
+
+	return ColumnSpec{
+		Name: b.ReadString(),
+		Type: b.ReadOption(),
 	}
 }
 

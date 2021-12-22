@@ -20,7 +20,7 @@ type Batch struct {
 }
 
 // WriteTo writes Batch body into bytes.Buffer.
-func (q Batch) WriteTo(b *frame.Buffer) {
+func (q Batch) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	b.WriteBatchTypeFlag(q.Type)
 
 	// WriteTo number of queries.
@@ -47,7 +47,7 @@ type BatchQuery struct {
 	Values   []frame.Value
 }
 
-func (q BatchQuery) WriteTo(b *frame.Buffer, name bool) {
+func (q BatchQuery) WriteTo(b *frame.Buffer, name bool) { // nolint:gocritic
 	b.WriteByte(q.Kind)
 	if q.Kind == 0 {
 		b.WriteLongString(q.Query)
