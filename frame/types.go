@@ -73,17 +73,17 @@ var ValidOpCodes = map[OpCode]struct{}{
 type Consistency = Short
 
 const (
-	ANY          Consistency = 0x0000
-	ONE          Consistency = 0x0001
-	TWO          Consistency = 0x0002
-	THREE        Consistency = 0x0003
-	QUORUM       Consistency = 0x0004
-	ALL          Consistency = 0x0005
-	LOCAL_QUORUM Consistency = 0x0006
-	EACH_QUORUM  Consistency = 0x0007
-	SERIAL       Consistency = 0x0008
-	LOCAL_SERIAL Consistency = 0x0009
-	LOCAL_ONE    Consistency = 0x000A
+	ANY         Consistency = 0x0000
+	ONE         Consistency = 0x0001
+	TWO         Consistency = 0x0002
+	THREE       Consistency = 0x0003
+	QUORUM      Consistency = 0x0004
+	ALL         Consistency = 0x0005
+	LOCALQUORUM Consistency = 0x0006
+	EACHQUORUM  Consistency = 0x0007
+	SERIAL      Consistency = 0x0008
+	LOCALSERIAL Consistency = 0x0009
+	LOCALONE    Consistency = 0x000A
 )
 
 const InvalidConsistency Consistency = 0x000B
@@ -111,11 +111,13 @@ const (
 	WithNamesForValues    QueryFlags = 0x40
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L576-L594
-type ResultFlags = Int
+type (
+	// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L576-L594
+	ResultFlags = Int
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L684-L690
-type PreparedFlags = Int
+	// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L684-L690
+	PreparedFlags = Int
+)
 
 const (
 	GlobalTablesSpec ResultFlags = 0x0001
@@ -230,11 +232,11 @@ const (
 	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
 
-var validSchemaChangeTargets = map[SchemaChangeTarget]struct{} {
-	Keyspace: {},
-	Table: {},
-	UserType: {},
-	Function: {},
+var validSchemaChangeTargets = map[SchemaChangeTarget]struct{}{
+	Keyspace:  {},
+	Table:     {},
+	UserType:  {},
+	Function:  {},
 	Aggregate: {},
 }
 
@@ -376,7 +378,7 @@ type OptionID Short
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L615-L658
 const (
 	CustomID    OptionID = 0x0000
-	AsciiID     OptionID = 0x0001
+	ASCIIID     OptionID = 0x0001
 	BigintID    OptionID = 0x0002
 	BlobID      OptionID = 0x0003
 	BooleanID   OptionID = 0x0004
@@ -386,10 +388,10 @@ const (
 	FloatID     OptionID = 0x0008
 	IntID       OptionID = 0x0009
 	TimestampID OptionID = 0x000B
-	UuidID      OptionID = 0x000C
+	UUIDID      OptionID = 0x000C
 	VarcharID   OptionID = 0x000D
 	VarintID    OptionID = 0x000E
-	TimeuuidID  OptionID = 0x000F
+	TimeUUIDID  OptionID = 0x000F
 	InetID      OptionID = 0x0010
 	DateID      OptionID = 0x0011
 	TimeID      OptionID = 0x0012

@@ -1,24 +1,29 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
-	"scylla-go-driver/frame"
 	"testing"
+
+	"scylla-go-driver/frame"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestWriteStartup(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	cases := []struct {
 		name    string
 		content Startup
 	}{
-		{"mandatory only",
+		{
+			"mandatory only",
 			Startup{
 				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 				},
 			},
 		},
-		{"compression",
+		{
+			"compression",
 			Startup{
 				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
@@ -27,9 +32,10 @@ func TestWriteStartup(t *testing.T) {
 			},
 		},
 	}
-	t.Parallel()
-	for _, v := range cases {
+	for i := 0; i < len(cases); i++ {
+		v := cases[i]
 		t.Run(v.name, func(t *testing.T) {
+			t.Parallel()
 			var buf frame.Buffer
 			v.content.WriteTo(&buf)
 			readOptions := buf.ReadStartupOptions()

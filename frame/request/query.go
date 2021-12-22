@@ -11,7 +11,7 @@ type Query struct {
 	Options     frame.QueryOptions
 }
 
-func (q Query) WriteTo(b *frame.Buffer) {
+func (q Query) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	b.WriteLongString(q.Query)
 	b.WriteConsistency(q.Consistency)
 	b.WriteQueryOptions(q.Options)

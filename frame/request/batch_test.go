@@ -1,26 +1,66 @@
 package request
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"math"
-	"scylla-go-driver/frame"
 	"testing"
+
+	"scylla-go-driver/frame"
+
+	"github.com/google/go-cmp/cmp"
 )
 
+func readQuery(t *testing.T, buf *frame.Buffer, exp *BatchQuery, withNamesForValues bool) {
+	t.Helper()
+	switch buf.ReadByte() {
+	case 0:
+		if que := buf.ReadLongString(); que != exp.Query {
+			t.Fatal("Invalid query.")
+		}
+
+	case 1:
+		prep := buf.ReadShortBytes()
+		if diff := cmp.Diff(prep, exp.Prepared); diff != "" {
+			t.Fatal(diff)
+		}
+
+	default:
+		t.Fatal("Invalid kind.")
+	}
+
+	values := buf.ReadShort()
+	for j := frame.Short(0); j < values; j++ {
+		if withNamesForValues {
+			if name := buf.ReadString(); name != exp.Names[j] {
+				t.Fatal("Invalid name.")
+			}
+		}
+		val := buf.ReadValue()
+		if diff := cmp.Diff(val, exp.Values[j]); diff != "" {
+			t.Fatal(diff)
+		}
+	}
+}
+
 func TestBatch(t *testing.T) {
-	var cases = []struct {
+	t.Parallel()
+	testCases := []struct {
 		name    string
 		content Batch
 	}{
-		{"Should encode and decode with v4.",
-			Batch{Type: 0, Flags: 0,
+		{
+			"Should encode and decode with v4.",
+			Batch{
+				Type: 0, Flags: 0,
 				Queries:     []BatchQuery{{Kind: 0, Query: "SELECT * FROM foo"}},
 				Consistency: 0x01, SerialConsistency: 0x08,
-				Timestamp: frame.Long(math.MinInt64)}},
+				Timestamp: frame.Long(math.MinInt64),
+			},
+		},
 	}
-	t.Parallel()
-	for _, tc := range cases {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			var buf frame.Buffer
 			tc.content.WriteTo(&buf)
 			if batchType := buf.ReadByte(); batchType != tc.content.Type {
@@ -32,32 +72,8 @@ func TestBatch(t *testing.T) {
 				t.Fatal("Invalid n.")
 			}
 
-			for i := frame.Short(0); i < n; i++ {
-				if kind := buf.ReadByte(); kind == 0 {
-					if que := buf.ReadLongString(); que != tc.content.Queries[i].Query {
-						t.Fatal("Invalid query.")
-					}
-				} else if kind == 1 {
-					prep := buf.ReadShortBytes()
-					if diff := cmp.Diff(prep, tc.content.Queries[i].Prepared); diff != "" {
-						t.Fatal(diff)
-					}
-				} else {
-					t.Fatal("Invalid kind.")
-				}
-
-				values := buf.ReadShort()
-				for j := frame.Short(0); j < values; j++ {
-					if tc.content.Flags&WithNamesForValues != 0 {
-						if name := buf.ReadString(); name != tc.content.Queries[i].Names[j] {
-							t.Fatal("Invalid name.")
-						}
-					}
-					val := buf.ReadValue()
-					if diff := cmp.Diff(val, tc.content.Queries[i].Values[j]); diff != "" {
-						t.Fatal(diff)
-					}
-				}
+			for j := frame.Short(0); j < n; j++ {
+				readQuery(t, &buf, &tc.content.Queries[j], tc.content.Flags&WithNamesForValues != 0)
 			}
 
 			if cons := buf.ReadShort(); cons != tc.content.Consistency {
