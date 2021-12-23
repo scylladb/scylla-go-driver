@@ -23,7 +23,7 @@ func ParseHeader(b *Buffer) Header {
 	}
 	// Currently, we only accept CQLv4 spec response frames.
 	if h.Version != CQLv4 {
-		b.RecordError(fmt.Errorf("invalid protocol version, only CQLv4 is accepted"))
+		b.recordError(fmt.Errorf("invalid protocol version, only CQLv4 is accepted"))
 	}
 	return h
 }
