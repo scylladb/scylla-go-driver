@@ -230,6 +230,14 @@ const (
 	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
 
+var validSchemaChangeTargets = map[SchemaChangeTarget]struct{} {
+	Keyspace: {},
+	Table: {},
+	UserType: {},
+	Function: {},
+	Aggregate: {},
+}
+
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L296-L308
 type StartupOptions StringMap
 

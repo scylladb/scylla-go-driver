@@ -1,8 +1,6 @@
 package response
 
 import (
-	"fmt"
-
 	"scylla-go-driver/frame"
 )
 
@@ -70,7 +68,6 @@ func ParseSchemaChange(b *frame.Buffer) SchemaChange {
 			Arguments: b.ReadStringList(),
 		}
 	default:
-		b.RecordError(fmt.Errorf("invalid SchemaChangeTarget: %s", t))
 		return SchemaChange{}
 	}
 }
