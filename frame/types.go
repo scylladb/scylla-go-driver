@@ -50,23 +50,23 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
-var ValidOpCodes = map[OpCode]bool{
-	OpError:         true,
-	OpStartup:       true,
-	OpReady:         true,
-	OpAuthenticate:  true,
-	OpOptions:       true,
-	OpSupported:     true,
-	OpQuery:         true,
-	OpResult:        true,
-	OpPrepare:       true,
-	OpExecute:       true,
-	OpRegister:      true,
-	OpEvent:         true,
-	OpBatch:         true,
-	OpAuthChallenge: true,
-	OpAuthResponse:  true,
-	OpAuthSuccess:   true,
+var ValidOpCodes = map[OpCode]struct{}{
+	OpError:         {},
+	OpStartup:       {},
+	OpReady:         {},
+	OpAuthenticate:  {},
+	OpOptions:       {},
+	OpSupported:     {},
+	OpQuery:         {},
+	OpResult:        {},
+	OpPrepare:       {},
+	OpExecute:       {},
+	OpRegister:      {},
+	OpEvent:         {},
+	OpBatch:         {},
+	OpAuthChallenge: {},
+	OpAuthResponse:  {},
+	OpAuthSuccess:   {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L246-L259
@@ -152,15 +152,15 @@ const (
 	CDC           WriteType = "CDC"
 )
 
-var ValidWriteTypes = map[WriteType]bool{
-	Simple:        true,
-	Batch:         true,
-	UnloggedBatch: true,
-	Counter:       true,
-	BatchLog:      true,
-	CAS:           true,
-	View:          true,
-	CDC:           true,
+var ValidWriteTypes = map[WriteType]struct{}{
+	Simple:        {},
+	Batch:         {},
+	UnloggedBatch: {},
+	Counter:       {},
+	BatchLog:      {},
+	CAS:           {},
+	View:          {},
+	CDC:           {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L757-L791
@@ -172,10 +172,10 @@ const (
 	SchemaChange   EventType = "SCHEMA_CHANGE"
 )
 
-var ValidEventTypes = map[EventType]bool{
-	TopologyChange: true,
-	StatusChange:   true,
-	SchemaChange:   true,
+var ValidEventTypes = map[EventType]struct{}{
+	TopologyChange: {},
+	StatusChange:   {},
+	SchemaChange:   {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L760-L765
@@ -186,9 +186,9 @@ const (
 	RemovedNode TopologyChangeType = "REMOVED_NODE"
 )
 
-var topologyChangeTypes = map[TopologyChangeType]bool{
-	NewNode:     true,
-	RemovedNode: true,
+var topologyChangeTypes = map[TopologyChangeType]struct{}{
+	NewNode:     {},
+	RemovedNode: {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L766-L770
@@ -199,9 +199,9 @@ const (
 	Down StatusChangeType = "DOWN"
 )
 
-var statusChangeTypes = map[StatusChangeType]bool{
-	Up:   true,
-	Down: true,
+var statusChangeTypes = map[StatusChangeType]struct{}{
+	Up:   {},
+	Down: {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L771-L791
@@ -213,10 +213,10 @@ const (
 	Dropped SchemaChangeType = "DROPPED"
 )
 
-var schemaChangeTypes = map[SchemaChangeType]bool{
-	Created: true,
-	Updated: true,
-	Dropped: true,
+var schemaChangeTypes = map[SchemaChangeType]struct{}{
+	Created: {},
+	Updated: {},
+	Dropped: {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L775-L779
@@ -341,25 +341,25 @@ const (
 	ErrCodeUnprepared ErrorCode = 0x2500
 )
 
-var validErrorCodes = map[ErrorCode]bool{
-	ErrCodeServer:          true,
-	ErrCodeProtocol:        true,
-	ErrCodeCredentials:     true,
-	ErrCodeUnavailable:     true,
-	ErrCodeOverloaded:      true,
-	ErrCodeBootstrapping:   true,
-	ErrCodeTruncate:        true,
-	ErrCodeWriteTimeout:    true,
-	ErrCodeReadTimeout:     true,
-	ErrCodeReadFailure:     true,
-	ErrCodeFunctionFailure: true,
-	ErrCodeWriteFailure:    true,
-	ErrCodeSyntax:          true,
-	ErrCodeUnauthorized:    true,
-	ErrCodeInvalid:         true,
-	ErrCodeConfig:          true,
-	ErrCodeAlreadyExists:   true,
-	ErrCodeUnprepared:      true,
+var validErrorCodes = map[ErrorCode]struct{}{
+	ErrCodeServer:          {},
+	ErrCodeProtocol:        {},
+	ErrCodeCredentials:     {},
+	ErrCodeUnavailable:     {},
+	ErrCodeOverloaded:      {},
+	ErrCodeBootstrapping:   {},
+	ErrCodeTruncate:        {},
+	ErrCodeWriteTimeout:    {},
+	ErrCodeReadTimeout:     {},
+	ErrCodeReadFailure:     {},
+	ErrCodeFunctionFailure: {},
+	ErrCodeWriteFailure:    {},
+	ErrCodeSyntax:          {},
+	ErrCodeUnauthorized:    {},
+	ErrCodeInvalid:         {},
+	ErrCodeConfig:          {},
+	ErrCodeAlreadyExists:   {},
+	ErrCodeUnprepared:      {},
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L236-L239
