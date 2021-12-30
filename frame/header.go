@@ -28,6 +28,29 @@ func ParseHeader(b *Buffer) Header {
 	return h
 }
 
+func ParseHeaderRaw(b []byte) (Header, error) {
+	h := Header{
+		Version:  b[0],
+		Flags:    b[1],
+		StreamID: Short(b[2])<<8 | Short(b[3]),
+		Opcode:   b[4],
+		Length: Int(b[5])<<24 |
+			Int(b[6])<<16 |
+			Int(b[7])<<8 |
+			Int(b[8]),
+	}
+
+	if h.Version != CQLv4 {
+		return h, fmt.Errorf("invalid CQL version: %v", h.Version)
+	}
+
+	if h.Opcode > OpAuthSuccess {
+		return h, fmt.Errorf("invalid operation code: %v", h.Opcode)
+	}
+
+	return h, nil
+}
+
 func (h Header) WriteTo(b *Buffer) {
 	b.WriteByte(h.Version)
 	b.WriteHeaderFlags(h.Flags)

@@ -78,10 +78,6 @@ func InetToBytes(i Inet) []byte {
 	return b.Bytes()
 }
 
-func (b *Buffer) Bytes() []byte {
-	return b.buf.Bytes()
-}
-
 func (b *Buffer) Reset() {
 	b.buf.Reset()
 }

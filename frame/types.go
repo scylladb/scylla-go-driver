@@ -443,7 +443,7 @@ type ColumnSpec struct {
 	Type     Option
 }
 
-type Row []Bytes
+type Row = []Bytes
 
 type PreparedMetadata struct {
 	Flags          PreparedFlags

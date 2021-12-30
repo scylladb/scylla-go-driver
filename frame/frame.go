@@ -10,6 +10,13 @@ type Buffer struct {
 	err error
 }
 
+func NewBuffer(buf []byte) Buffer {
+	return Buffer{
+		buf: *bytes.NewBuffer(buf),
+		err: nil,
+	}
+}
+
 func (b *Buffer) Error() error {
 	return b.err
 }
@@ -18,6 +25,10 @@ func (b *Buffer) RecordError(err error) {
 	if b.err == nil {
 		b.err = err
 	}
+}
+
+func (b *Buffer) ResetError() {
+	b.err = nil
 }
 
 func (b *Buffer) Write(v Bytes) {
@@ -241,6 +252,24 @@ func (b *Buffer) WriteQueryOptions(q QueryOptions) {
 	}
 }
 
+func (b *Buffer) WriteBodyLength() {
+	if b.err != nil {
+		return
+	}
+
+	if b.buf.Len() < 9 {
+		b.RecordError(fmt.Errorf("invalid use of WriteBodyLength"))
+	}
+
+	n := b.buf.Len() - 9
+
+	buf := b.buf.Bytes()
+	buf[5] = byte(n >> 24)
+	buf[6] = byte(n >> 16)
+	buf[7] = byte(n >> 8)
+	buf[8] = byte(n)
+}
+
 func (b *Buffer) Read(n int) Bytes {
 	if b.err == nil {
 		p := make(Bytes, n)
@@ -324,7 +353,7 @@ func (b *Buffer) ReadUUID() UUID {
 	}
 }
 
-func (b *Buffer) ReadHeaderFlags() QueryFlags {
+func (b *Buffer) ReadHeaderFlags() HeaderFlags {
 	return b.ReadByte()
 }
 
@@ -703,4 +732,12 @@ func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
 	}
 
 	return p
+}
+
+func (b *Buffer) Bytes() []byte {
+	return b.buf.Bytes()
+}
+
+func (b *Buffer) Len() Int {
+	return Int(b.buf.Len())
 }
