@@ -473,7 +473,7 @@ type ColumnSpec struct {
 	Type     Option
 }
 
-type Row []Bytes
+type Row = []Bytes
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L681-L724
 type PreparedMetadata struct {
