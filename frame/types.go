@@ -428,7 +428,7 @@ type ResultMetadata struct {
 	Flags      ResultFlags
 	ColumnsCnt Int
 
-	// nil if flagPagingState is not set
+	// nil if flagPagingState is not set.
 	PagingState    Bytes
 	GlobalKeyspace string
 	GlobalTable    string
