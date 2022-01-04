@@ -13,9 +13,10 @@ func TestExecuteWriteTo(t *testing.T) {
 		content  Execute
 		expected []byte
 	}{
-		{"Smoke encode",
-			Execute{ID: frame.Bytes{0x01, 0x02}},
-			[]byte{0x00, 0x02, 0x01, 0x02, 0x00},
+		{
+			name:     "Smoke encode",
+			content:  Execute{ID: frame.Bytes{0x01, 0x02}},
+			expected: []byte{0x00, 0x02, 0x01, 0x02, 0x00},
 		},
 	}
 	t.Parallel()

@@ -13,13 +13,14 @@ func TestStatusChangeEvent(t *testing.T) {
 		content  []byte
 		expected StatusChange
 	}{
-		{"UP",
-			frame.MassAppendBytes(frame.StringToBytes("UP"),
+		{
+			name: "UP",
+			content: frame.MassAppendBytes(frame.StringToBytes("UP"),
 				frame.InetToBytes(frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
 					Port: 9042,
 				})),
-			StatusChange{
+			expected: StatusChange{
 				Status: "UP",
 				Address: frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
@@ -45,13 +46,14 @@ func TestTopologyChangeEvent(t *testing.T) {
 		content  []byte
 		expected TopologyChange
 	}{
-		{"NEW_NODE",
-			frame.MassAppendBytes(frame.StringToBytes("NEW_NODE"),
+		{
+			name: "NEW_NODE",
+			content: frame.MassAppendBytes(frame.StringToBytes("NEW_NODE"),
 				frame.InetToBytes(frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
 					Port: 9042,
 				})),
-			TopologyChange{
+			expected: TopologyChange{
 				Change: "NEW_NODE",
 				Address: frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
@@ -77,47 +79,52 @@ func TestSchemaChangeEvent(t *testing.T) {
 		content  []byte
 		expected SchemaChange
 	}{
-		{"KEYSPACE",
-			frame.MassAppendBytes(frame.StringToBytes("CREATED"),
+		{
+			name: "KEYSPACE",
+			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
 				frame.StringToBytes("KEYSPACE"),
 				frame.StringToBytes("test")),
-			SchemaChange{Change: "CREATED", Target: "KEYSPACE", Keyspace: "test"}},
-		{"TABLE",
-			frame.MassAppendBytes(frame.StringToBytes("CREATED"),
+			expected: SchemaChange{Change: "CREATED", Target: "KEYSPACE", Keyspace: "test"}},
+		{
+			name: "TABLE",
+			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
 				frame.StringToBytes("TABLE"),
 				frame.StringToBytes("test"),
 				frame.StringToBytes("mytable")),
-			SchemaChange{Change: "CREATED",
+			expected: SchemaChange{Change: "CREATED",
 				Target:   "TABLE",
 				Keyspace: "test",
 				Object:   "mytable"}},
-		{"TYPE",
-			frame.MassAppendBytes(frame.StringToBytes("CREATED"),
+		{
+			name: "TYPE",
+			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
 				frame.StringToBytes("TYPE"),
 				frame.StringToBytes("test"),
 				frame.StringToBytes("mytype")),
-			SchemaChange{Change: "CREATED",
+			expected: SchemaChange{Change: "CREATED",
 				Target:   "TYPE",
 				Keyspace: "test",
 				Object:   "mytype"}},
-		{"FUNCTION",
-			frame.MassAppendBytes(frame.StringToBytes("CREATED"),
+		{
+			name: "FUNCTION",
+			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
 				frame.StringToBytes("FUNCTION"),
 				frame.StringToBytes("test"),
 				frame.StringToBytes("myfunction"),
 				frame.StringListToBytes([]string{"int", "int"})),
-			SchemaChange{Change: "CREATED",
+			expected: SchemaChange{Change: "CREATED",
 				Target:    "FUNCTION",
 				Keyspace:  "test",
 				Object:    "myfunction",
 				Arguments: []string{"int", "int"}}},
-		{"AGGREGATE",
-			frame.MassAppendBytes(frame.StringToBytes("CREATED"),
+		{
+			name: "AGGREGATE",
+			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
 				frame.StringToBytes("AGGREGATE"),
 				frame.StringToBytes("test"),
 				frame.StringToBytes("myaggregate"),
 				frame.StringListToBytes([]string{"int", "int"})),
-			SchemaChange{Change: "CREATED",
+			expected: SchemaChange{Change: "CREATED",
 				Target:    "AGGREGATE",
 				Keyspace:  "test",
 				Object:    "myaggregate",

@@ -13,9 +13,10 @@ func TestAuthChallenge(t *testing.T) {
 		content  []byte
 		expected AuthChallenge
 	}{
-		{"simple",
-			frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
-			AuthChallenge{frame.HexStringToBytes("cafebabe")}},
+		{
+			name:     "simple",
+			content:  frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
+			expected: AuthChallenge{frame.HexStringToBytes("cafebabe")}},
 	}
 	t.Parallel()
 	for _, tc := range testCases {

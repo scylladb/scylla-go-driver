@@ -13,8 +13,9 @@ func TestBatch(t *testing.T) {
 		name    string
 		content Batch
 	}{
-		{"Should encode and decode with v4.",
-			Batch{Type: 0, Flags: 0,
+		{
+			name: "Should encode and decode with v4.",
+			content: Batch{Type: 0, Flags: 0,
 				Queries:     []BatchQuery{{Kind: 0, Query: "SELECT * FROM foo"}},
 				Consistency: 0x01, SerialConsistency: 0x08,
 				Timestamp: frame.Long(math.MinInt64)}},
