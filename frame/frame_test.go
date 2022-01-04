@@ -17,7 +17,7 @@ func TestWriteByte(t *testing.T) {
 		{"random big byte", 173, []byte{0xad}},
 		{"max byte", 255, []byte{0xff}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -42,7 +42,7 @@ func TestWriteShort(t *testing.T) {
 		{"random big short", 7919, []byte{0x1e, 0xef}},
 		{"max short", 65535, []byte{0xff, 0xff}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestWriteInt(t *testing.T) {
 		{"random 3 byte numer", 123335, []byte{0x0, 0x01, 0xe1, 0xc7}},
 		{"max integer", 2147483647, []byte{0x7f, 0xff, 0xff, 0xff}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -92,7 +92,7 @@ func TestWriteString(t *testing.T) {
 		{"UTF-8 characters", "πœę©ß", []byte{0x00, 0x0a, 0xcf, 0x80, 0xc5, 0x93, 0xc4, 0x99, 0xc2, 0xa9, 0xc3, 0x9f}},
 		{"empty string", "", []byte{0x00, 0x00}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -114,7 +114,7 @@ func TestWriteStringList(t *testing.T) {
 		{"one string", StringList{"a"}, []byte{0x00, 0x01, 0x00, 0x01, 0x61}},
 		{"two strings", StringList{"a", "b"}, []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -135,7 +135,7 @@ func TestWriteStringMultiMap(t *testing.T) {
 	}{
 		{"Smoke test", StringMultiMap{"a": {"a"}}, []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -166,7 +166,7 @@ func TestWriteHeader(t *testing.T) {
 			expected: []byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
 		},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestReadByte(t *testing.T) {
 		{"random large byte", []byte{0x7d}, 125},
 		{"max byte", []byte{0xff}, 255},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -215,7 +215,7 @@ func TestReadShort(t *testing.T) {
 		{"random large short", []byte{0xa7, 0xf3}, 42995},
 		{"max short", []byte{0xff, 0xff}, 65535},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -242,7 +242,7 @@ func TestReadInt(t *testing.T) {
 		{"random 3 byte numer", []byte{0x0, 0x01, 0xe1, 0xc7}, 123335},
 		{"max integer", []byte{0x7f, 0xff, 0xff, 0xff}, 2147483647},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -267,7 +267,7 @@ func TestReadString(t *testing.T) {
 		{"UTF-8 characters", []byte{0x00, 0x0a, 0xcf, 0x80, 0xc5, 0x93, 0xc4, 0x99, 0xc2, 0xa9, 0xc3, 0x9f}, "πœę©ß"},
 		{"empty string", []byte{0x00, 0x00}, ""},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -290,7 +290,7 @@ func TestReadStringList(t *testing.T) {
 		{"one string", []byte{0x00, 0x01, 0x00, 0x01, 0x61}, StringList{"a"}},
 		{"two strings", []byte{0x00, 0x02, 0x00, 0x01, 0x61, 0x00, 0x01, 0x62}, StringList{"a", "b"}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -312,7 +312,7 @@ func TestReadStringMultiMap(t *testing.T) {
 	}{
 		{"Smoke test", []byte{0x00, 0x01, 0x00, 0x01, 0x61, 0x00, 0x01, 0x00, 0x01, 0x61}, StringMultiMap{"a": {"a"}}},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestReadHeader(t *testing.T) {
 			},
 		},
 	}
-
+	t.Parallel()
 	var buf Buffer
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
