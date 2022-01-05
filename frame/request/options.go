@@ -8,3 +8,7 @@ import (
 type Options struct{}
 
 func (Options) WriteTo(_ *frame.Buffer) {}
+
+func (Options) OpCode() frame.OpCode {
+	return frame.OpOptions
+}
