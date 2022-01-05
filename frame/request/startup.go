@@ -12,3 +12,7 @@ type Startup struct {
 func (s Startup) WriteTo(b *frame.Buffer) {
 	b.WriteStartupOptions(s.Options)
 }
+
+func (Startup) OpCode() frame.OpCode {
+	return frame.OpStartup
+}
