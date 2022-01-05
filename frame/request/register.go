@@ -12,3 +12,7 @@ type Register struct {
 func (r Register) WriteTo(b *frame.Buffer) {
 	b.WriteEventTypes(r.EventTypes)
 }
+
+func (Register) OpCode() frame.OpCode {
+	return frame.OpRegister
+}

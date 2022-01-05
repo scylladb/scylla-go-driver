@@ -16,3 +16,7 @@ func (q Query) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	b.WriteConsistency(q.Consistency)
 	b.WriteQueryOptions(q.Options)
 }
+
+func (Query) OpCode() frame.OpCode {
+	return frame.OpQuery
+}

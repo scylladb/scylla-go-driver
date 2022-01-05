@@ -12,3 +12,7 @@ type AuthResponse struct {
 func (a AuthResponse) WriteTo(b *frame.Buffer) {
 	b.WriteBytes(a.Token)
 }
+
+func (AuthResponse) OpCode() frame.OpCode {
+	return frame.OpAuthResponse
+}
