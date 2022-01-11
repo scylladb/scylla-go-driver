@@ -10,7 +10,7 @@ import (
 
 func TestSupportedEncodeDecode(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected Supported
@@ -23,8 +23,8 @@ func TestSupportedEncodeDecode(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var out frame.Buffer

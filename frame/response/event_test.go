@@ -10,7 +10,7 @@ import (
 
 func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different.
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected StatusChange
@@ -31,14 +31,14 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		v := cases[i]
-		t.Run(v.name, func(t *testing.T) {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			a := ParseStatusChange(&buf)
-			if diff := cmp.Diff(a, v.expected); diff != "" {
+			if diff := cmp.Diff(a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -47,7 +47,7 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 
 func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are different.
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected TopologyChange
@@ -68,14 +68,14 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		v := cases[i]
-		t.Run(v.name, func(t *testing.T) {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			a := ParseTopologyChange(&buf)
-			if diff := cmp.Diff(a, v.expected); diff != "" {
+			if diff := cmp.Diff(a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -84,7 +84,7 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 
 func TestSchemaChangeEvent(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected SchemaChange
@@ -153,14 +153,14 @@ func TestSchemaChangeEvent(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		v := cases[i]
-		t.Run(v.name, func(t *testing.T) {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
-			buf.Write(v.content)
+			buf.Write(tc.content)
 			s := ParseSchemaChange(&buf)
-			if diff := cmp.Diff(s, v.expected); diff != "" {
+			if diff := cmp.Diff(s, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
