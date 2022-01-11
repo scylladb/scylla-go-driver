@@ -10,7 +10,7 @@ import (
 
 func TestRegister(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  frame.StringList
 		expected []byte
@@ -27,14 +27,14 @@ func TestRegister(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < len(cases); i++ {
-		v := cases[i]
-		t.Run(v.name, func(t *testing.T) {
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var out frame.Buffer
-			r := Register{v.content}
+			r := Register{tc.content}
 			r.WriteTo(&out)
-			if diff := cmp.Diff(out.Bytes(), v.expected); diff != "" {
+			if diff := cmp.Diff(out.Bytes(), tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

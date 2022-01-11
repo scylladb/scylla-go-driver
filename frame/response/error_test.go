@@ -17,7 +17,7 @@ func ErrToBytes(err Error) []byte {
 
 func TestValidErrorCodes(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected Error
@@ -74,8 +74,8 @@ func TestValidErrorCodes(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -90,7 +90,7 @@ func TestValidErrorCodes(t *testing.T) {
 
 func TestUnavailableError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected UnavailableError
@@ -107,8 +107,8 @@ func TestUnavailableError(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -123,7 +123,7 @@ func TestUnavailableError(t *testing.T) {
 
 func TestWriteTimeoutError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected WriteTimeoutError
@@ -142,8 +142,8 @@ func TestWriteTimeoutError(t *testing.T) {
 	}
 
 	var buf frame.Buffer
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			buf.Write(tc.content)
@@ -158,7 +158,7 @@ func TestWriteTimeoutError(t *testing.T) {
 
 func TestReadTimeoutError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected ReadTimeoutError
@@ -175,8 +175,8 @@ func TestReadTimeoutError(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -191,7 +191,7 @@ func TestReadTimeoutError(t *testing.T) {
 
 func TestReadFailureError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected ReadFailureError
@@ -209,8 +209,8 @@ func TestReadFailureError(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -225,7 +225,7 @@ func TestReadFailureError(t *testing.T) {
 
 func TestFuncFailureError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected FuncFailureError
@@ -242,8 +242,8 @@ func TestFuncFailureError(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -258,7 +258,7 @@ func TestFuncFailureError(t *testing.T) {
 
 func TestWriteFailureError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected WriteFailureError
@@ -277,8 +277,8 @@ func TestWriteFailureError(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -293,7 +293,7 @@ func TestWriteFailureError(t *testing.T) {
 
 func TestAlreadyExistsError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected AlreadyExistsError
@@ -308,8 +308,8 @@ func TestAlreadyExistsError(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
@@ -322,10 +322,9 @@ func TestAlreadyExistsError(t *testing.T) {
 	}
 }
 
-// There are no tests for unprepared error in rust nor java.
 func TestUnpreparedError(t *testing.T) {
 	t.Parallel()
-	cases := []struct {
+	testCases := []struct {
 		name     string
 		content  []byte
 		expected UnpreparedError
@@ -339,8 +338,8 @@ func TestUnpreparedError(t *testing.T) {
 			},
 		},
 	}
-	for i := 0; i < len(cases); i++ {
-		tc := cases[i]
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			var buf frame.Buffer
