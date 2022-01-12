@@ -15,16 +15,16 @@ func TestWriteStartup(t *testing.T) {
 		content Startup
 	}{
 		{
-			"mandatory only",
-			Startup{
+			name: "mandatory only",
+			content: Startup{
 				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 				},
 			},
 		},
 		{
-			"compression",
-			Startup{
+			name: "compression",
+			content: Startup{
 				Options: frame.StringMap{
 					"CQL_VERSION": "3.0.0",
 					"COMPRESSION": "lz4",
