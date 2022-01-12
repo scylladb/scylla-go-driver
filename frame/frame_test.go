@@ -166,15 +166,15 @@ func TestWriteHeader(t *testing.T) {
 		expected []byte
 	}{
 		{
-			"plain supported",
-			Header{
+			name: "plain supported",
+			content: Header{
 				Version:  CQLv4,
 				Flags:    0,
 				StreamID: 0,
 				Opcode:   OpSupported,
 				Length:   0,
 			},
-			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
+			expected: []byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
 		},
 	}
 	for i := 0; i < len(testCases); i++ {
@@ -351,9 +351,9 @@ func TestReadHeader(t *testing.T) {
 		expected Header
 	}{
 		{
-			"plain supported",
-			[]byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
-			Header{
+			name:    "plain supported",
+			content: []byte{0x84, 0x0, 0x0, 0x0, 0x06, 0x0, 0x0, 0x0, 0x0},
+			expected: Header{
 				Version:  CQLv4,
 				Flags:    0,
 				StreamID: 0,

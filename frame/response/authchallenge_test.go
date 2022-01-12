@@ -16,9 +16,9 @@ func TestAuthChallenge(t *testing.T) {
 		expected AuthChallenge
 	}{
 		{
-			"simple",
-			frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
-			AuthChallenge{frame.HexStringToBytes("cafebabe")},
+			name:     "simple",
+			content:  frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
+			expected: AuthChallenge{frame.HexStringToBytes("cafebabe")},
 		},
 	}
 	for i := 0; i < len(testCases); i++ {

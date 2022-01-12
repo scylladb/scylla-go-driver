@@ -16,30 +16,30 @@ func TestQuery(t *testing.T) {
 		expected []byte
 	}{
 		{
-			"SELECT... Consistency ONE",
-			Query{
+			name: "SELECT... Consistency ONE",
+			content: Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
 				Options:     frame.QueryOptions{Flags: 0},
 			},
-			frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
+			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
 				frame.ShortToBytes(frame.ONE),
 				frame.ByteToBytes(0)),
 		},
 		{
-			"SELECT... Consistency QUORUM",
-			Query{
+			name: "SELECT... Consistency QUORUM",
+			content: Query{
 				Query:       "select * from system.local",
 				Consistency: frame.QUORUM,
 				Options:     frame.QueryOptions{Flags: 0},
 			},
-			frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
+			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
 				frame.ShortToBytes(frame.QUORUM),
 				frame.ByteToBytes(0)),
 		},
 		{
-			"SELECT... Consistency ONE, FLAG: Values",
-			Query{
+			name: "SELECT... Consistency ONE, FLAG: Values",
+			content: Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
 				Options: frame.QueryOptions{Flags: 0x01, Values: []frame.Value{{
@@ -47,15 +47,15 @@ func TestQuery(t *testing.T) {
 					Bytes: frame.HexStringToBytes("cafebabe"),
 				}}},
 			},
-			frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
+			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
 				frame.ShortToBytes(frame.ONE),
 				frame.ByteToBytes(0x01),
 				frame.ShortToBytes(1),
 				frame.ValueToBytes(frame.Value{N: 4, Bytes: frame.HexStringToBytes("cafebabe")})),
 		},
 		{
-			"SELECT... Consistency ONE, FLAG: SkipMetadata, PageSize, WithPagingState, WithSerialConsistency, WithDefaultTimestamp",
-			Query{
+			name: "SELECT... Consistency ONE, FLAG: SkipMetadata, PageSize, WithPagingState, WithSerialConsistency, WithDefaultTimestamp",
+			content: Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
 				Options: frame.QueryOptions{
@@ -66,7 +66,7 @@ func TestQuery(t *testing.T) {
 					Timestamp:         42,
 				},
 			},
-			frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
+			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
 				frame.ShortToBytes(frame.ONE),
 				frame.ByteToBytes(0x02|0x04|0x08|0x10|0x20),
 				frame.IntToBytes(10),
@@ -76,8 +76,8 @@ func TestQuery(t *testing.T) {
 				frame.LongToBytes(42)),
 		},
 		{
-			"SELECT... Consistency ONE, FLAG: Values, WithNamesForValues",
-			Query{
+			name: "SELECT... Consistency ONE, FLAG: Values, WithNamesForValues",
+			content: Query{
 				Query:       "select * from system.local",
 				Consistency: frame.ONE,
 				Options: frame.QueryOptions{
@@ -86,7 +86,7 @@ func TestQuery(t *testing.T) {
 					Names:  []string{"foo"},
 				},
 			},
-			frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
+			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
 				frame.ShortToBytes(frame.ONE),
 				frame.ByteToBytes(0x01|0x40),
 				frame.ShortToBytes(1),
