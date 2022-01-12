@@ -22,6 +22,12 @@ type Value struct {
 	Bytes Bytes
 }
 
+const (
+	LengthOfValueNotSet  Int = -2
+	LengthOfNullValue    Int = -1
+	LengthOfInvalidValue Int = 0
+)
+
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L241-L245
 type Inet struct {
 	IP   Bytes

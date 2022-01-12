@@ -480,17 +480,15 @@ func (b *Buffer) ReadShortBytes() ShortBytes {
 	return b.Read(int(b.ReadShort()))
 }
 
-// Length equal to -1 represents null.
-// Length equal to -2 represents not set.
 func (b *Buffer) ReadValue() Value {
 	if b.err != nil {
 		return Value{}
 	}
 
 	n := b.ReadInt()
-	if n < -2 {
+	if n < LengthOfValueNotSet {
 		b.recordError(fmt.Errorf("invalid value length"))
-	} else if n > 0 {
+	} else if n > LengthOfInvalidValue {
 		return Value{N: n, Bytes: b.Read(int(n))}
 	}
 
