@@ -7,6 +7,8 @@ import (
 	"net"
 	"scylla-go-driver/frame"
 	"scylla-go-driver/frame/request"
+	"scylla-go-driver/frame/response"
+	"strconv"
 )
 
 type Connection struct {
@@ -34,6 +36,34 @@ type ConnRequest struct {
 type ConnResponse struct {
 	Header frame.Header
 	Body   []byte
+}
+
+// SendOptions sends Options request and waits for response Supported frame.
+// Not suer what to do with errors. I don't think that creating separate struct
+// for every response frame seems like a little too much.
+func (c *Connection) SendOptions() response.Supported {
+	res := make(chan ConnResponse)
+	req := ConnRequest{
+		Body:     request.Options{},
+		Code:     frame.OpOptions,
+		Response: res,
+	}
+	c.newTask <- req
+
+	f := <-res
+	buf := frame.NewBuffer(f.Body)
+
+	switch f.Header.Opcode {
+	case frame.OpError:
+		err := response.ParseError(&buf)
+		fmt.Println(err.Message)
+		return response.Supported{}
+	case frame.OpSupported:
+		return response.ParseSupported(&buf)
+	default:
+		fmt.Println("invalid response frame opcode for Options request")
+		return response.Supported{}
+	}
 }
 
 func (c *Connection) Query(query string) chan ConnResponse {
@@ -64,11 +94,10 @@ func (c *Connection) GetResponseChannelById(id uint16) chan ConnResponse {
 	return ch
 }
 
-func NewConnection(addr string) (*Connection, error) {
-	socket, err := net.Dial("tcp", addr)
-	if err != nil {
-		return &Connection{}, fmt.Errorf("could not connect")
-	}
+// NewDialerConnection creates connection from specific local port.
+func NewDialerConnection(remoteAddr string, localPort int) (*Connection, error) {
+	localAddr, _ := net.ResolveTCPAddr("tcp", "172.17.0.1:"+strconv.Itoa(localPort))
+	socket, _ := (&net.Dialer{LocalAddr: localAddr}).Dial("tcp", remoteAddr)
 	reader := bufio.NewReader(socket)
 
 	requestChan := make(chan ConnRequest)
@@ -86,7 +115,7 @@ func NewConnection(addr string) (*Connection, error) {
 		defaultConsistency:      frame.ONE,
 	}
 
-	if err = initConnection(conn); err != nil {
+	if err := initConnection(conn); err != nil {
 		return &Connection{}, err
 	}
 
@@ -95,6 +124,10 @@ func NewConnection(addr string) (*Connection, error) {
 	go writeTask(conn)
 
 	return conn, nil
+}
+
+func NewConnection(addr string) (*Connection, error) {
+	return NewDialerConnection(addr, -1)
 }
 
 func sendStartup(connection *Connection) error {

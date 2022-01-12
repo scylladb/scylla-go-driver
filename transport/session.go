@@ -9,8 +9,13 @@ import (
 type Session struct {
 	defaultConsistency frame.Consistency
 	connections        *Connection
+
+	// We will be creating connections on specific local ports, so we have to keep track of
+	// which are free. We assume that port >= unusedPort is free.
+	unusedPort int
 }
 
+// Why QueryResult holds [][][]byte instead of frame.RowsResult?
 type QueryResult struct {
 	Rows [][][]byte
 	Err  error
@@ -21,6 +26,7 @@ func MakeSession(addr string) (Session, error) {
 	return Session{
 		defaultConsistency: frame.ONE,
 		connections:        conn,
+		unusedPort:         50000,
 	}, err
 }
 

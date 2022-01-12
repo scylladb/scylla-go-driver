@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"scylla-go-driver/frame"
 	"scylla-go-driver/transport"
+	"time"
 )
 
 // TODO Delete this package.
@@ -27,9 +29,9 @@ func main() {
 	for _, row := range rows {
 		for i, value := range row {
 			if i == 0 {
-				fmt.Printf("%d ", int(value[0])<<24 |
-					int(value[1])<<16 |
-					int(value[2])<<8 |
+				fmt.Printf("%d ", int(value[0])<<24|
+					int(value[1])<<16|
+					int(value[2])<<8|
 					int(value[3]))
 			} else {
 				fmt.Printf("%s ", value)
@@ -37,4 +39,19 @@ func main() {
 		}
 		fmt.Println()
 	}
+
+	control := transport.NewControlConn(":9999", &session)
+	if res := control.RegisterEvents(); (<-res).Header.Opcode != frame.OpReady {
+		panic("invalid response frame")
+	}
+
+	pi, _ := control.DiscoverTopology()
+	fmt.Printf("mapa: %v\n", pi)
+	hp, _ := control.InitHostPool(":9999")
+	fmt.Printf("pool: %v\n", hp)
+	hp, _ = control.InitHostPool(":9998")
+	fmt.Printf("pool: %v\n", hp)
+
+	// Now you can type "SELECT * FROM system.clients" in cqlsh to see, that connection pool covers all the shards.
+	time.Sleep(10000000000)
 }
