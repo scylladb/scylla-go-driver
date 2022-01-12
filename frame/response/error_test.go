@@ -8,11 +8,17 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func ErrToBytes(err Error) []byte {
+func errToBytes(err Error) []byte {
 	var out frame.Buffer
 	out.WriteInt(err.Code)
 	out.WriteString(err.Message)
 	return out.Bytes()
+}
+
+func writeErrorTo(b *frame.Buffer, err Error) {
+	for _, v := range errToBytes(err) {
+		b.WriteByte(v)
+	}
 }
 
 func TestValidErrorCodes(t *testing.T) {
@@ -24,52 +30,52 @@ func TestValidErrorCodes(t *testing.T) {
 	}{
 		{
 			name:     "server",
-			content:  ErrToBytes(Error{0x0000, "message 1"}),
+			content:  errToBytes(Error{0x0000, "message 1"}),
 			expected: Error{frame.ErrCodeServer, "message 1"},
 		},
 		{
 			name:     "protocol",
-			content:  ErrToBytes(Error{0x000a, "message 1"}),
+			content:  errToBytes(Error{0x000a, "message 1"}),
 			expected: Error{frame.ErrCodeProtocol, "message 1"},
 		},
 		{
 			name:     "authentication",
-			content:  ErrToBytes(Error{0x0100, "message 1"}),
+			content:  errToBytes(Error{0x0100, "message 1"}),
 			expected: Error{frame.ErrCodeCredentials, "message 1"},
 		},
 		{
 			name:     "overload",
-			content:  ErrToBytes(Error{0x1001, "message 1"}),
+			content:  errToBytes(Error{0x1001, "message 1"}),
 			expected: Error{frame.ErrCodeOverloaded, "message 1"},
 		},
 		{
 			name:     "is_bootstrapping",
-			content:  ErrToBytes(Error{0x1002, "message 1"}),
+			content:  errToBytes(Error{0x1002, "message 1"}),
 			expected: Error{frame.ErrCodeBootstrapping, "message 1"},
 		},
 		{
 			name:     "truncate",
-			content:  ErrToBytes(Error{0x1003, "message 1"}),
+			content:  errToBytes(Error{0x1003, "message 1"}),
 			expected: Error{frame.ErrCodeTruncate, "message 1"},
 		},
 		{
 			name:     "syntax",
-			content:  ErrToBytes(Error{0x2000, "message 1"}),
+			content:  errToBytes(Error{0x2000, "message 1"}),
 			expected: Error{frame.ErrCodeSyntax, "message 1"},
 		},
 		{
 			name:     "unauthorized",
-			content:  ErrToBytes(Error{0x2100, "message 1"}),
+			content:  errToBytes(Error{0x2100, "message 1"}),
 			expected: Error{frame.ErrCodeUnauthorized, "message 1"},
 		},
 		{
 			name:     "invalid",
-			content:  ErrToBytes(Error{0x2200, "message 1"}),
+			content:  errToBytes(Error{0x2200, "message 1"}),
 			expected: Error{frame.ErrCodeInvalid, "message 1"},
 		},
 		{
 			name:     "config",
-			content:  ErrToBytes(Error{0x2300, "message 1"}),
+			content:  errToBytes(Error{0x2300, "message 1"}),
 			expected: Error{frame.ErrCodeConfig, "message 1"},
 		},
 	}
@@ -96,12 +102,16 @@ func TestUnavailableError(t *testing.T) {
 		expected UnavailableError
 	}{
 		{
-			"unavailable",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1000, "message 2"}),
-				frame.ShortToBytes(frame.Consistency(1)),
-				frame.IntToBytes(frame.Int(2)),
-				frame.IntToBytes(frame.Int(3))),
-			UnavailableError{
+			name: "unavailable",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1000, "message 2"})
+				b.WriteShort(frame.Consistency(1))
+				b.WriteInt(frame.Int(2))
+				b.WriteInt(frame.Int(3))
+				return b.Bytes()
+			}(),
+			expected: UnavailableError{
 				Error{0x1000, "message 2"}, 1, 2, 3,
 			},
 		},
@@ -129,13 +139,17 @@ func TestWriteTimeoutError(t *testing.T) {
 		expected WriteTimeoutError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1100, "message 2"}),
-				frame.ShortToBytes(frame.Short(0x0004)),
-				frame.IntToBytes(frame.Int(-5)),
-				frame.IntToBytes(frame.Int(100)),
-				frame.StringToBytes("SIMPLE")),
-			WriteTimeoutError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1100, "message 2"})
+				b.WriteShort(frame.Short(0x0004))
+				b.WriteInt(frame.Int(-5))
+				b.WriteInt(frame.Int(100))
+				b.WriteString("SIMPLE")
+				return b.Bytes()
+			}(),
+			expected: WriteTimeoutError{
 				Error{0x1100, "message 2"}, 0x0004, -5, 100, "SIMPLE",
 			},
 		},
@@ -164,13 +178,17 @@ func TestReadTimeoutError(t *testing.T) {
 		expected ReadTimeoutError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1200, "message 2"}),
-				frame.ShortToBytes(frame.Short(0x0002)),
-				frame.IntToBytes(frame.Int(8)),
-				frame.IntToBytes(frame.Int(32)),
-				frame.ByteToBytes(0)),
-			ReadTimeoutError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1200, "message 2"})
+				b.WriteShort(frame.Short(0x0002))
+				b.WriteInt(frame.Int(8))
+				b.WriteInt(frame.Int(32))
+				b.WriteByte(0)
+				return b.Bytes()
+			}(),
+			expected: ReadTimeoutError{
 				Error{0x1200, "message 2"}, 0x0002, 8, 32, 0,
 			},
 		},
@@ -189,7 +207,7 @@ func TestReadTimeoutError(t *testing.T) {
 	}
 }
 
-func TestReadFailureError(t *testing.T) {
+func TestReadFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -197,14 +215,18 @@ func TestReadFailureError(t *testing.T) {
 		expected ReadFailureError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1300, "message 2"}),
-				frame.ShortToBytes(frame.Short(0x0003)),
-				frame.IntToBytes(frame.Int(4)),
-				frame.IntToBytes(frame.Int(5)),
-				frame.IntToBytes(frame.Int(6)),
-				frame.ByteToBytes(123)),
-			ReadFailureError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1300, "message 2"})
+				b.WriteShort(frame.Short(0x0003))
+				b.WriteInt(frame.Int(4))
+				b.WriteInt(frame.Int(5))
+				b.WriteInt(frame.Int(6))
+				b.WriteByte(123)
+				return b.Bytes()
+			}(),
+			expected: ReadFailureError{
 				Error{0x1300, "message 2"}, 0x0003, 4, 5, 6, 123,
 			},
 		},
@@ -231,12 +253,16 @@ func TestFuncFailureError(t *testing.T) {
 		expected FuncFailureError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1400, "message 2"}),
-				frame.StringToBytes("keyspace_name"),
-				frame.StringToBytes("function_name"),
-				frame.StringListToBytes([]string{"type1", "type2"})),
-			FuncFailureError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1400, "message 2"})
+				b.WriteString("keyspace_name")
+				b.WriteString("function_name")
+				b.WriteStringList([]string{"type1", "type2"})
+				return b.Bytes()
+			}(),
+			expected: FuncFailureError{
 				Error{0x1400, "message 2"}, "keyspace_name", "function_name", []string{"type1", "type2"},
 			},
 		},
@@ -256,7 +282,7 @@ func TestFuncFailureError(t *testing.T) {
 	}
 }
 
-func TestWriteFailureError(t *testing.T) {
+func TestWriteFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -264,14 +290,18 @@ func TestWriteFailureError(t *testing.T) {
 		expected WriteFailureError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x1500, "message 2"}),
-				frame.ShortToBytes(0x0000),
-				frame.IntToBytes(2),
-				frame.IntToBytes(4),
-				frame.IntToBytes(8),
-				frame.StringToBytes("COUNTER")),
-			WriteFailureError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x1500, "message 2"})
+				b.WriteShort(frame.Short(0x0000))
+				b.WriteInt(frame.Int(2))
+				b.WriteInt(frame.Int(4))
+				b.WriteInt(frame.Int(8))
+				b.WriteString("COUNTER")
+				return b.Bytes()
+			}(),
+			expected: WriteFailureError{
 				Error{0x1500, "message 2"}, 0x0000, 2, 4, 8, "COUNTER",
 			},
 		},
@@ -299,11 +329,15 @@ func TestAlreadyExistsError(t *testing.T) {
 		expected AlreadyExistsError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x2400, "message 2"}),
-				frame.StringToBytes("keyspace_name"),
-				frame.StringToBytes("table_name")),
-			AlreadyExistsError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x2400, "message 2"})
+				b.WriteString("keyspace_name")
+				b.WriteString("table_name")
+				return b.Bytes()
+			}(),
+			expected: AlreadyExistsError{
 				Error{0x2400, "message 2"}, "keyspace_name", "table_name",
 			},
 		},
@@ -330,10 +364,14 @@ func TestUnpreparedError(t *testing.T) {
 		expected UnpreparedError
 	}{
 		{
-			"write timeout",
-			frame.MassAppendBytes(ErrToBytes(Error{0x2500, "message 2"}),
-				frame.BytesToShortBytes([]byte{1, 2, 3})),
-			UnpreparedError{
+			name: "write timeout",
+			content: func() []byte {
+				var b frame.Buffer
+				writeErrorTo(&b, Error{0x2500, "message 2"})
+				b.WriteShortBytes([]byte{1, 2, 3})
+				return b.Bytes()
+			}(),
+			expected: UnpreparedError{
 				Error{0x2500, "message 2"}, []byte{1, 2, 3},
 			},
 		},

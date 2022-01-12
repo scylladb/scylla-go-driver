@@ -10,6 +10,14 @@ type Buffer struct {
 	err error
 }
 
+func (b *Buffer) Bytes() []byte {
+	return b.buf.Bytes()
+}
+
+func (b *Buffer) Reset() {
+	b.buf.Reset()
+}
+
 func (b *Buffer) Error() error {
 	return b.err
 }

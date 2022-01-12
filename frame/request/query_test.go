@@ -1,12 +1,27 @@
 package request
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"scylla-go-driver/frame"
 
 	"github.com/google/go-cmp/cmp"
 )
+
+func hexStringToBytes(s string) []byte {
+	tmp, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return tmp
+}
+
+func writeHexStringTo(b *frame.Buffer, s string) {
+	for _, v := range hexStringToBytes(s) {
+		b.WriteByte(v)
+	}
+}
 
 func TestQuery(t *testing.T) {
 	t.Parallel()
@@ -22,9 +37,13 @@ func TestQuery(t *testing.T) {
 				Consistency: frame.ONE,
 				Options:     frame.QueryOptions{Flags: 0},
 			},
-			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
-				frame.ShortToBytes(frame.ONE),
-				frame.ByteToBytes(0)),
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("select * from system.local")
+				b.WriteShort(frame.ONE)
+				b.WriteByte(0)
+				return b.Bytes()
+			}(),
 		},
 		{
 			name: "SELECT... Consistency QUORUM",
@@ -33,9 +52,13 @@ func TestQuery(t *testing.T) {
 				Consistency: frame.QUORUM,
 				Options:     frame.QueryOptions{Flags: 0},
 			},
-			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
-				frame.ShortToBytes(frame.QUORUM),
-				frame.ByteToBytes(0)),
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("select * from system.local")
+				b.WriteShort(frame.QUORUM)
+				b.WriteByte(0)
+				return b.Bytes()
+			}(),
 		},
 		{
 			name: "SELECT... Consistency ONE, FLAG: Values",
@@ -44,14 +67,18 @@ func TestQuery(t *testing.T) {
 				Consistency: frame.ONE,
 				Options: frame.QueryOptions{Flags: 0x01, Values: []frame.Value{{
 					N:     4,
-					Bytes: frame.HexStringToBytes("cafebabe"),
+					Bytes: hexStringToBytes("cafebabe"),
 				}}},
 			},
-			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
-				frame.ShortToBytes(frame.ONE),
-				frame.ByteToBytes(0x01),
-				frame.ShortToBytes(1),
-				frame.ValueToBytes(frame.Value{N: 4, Bytes: frame.HexStringToBytes("cafebabe")})),
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("select * from system.local")
+				b.WriteShort(frame.ONE)
+				b.WriteByte(0x01)
+				b.WriteShort(1)
+				b.WriteValue(frame.Value{N: 4, Bytes: hexStringToBytes("cafebabe")})
+				return b.Bytes()
+			}(),
 		},
 		{
 			name: "SELECT... Consistency ONE, FLAG: SkipMetadata, PageSize, WithPagingState, WithSerialConsistency, WithDefaultTimestamp",
@@ -61,19 +88,23 @@ func TestQuery(t *testing.T) {
 				Options: frame.QueryOptions{
 					Flags:             0x02 | 0x04 | 0x08 | 0x10 | 0x20,
 					PageSize:          10,
-					PagingState:       frame.HexStringToBytes("cafebabe"),
+					PagingState:       hexStringToBytes("cafebabe"),
 					SerialConsistency: frame.LOCALSERIAL,
 					Timestamp:         42,
 				},
 			},
-			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
-				frame.ShortToBytes(frame.ONE),
-				frame.ByteToBytes(0x02|0x04|0x08|0x10|0x20),
-				frame.IntToBytes(10),
-				frame.IntToBytes(4),
-				frame.HexStringToBytes("cafebabe"),
-				frame.ShortToBytes(frame.LOCALSERIAL),
-				frame.LongToBytes(42)),
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("select * from system.local")
+				b.WriteShort(frame.ONE)
+				b.WriteByte(0x02 | 0x04 | 0x08 | 0x10 | 0x20)
+				b.WriteInt(10)
+				b.WriteInt(4)
+				writeHexStringTo(&b, "cafebabe")
+				b.WriteShort(frame.LOCALSERIAL)
+				b.WriteLong(42)
+				return b.Bytes()
+			}(),
 		},
 		{
 			name: "SELECT... Consistency ONE, FLAG: Values, WithNamesForValues",
@@ -82,16 +113,20 @@ func TestQuery(t *testing.T) {
 				Consistency: frame.ONE,
 				Options: frame.QueryOptions{
 					Flags:  0x01 | 0x40,
-					Values: []frame.Value{{N: 4, Bytes: frame.HexStringToBytes("cafebabe")}},
+					Values: []frame.Value{{N: 4, Bytes: hexStringToBytes("cafebabe")}},
 					Names:  []string{"foo"},
 				},
 			},
-			expected: frame.MassAppendBytes(frame.LongStringToBytes("select * from system.local"),
-				frame.ShortToBytes(frame.ONE),
-				frame.ByteToBytes(0x01|0x40),
-				frame.ShortToBytes(1),
-				frame.StringToBytes("foo"),
-				frame.ValueToBytes(frame.Value{N: 4, Bytes: frame.HexStringToBytes("cafebabe")})),
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("select * from system.local")
+				b.WriteShort(frame.ONE)
+				b.WriteByte(0x01 | 0x40)
+				b.WriteShort(1)
+				b.WriteString("foo")
+				b.WriteValue(frame.Value{N: 4, Bytes: hexStringToBytes("cafebabe")})
+				return b.Bytes()
+			}(),
 		},
 	}
 	for i := 0; i < len(testCases); i++ {
