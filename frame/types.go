@@ -7,7 +7,7 @@ type (
 	Long           = int64
 	Short          = uint16
 	Byte           = byte
-	UUID           = []byte
+	UUID           = [16]byte
 	StringList     = []string
 	Bytes          = []byte
 	ShortBytes     = []byte
