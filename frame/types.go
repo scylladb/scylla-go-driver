@@ -126,7 +126,7 @@ const (
 )
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L421-L426
-type BatchTypeFlag = byte
+type BatchTypeFlag = Byte
 
 const (
 	LoggedBatchFlag   BatchTypeFlag = 0
@@ -135,7 +135,7 @@ const (
 )
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L456
-type BatchQueryKind = byte
+type BatchQueryKind = Byte
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x84
