@@ -98,9 +98,9 @@ func TestQuery(t *testing.T) {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			b := frame.Buffer{}
-			tc.content.WriteTo(&b)
-			if diff := cmp.Diff(tc.expected, b.Bytes()); diff != "" {
+			var buf frame.Buffer
+			tc.content.WriteTo(&buf)
+			if diff := cmp.Diff(tc.expected, buf.Bytes()); diff != "" {
 				t.Fatal(diff)
 			}
 		})
