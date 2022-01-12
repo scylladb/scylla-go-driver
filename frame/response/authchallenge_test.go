@@ -1,6 +1,7 @@
 package response
 
 import (
+	"encoding/hex"
 	"testing"
 
 	"scylla-go-driver/frame"
@@ -8,6 +9,19 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
+func hexStringToBytes(s string) []byte {
+	tmp, err := hex.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return tmp
+}
+
+func writeHexStringTo(b *frame.Buffer, s string) {
+	for _, v := range hexStringToBytes(s) {
+		b.WriteByte(v)
+	}
+}
 func TestAuthChallenge(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -16,9 +30,14 @@ func TestAuthChallenge(t *testing.T) {
 		expected AuthChallenge
 	}{
 		{
-			name:     "simple",
-			content:  frame.MassAppendBytes(frame.IntToBytes(frame.Int(4)), frame.HexStringToBytes("cafebabe")),
-			expected: AuthChallenge{frame.HexStringToBytes("cafebabe")},
+			name: "simple",
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteInt(frame.Int(4))
+				writeHexStringTo(&b, "cafebabe")
+				return b.Bytes()
+			}(),
+			expected: AuthChallenge{hexStringToBytes("cafebabe")},
 		},
 	}
 	for i := 0; i < len(testCases); i++ {
