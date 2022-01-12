@@ -21,9 +21,7 @@ func ParseMsgOptionalFields(b *Buffer, f HeaderFlags) MsgOptionalFields {
 }
 
 func (m MsgOptionalFields) WriteTo(b *Buffer) {
-	if m.TracingID != nil {
-		b.WriteUUID(m.TracingID)
-	}
+	b.WriteUUID(m.TracingID)
 	if m.Warnings != nil {
 		b.WriteStringList(m.Warnings)
 	}

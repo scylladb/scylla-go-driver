@@ -136,11 +136,7 @@ func (b *Buffer) WriteUUID(v UUID) {
 		return
 	}
 
-	if len(v) != 16 {
-		b.recordError(fmt.Errorf("UUID has invalid length: %d", len(v)))
-	} else {
-		b.Write(v)
-	}
+	b.Write(v[:])
 }
 
 func (b *Buffer) WriteConsistency(v Consistency) {
@@ -421,10 +417,9 @@ func (b *Buffer) ReadUUID() UUID {
 		return UUID{0}
 	}
 
-	u := b.Read(16)
-	if len(u) != 16 {
-		b.recordError(fmt.Errorf("UUID has invalid length: %d", len(u)))
-	}
+	s := b.Read(16)
+	u := UUID{}
+	copy(u[:], s)
 	return u
 }
 
