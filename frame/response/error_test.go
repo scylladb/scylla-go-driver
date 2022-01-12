@@ -1,6 +1,7 @@
 package response
 
 import (
+	scylla_go_driver "scylla-go-driver/errors"
 	"testing"
 
 	"scylla-go-driver/frame"
@@ -25,52 +26,52 @@ func TestValidErrorCodes(t *testing.T) {
 		{
 			name:     "server",
 			content:  ErrToBytes(Error{0x0000, "message 1"}),
-			expected: Error{frame.ErrCodeServer, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeServer, "message 1"},
 		},
 		{
 			name:     "protocol",
 			content:  ErrToBytes(Error{0x000a, "message 1"}),
-			expected: Error{frame.ErrCodeProtocol, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeProtocol, "message 1"},
 		},
 		{
 			name:     "authentication",
 			content:  ErrToBytes(Error{0x0100, "message 1"}),
-			expected: Error{frame.ErrCodeCredentials, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeCredentials, "message 1"},
 		},
 		{
 			name:     "overload",
 			content:  ErrToBytes(Error{0x1001, "message 1"}),
-			expected: Error{frame.ErrCodeOverloaded, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeOverloaded, "message 1"},
 		},
 		{
 			name:     "is_bootstrapping",
 			content:  ErrToBytes(Error{0x1002, "message 1"}),
-			expected: Error{frame.ErrCodeBootstrapping, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeBootstrapping, "message 1"},
 		},
 		{
 			name:     "truncate",
 			content:  ErrToBytes(Error{0x1003, "message 1"}),
-			expected: Error{frame.ErrCodeTruncate, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeTruncate, "message 1"},
 		},
 		{
 			name:     "syntax",
 			content:  ErrToBytes(Error{0x2000, "message 1"}),
-			expected: Error{frame.ErrCodeSyntax, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeSyntax, "message 1"},
 		},
 		{
 			name:     "unauthorized",
 			content:  ErrToBytes(Error{0x2100, "message 1"}),
-			expected: Error{frame.ErrCodeUnauthorized, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeUnauthorized, "message 1"},
 		},
 		{
 			name:     "invalid",
 			content:  ErrToBytes(Error{0x2200, "message 1"}),
-			expected: Error{frame.ErrCodeInvalid, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeInvalid, "message 1"},
 		},
 		{
 			name:     "config",
 			content:  ErrToBytes(Error{0x2300, "message 1"}),
-			expected: Error{frame.ErrCodeConfig, "message 1"},
+			expected: Error{scylla_go_driver.ErrCodeConfig, "message 1"},
 		},
 	}
 

@@ -3,6 +3,7 @@ package frame
 import (
 	"bytes"
 	"fmt"
+	scylla_go_driver "scylla-go-driver/errors"
 )
 
 type Buffer struct {
@@ -683,16 +684,13 @@ func (b *Buffer) ReadSchemaChangeTarget() SchemaChangeTarget {
 	return v
 }
 
-func (b *Buffer) ReadErrorCode() ErrorCode {
+// Validation is not required.
+func (b *Buffer) ReadErrorCode() scylla_go_driver.ErrorCode {
 	if b.err != nil {
-		return ErrorCode(0)
+		return scylla_go_driver.ErrorCode(0)
 	}
 
-	v := b.ReadInt()
-	if _, ok := validErrorCodes[v]; !ok {
-		b.recordError(fmt.Errorf("invalid error code: %d", v))
-	}
-	return v
+	return b.ReadInt()
 }
 
 func (b *Buffer) ReadConsistency() Consistency {

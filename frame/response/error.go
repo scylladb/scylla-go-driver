@@ -1,13 +1,14 @@
 package response
 
 import (
+	scylla_go_driver "scylla-go-driver/errors"
 	"scylla-go-driver/frame"
 )
 
 // Error response message type used in non specified errors which don't have a body.
 // Error spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1046
 type Error struct {
-	Code    frame.ErrorCode
+	Code    scylla_go_driver.ErrorCode
 	Message string
 }
 
