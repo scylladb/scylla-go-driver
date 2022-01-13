@@ -15,7 +15,15 @@ func TestPrepare(t *testing.T) {
 		content  Prepare
 		expected []byte
 	}{
-		{"SELECT", Prepare{"SELECT * FROM foo"}, frame.LongStringToBytes("SELECT * FROM foo")},
+		{
+			name:    "SELECT",
+			content: Prepare{"SELECT * FROM foo"},
+			expected: func() []byte {
+				var b frame.Buffer
+				b.WriteLongString("SELECT * FROM foo")
+				return b.Bytes()
+			}(),
+		},
 	}
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]

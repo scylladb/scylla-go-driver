@@ -7,7 +7,7 @@ type (
 	Long           = int64
 	Short          = uint16
 	Byte           = byte
-	UUID           = []byte
+	UUID           = [16]byte
 	StringList     = []string
 	Bytes          = []byte
 	ShortBytes     = []byte
@@ -363,7 +363,7 @@ type ResultMetadata struct {
 	Flags      ResultFlags
 	ColumnsCnt Int
 
-	// nil if flagPagingState is not set
+	// nil if flagPagingState is not set.
 	PagingState    Bytes
 	GlobalKeyspace string
 	GlobalTable    string

@@ -12,3 +12,7 @@ type Prepare struct {
 func (p Prepare) WriteTo(b *frame.Buffer) {
 	b.WriteLongString(p.Query)
 }
+
+func (Prepare) OpCode() frame.OpCode {
+	return frame.OpPrepare
+}

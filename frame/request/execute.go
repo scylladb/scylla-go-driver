@@ -14,3 +14,7 @@ func (e Execute) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	b.WriteShortBytes(e.ID)
 	b.WriteQueryOptions(e.Options)
 }
+
+func (Execute) OpCode() frame.OpCode {
+	return frame.OpExecute
+}

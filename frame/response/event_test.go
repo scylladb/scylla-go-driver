@@ -17,11 +17,15 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 	}{
 		{
 			name: "UP",
-			content: frame.MassAppendBytes(frame.StringToBytes("UP"),
-				frame.InetToBytes(frame.Inet{
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("UP")
+				b.WriteInet(frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
 					Port: 9042,
-				})),
+				})
+				return b.Bytes()
+			}(),
 			expected: StatusChange{
 				Status: "UP",
 				Address: frame.Inet{
@@ -54,11 +58,15 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 	}{
 		{
 			name: "NEW_NODE",
-			content: frame.MassAppendBytes(frame.StringToBytes("NEW_NODE"),
-				frame.InetToBytes(frame.Inet{
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("NEW_NODE")
+				b.WriteInet(frame.Inet{
 					IP:   []byte{127, 0, 0, 1},
 					Port: 9042,
-				})),
+				})
+				return b.Bytes()
+			}(),
 			expected: TopologyChange{
 				Change: "NEW_NODE",
 				Address: frame.Inet{
@@ -91,17 +99,25 @@ func TestSchemaChangeEvent(t *testing.T) {
 	}{
 		{
 			name: "KEYSPACE",
-			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
-				frame.StringToBytes("KEYSPACE"),
-				frame.StringToBytes("test")),
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("CREATED")
+				b.WriteString("KEYSPACE")
+				b.WriteString("test")
+				return b.Bytes()
+			}(),
 			expected: SchemaChange{Change: "CREATED", Target: "KEYSPACE", Keyspace: "test"},
 		},
 		{
 			name: "TABLE",
-			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
-				frame.StringToBytes("TABLE"),
-				frame.StringToBytes("test"),
-				frame.StringToBytes("mytable")),
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("CREATED")
+				b.WriteString("TABLE")
+				b.WriteString("test")
+				b.WriteString("mytable")
+				return b.Bytes()
+			}(),
 			expected: SchemaChange{
 				Change:   "CREATED",
 				Target:   "TABLE",
@@ -111,10 +127,14 @@ func TestSchemaChangeEvent(t *testing.T) {
 		},
 		{
 			name: "TYPE",
-			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
-				frame.StringToBytes("TYPE"),
-				frame.StringToBytes("test"),
-				frame.StringToBytes("mytype")),
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("CREATED")
+				b.WriteString("TYPE")
+				b.WriteString("test")
+				b.WriteString("mytype")
+				return b.Bytes()
+			}(),
 			expected: SchemaChange{
 				Change:   "CREATED",
 				Target:   "TYPE",
@@ -124,11 +144,15 @@ func TestSchemaChangeEvent(t *testing.T) {
 		},
 		{
 			name: "FUNCTION",
-			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
-				frame.StringToBytes("FUNCTION"),
-				frame.StringToBytes("test"),
-				frame.StringToBytes("myfunction"),
-				frame.StringListToBytes([]string{"int", "int"})),
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("CREATED")
+				b.WriteString("FUNCTION")
+				b.WriteString("test")
+				b.WriteString("myfunction")
+				b.WriteStringList([]string{"int", "int"})
+				return b.Bytes()
+			}(),
 			expected: SchemaChange{
 				Change:    "CREATED",
 				Target:    "FUNCTION",
@@ -139,11 +163,15 @@ func TestSchemaChangeEvent(t *testing.T) {
 		},
 		{
 			name: "AGGREGATE",
-			content: frame.MassAppendBytes(frame.StringToBytes("CREATED"),
-				frame.StringToBytes("AGGREGATE"),
-				frame.StringToBytes("test"),
-				frame.StringToBytes("myaggregate"),
-				frame.StringListToBytes([]string{"int", "int"})),
+			content: func() []byte {
+				var b frame.Buffer
+				b.WriteString("CREATED")
+				b.WriteString("AGGREGATE")
+				b.WriteString("test")
+				b.WriteString("myaggregate")
+				b.WriteStringList([]string{"int", "int"})
+				return b.Bytes()
+			}(),
 			expected: SchemaChange{
 				Change:    "CREATED",
 				Target:    "AGGREGATE",

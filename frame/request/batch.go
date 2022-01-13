@@ -38,6 +38,10 @@ func (q Batch) WriteTo(b *frame.Buffer) { // nolint:gocritic
 	}
 }
 
+func (Batch) OpCode() frame.OpCode {
+	return frame.OpBatch
+}
+
 // BatchQuery spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L452
 type BatchQuery struct {
 	Kind     frame.BatchQueryKind
