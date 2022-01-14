@@ -28,13 +28,13 @@ jobs:
           go-version: "${{env.GOVERSION}}"
 
       - name: Set up env variables
-          run: |
-            echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
-            echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
-            echo "$(go env -w GOCACHE=/home/runner/work/scylla-go-driver/scylla-go-driver/.cache/go-build/)"
-            echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
-            echo "GOCACHEPATTERN=.cache/go-build/**" >> $GITHUB_ENV
-            echo "date=$(date +'%m-%Y')" >> $GITHUB_ENV
+        run: |
+          echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          echo "$(go env -w GOCACHE=/home/runner/work/scylla-go-driver/scylla-go-driver/.cache/go-build/)"
+          echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
+          echo "GOCACHEPATTERN=.cache/go-build/**" >> $GITHUB_ENV
+          echo "date=$(date +'%m-%Y')" >> $GITHUB_ENV
 
       - name: Restore Module Cache
         uses: actions/cache@v2
