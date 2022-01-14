@@ -9,7 +9,7 @@ type Header struct {
 	Version  Byte
 	Flags    HeaderFlags
 	StreamID Short
-	Opcode   OpCode
+	OpCode   OpCode
 	Length   Int
 }
 
@@ -18,7 +18,7 @@ func ParseHeader(b *Buffer) Header {
 		Version:  b.ReadByte(),
 		Flags:    b.ReadHeaderFlags(),
 		StreamID: b.ReadShort(),
-		Opcode:   b.ReadOpCode(),
+		OpCode:   b.ReadOpCode(),
 		Length:   b.ReadInt(),
 	}
 	// Currently, we only accept CQLv4 spec response frames.
@@ -32,6 +32,6 @@ func (h Header) WriteTo(b *Buffer) {
 	b.WriteByte(h.Version)
 	b.WriteHeaderFlags(h.Flags)
 	b.WriteShort(h.StreamID)
-	b.WriteOpCode(h.Opcode)
+	b.WriteOpCode(h.OpCode)
 	b.WriteInt(h.Length)
 }
