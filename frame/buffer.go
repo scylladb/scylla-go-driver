@@ -10,6 +10,11 @@ func CopyBuffer(b *Buffer, w io.Writer) (n int64, err error) {
 	return b.buf.WriteTo(w)
 }
 
+// BufferWriter returns Buffer as io.Writer.
+func BufferWriter(b *Buffer) io.Writer {
+	return &b.buf
+}
+
 type Buffer struct {
 	buf     bytes.Buffer
 	readErr error
