@@ -8,9 +8,7 @@ echo "==> Installing Go packages at ${PATH}"
 function install() {
     echo "$1 ($2)"
 
-    pushd mod > /dev/null
     go build -mod=readonly -o "${local_bin}/$1" ${2}
-    popd > /dev/null
 }
 
 pkgs=($(echo "${GO_PKGS}" | sed 's/\s+/\n/g'))
