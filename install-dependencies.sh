@@ -1,7 +1,7 @@
 GO_PKGS="
 golangci-lint       github.com/golangci/golangci-lint/cmd/golangci-lint
 "
-PATH="~/work/scylla-go-driver/scylla-go-driver/bin"
+local_bin="~/work/scylla-go-driver/scylla-go-driver/bin"
 
 echo "==> Installing Go packages at ${PATH}"
 
@@ -9,7 +9,7 @@ function install() {
     echo "$1 ($2)"
 
     pushd mod > /dev/null
-    go build -mod=readonly -o "${PATH}/$1" ${2}
+    go build -mod=readonly -o "${local_bin}/$1" ${2}
     popd > /dev/null
 }
 
