@@ -6,7 +6,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestWriteByte(t *testing.T) {
+func TestBufferWriteByte(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -32,7 +32,7 @@ func TestWriteByte(t *testing.T) {
 	}
 }
 
-func TestWriteShort(t *testing.T) {
+func TestBufferWriteShort(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -59,7 +59,7 @@ func TestWriteShort(t *testing.T) {
 	}
 }
 
-func TestWriteInt(t *testing.T) {
+func TestBufferWriteInt(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -87,7 +87,7 @@ func TestWriteInt(t *testing.T) {
 	}
 }
 
-func TestWriteString(t *testing.T) {
+func TestBufferWriteString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -113,7 +113,7 @@ func TestWriteString(t *testing.T) {
 	}
 }
 
-func TestWriteStringList(t *testing.T) {
+func TestBufferWriteStringList(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -136,7 +136,7 @@ func TestWriteStringList(t *testing.T) {
 	}
 }
 
-func TestWriteStringMultiMap(t *testing.T) {
+func TestBufferWriteStringMultiMap(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -158,7 +158,7 @@ func TestWriteStringMultiMap(t *testing.T) {
 	}
 }
 
-func TestWriteHeader(t *testing.T) {
+func TestBufferWriteHeader(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -190,7 +190,7 @@ func TestWriteHeader(t *testing.T) {
 	}
 }
 
-func TestReadByte(t *testing.T) {
+func TestBufferReadByte(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -216,7 +216,7 @@ func TestReadByte(t *testing.T) {
 	}
 }
 
-func TestReadShort(t *testing.T) {
+func TestBufferReadShort(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -242,7 +242,7 @@ func TestReadShort(t *testing.T) {
 	}
 }
 
-func TestReadInt(t *testing.T) {
+func TestBufferReadInt(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -270,7 +270,7 @@ func TestReadInt(t *testing.T) {
 	}
 }
 
-func TestReadString(t *testing.T) {
+func TestBufferReadString(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -296,7 +296,7 @@ func TestReadString(t *testing.T) {
 	}
 }
 
-func TestReadStringList(t *testing.T) {
+func TestBufferReadStringList(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -320,7 +320,7 @@ func TestReadStringList(t *testing.T) {
 	}
 }
 
-func TestReadStringMultiMap(t *testing.T) {
+func TestBufferReadStringMultiMap(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
@@ -343,7 +343,7 @@ func TestReadStringMultiMap(t *testing.T) {
 	}
 }
 
-func TestReadHeader(t *testing.T) {
+func TestBufferReadHeader(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
