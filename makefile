@@ -10,3 +10,6 @@ test:
 # As above but does that without cashing the results
 test-no-cache:
 	go test -count=1 ./...
+
+lint:
+	golangci-lint run ./...

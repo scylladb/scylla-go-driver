@@ -30,9 +30,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.43
+        run: make lint
 
       - name: Run tests
         run: make test
