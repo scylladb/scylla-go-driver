@@ -37,6 +37,7 @@ linters:
     - forcetypeassert
     - funlen
     - gas
+    - godox
     - gci
     - gochecknoglobals
     - gochecknoinits
@@ -59,3 +60,6 @@ linters:
     - wrapcheck
     - wsl
 
+issues:
+  exclude:
+    - should not use dot imports
