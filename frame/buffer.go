@@ -332,31 +332,36 @@ func (b *Buffer) WriteQueryOptions(q QueryOptions) { // nolint:gocritic
 	}
 }
 
-func (b *Buffer) Read(n int) Bytes {
+// read method reads n next bytes from the buffer by making a copy.
+func (b *Buffer) read(n int) Bytes {
 	if b.err != nil {
 		return nil
 	}
 
 	p := make(Bytes, n)
 	l, err := b.buf.Read(p)
-	if l != n || err != nil {
-		b.recordError(fmt.Errorf("invalid Buffer Read"))
+	if err != nil {
+		b.recordError(fmt.Errorf("buffer read error: %w", err))
+	}
+	if l != n {
+		b.recordError(fmt.Errorf("buffer read error: invalid length"))
 	}
 	return p
 }
 
-func (b *Buffer) ReadRawBytes(n int) Bytes {
+// readRawBytes returns a slice containing n next bytes from the buffer.
+// The slice is only valid until the next call to a read or write method.
+func (b *Buffer) readRawBytes(n int) Bytes { // nolint:unused // TODO Try to optimize reading by not copying when possible.
 	if b.err != nil {
 		return nil
 	}
 
 	p := b.buf.Next(n)
-	if len(p) == n {
-		return p
+	if len(p) != n {
+		b.recordError(fmt.Errorf("buffer readRawBytes error: invalid length"))
 	}
-	b.recordError(fmt.Errorf("invalid Buffer ReadRawBytes"))
 
-	return nil
+	return p
 }
 
 func (b *Buffer) ReadByte() Byte {
@@ -425,7 +430,7 @@ func (b *Buffer) ReadUUID() UUID {
 		return UUID{0}
 	}
 
-	s := b.Read(16)
+	s := b.read(16)
 	u := UUID{}
 	copy(u[:], s)
 	return u
@@ -472,7 +477,7 @@ func (b *Buffer) ReadBytes() Bytes {
 	if n < 0 {
 		return nil
 	}
-	return b.Read(int(n))
+	return b.read(int(n))
 }
 
 func (b *Buffer) ReadShortBytes() ShortBytes {
@@ -480,7 +485,7 @@ func (b *Buffer) ReadShortBytes() ShortBytes {
 		return nil
 	}
 
-	return b.Read(int(b.ReadShort()))
+	return b.read(int(b.ReadShort()))
 }
 
 // Length equal to -1 represents null.
@@ -494,7 +499,7 @@ func (b *Buffer) ReadValue() Value {
 	if n < -2 {
 		b.recordError(fmt.Errorf("invalid value length"))
 	} else if n > 0 {
-		return Value{N: n, Bytes: b.Read(int(n))}
+		return Value{N: n, Bytes: b.read(int(n))}
 	}
 
 	return Value{N: n}
@@ -508,7 +513,7 @@ func (b *Buffer) ReadInet() Inet {
 	var n Byte
 	// Checks for valid length of the IP address.
 	if n, b.err = b.buf.ReadByte(); n == 4 || n == 16 {
-		return Inet{IP: b.Read(int(n)), Port: b.ReadInt()}
+		return Inet{IP: b.read(int(n)), Port: b.ReadInt()}
 	}
 
 	b.recordError(fmt.Errorf("invalid ip length"))
@@ -520,7 +525,7 @@ func (b *Buffer) ReadString() string {
 		return ""
 	}
 
-	return string(b.Read(int(b.ReadShort())))
+	return string(b.read(int(b.ReadShort())))
 }
 
 func (b *Buffer) ReadLongString() string {
@@ -528,7 +533,7 @@ func (b *Buffer) ReadLongString() string {
 		return ""
 	}
 
-	return string(b.Read(int(b.ReadInt())))
+	return string(b.read(int(b.ReadInt())))
 }
 
 func (b *Buffer) ReadStringList() StringList {
