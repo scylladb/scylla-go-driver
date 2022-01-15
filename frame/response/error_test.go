@@ -87,7 +87,7 @@ func TestValidErrorCodes(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing base error type.")
 			}
 		})
@@ -124,7 +124,7 @@ func TestUnavailableError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseUnavailableError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
 		})
@@ -162,7 +162,7 @@ func TestWriteTimeoutError(t *testing.T) {
 			t.Parallel()
 			buf.Write(tc.content)
 			out := ParseWriteTimeoutError(&buf)
-			if out != tc.expected {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -200,7 +200,7 @@ func TestReadTimeoutError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseReadTimeoutError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -238,7 +238,7 @@ func TestReadFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseReadFailureError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -275,7 +275,7 @@ func TestFuncFailureError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseFuncFailureError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
@@ -314,7 +314,7 @@ func TestWriteFailureError(t *testing.T) { // nolint:dupl // Tests are different
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseWriteFailureError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
@@ -349,7 +349,7 @@ func TestAlreadyExistsError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseAlreadyExistsError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -383,7 +383,7 @@ func TestUnpreparedError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseUnpreparedError(&buf)
-			if diff := cmp.Diff(out, tc.expected); diff != "" {
+			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

@@ -42,7 +42,7 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseStatusChange(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -83,7 +83,7 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseTopologyChange(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -188,7 +188,7 @@ func TestSchemaChangeEvent(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			s := ParseSchemaChange(&buf)
-			if diff := cmp.Diff(s, tc.expected); diff != "" {
+			if diff := cmp.Diff(*s, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

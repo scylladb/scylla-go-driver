@@ -129,7 +129,7 @@ func TestRowsResult(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseRowsResult(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -161,7 +161,7 @@ func TestSetKeyspaceResult(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseSetKeyspaceResult(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -357,7 +357,7 @@ func TestPreparedResult(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParsePreparedResult(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -472,7 +472,7 @@ func TestSchemaChangeResult(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseSchemaChangeResult(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

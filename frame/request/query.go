@@ -11,12 +11,12 @@ type Query struct {
 	Options     frame.QueryOptions
 }
 
-func (q Query) WriteTo(b *frame.Buffer) { // nolint:gocritic
+func (q *Query) WriteTo(b *frame.Buffer) {
 	b.WriteLongString(q.Query)
 	b.WriteConsistency(q.Consistency)
 	b.WriteQueryOptions(q.Options)
 }
 
-func (Query) OpCode() frame.OpCode {
+func (*Query) OpCode() frame.OpCode {
 	return frame.OpQuery
 }

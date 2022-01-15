@@ -47,7 +47,7 @@ func TestAuthChallenge(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseAuthChallenge(&buf)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})

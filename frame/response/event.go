@@ -13,8 +13,8 @@ type TopologyChange struct {
 	Address frame.Inet
 }
 
-func ParseTopologyChange(b *frame.Buffer) TopologyChange {
-	return TopologyChange{
+func ParseTopologyChange(b *frame.Buffer) *TopologyChange {
+	return &TopologyChange{
 		Change:  b.ReadTopologyChangeType(),
 		Address: b.ReadInet(),
 	}
@@ -26,8 +26,8 @@ type StatusChange struct {
 	Address frame.Inet
 }
 
-func ParseStatusChange(b *frame.Buffer) StatusChange {
-	return StatusChange{
+func ParseStatusChange(b *frame.Buffer) *StatusChange {
+	return &StatusChange{
 		Status:  b.ReadStatusChangeType(),
 		Address: b.ReadInet(),
 	}
@@ -42,25 +42,25 @@ type SchemaChange struct {
 	Arguments frame.StringList
 }
 
-func ParseSchemaChange(b *frame.Buffer) SchemaChange {
+func ParseSchemaChange(b *frame.Buffer) *SchemaChange {
 	c := b.ReadSchemaChangeType()
 	t := b.ReadSchemaChangeTarget()
 	switch t {
 	case frame.Keyspace:
-		return SchemaChange{
+		return &SchemaChange{
 			Change:   c,
 			Target:   t,
 			Keyspace: b.ReadString(),
 		}
 	case frame.Table, frame.UserType:
-		return SchemaChange{
+		return &SchemaChange{
 			Change:   c,
 			Target:   t,
 			Keyspace: b.ReadString(),
 			Object:   b.ReadString(),
 		}
 	case frame.Function, frame.Aggregate:
-		return SchemaChange{
+		return &SchemaChange{
 			Change:    c,
 			Target:    t,
 			Keyspace:  b.ReadString(),
@@ -68,6 +68,6 @@ func ParseSchemaChange(b *frame.Buffer) SchemaChange {
 			Arguments: b.ReadStringList(),
 		}
 	default:
-		return SchemaChange{}
+		return &SchemaChange{}
 	}
 }

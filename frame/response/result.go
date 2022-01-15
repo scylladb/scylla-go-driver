@@ -19,7 +19,7 @@ type RowsResult struct {
 	RowsContent []frame.Row
 }
 
-func ParseRowsResult(b *frame.Buffer) RowsResult {
+func ParseRowsResult(b *frame.Buffer) *RowsResult {
 	r := RowsResult{
 		Metadata: b.ReadResultMetadata(),
 		RowsCnt:  b.ReadInt(),
@@ -30,7 +30,7 @@ func ParseRowsResult(b *frame.Buffer) RowsResult {
 		r.RowsContent[i] = b.ReadRow(r.Metadata.ColumnsCnt)
 	}
 
-	return r
+	return &r
 }
 
 // SetKeyspaceResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L669
@@ -38,8 +38,8 @@ type SetKeyspaceResult struct {
 	Name string
 }
 
-func ParseSetKeyspaceResult(b *frame.Buffer) SetKeyspaceResult {
-	return SetKeyspaceResult{
+func ParseSetKeyspaceResult(b *frame.Buffer) *SetKeyspaceResult {
+	return &SetKeyspaceResult{
 		Name: b.ReadString(),
 	}
 }
@@ -51,8 +51,8 @@ type PreparedResult struct {
 	ResultMetadata frame.ResultMetadata
 }
 
-func ParsePreparedResult(b *frame.Buffer) PreparedResult {
-	return PreparedResult{
+func ParsePreparedResult(b *frame.Buffer) *PreparedResult {
+	return &PreparedResult{
 		ID:             b.ReadShortBytes(),
 		Metadata:       b.ReadPreparedMetadata(),
 		ResultMetadata: b.ReadResultMetadata(),
@@ -64,8 +64,8 @@ type SchemaChangeResult struct {
 	SchemaChange SchemaChange
 }
 
-func ParseSchemaChangeResult(b *frame.Buffer) SchemaChangeResult {
-	return SchemaChangeResult{
-		SchemaChange: ParseSchemaChange(b),
+func ParseSchemaChangeResult(b *frame.Buffer) *SchemaChangeResult {
+	return &SchemaChangeResult{
+		SchemaChange: *ParseSchemaChange(b),
 	}
 }

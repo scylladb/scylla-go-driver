@@ -11,8 +11,8 @@ type Error struct {
 	Message string
 }
 
-func ParseError(b *frame.Buffer) Error {
-	return Error{
+func ParseError(b *frame.Buffer) *Error {
+	return &Error{
 		Code:    b.ReadErrorCode(),
 		Message: b.ReadString(),
 	}
@@ -26,8 +26,8 @@ type UnavailableError struct {
 	Alive       frame.Int
 }
 
-func ParseUnavailableError(b *frame.Buffer) UnavailableError {
-	return UnavailableError{
+func ParseUnavailableError(b *frame.Buffer) *UnavailableError {
+	return &UnavailableError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -47,8 +47,8 @@ type WriteTimeoutError struct {
 	WriteType   frame.WriteType
 }
 
-func ParseWriteTimeoutError(b *frame.Buffer) WriteTimeoutError {
-	return WriteTimeoutError{
+func ParseWriteTimeoutError(b *frame.Buffer) *WriteTimeoutError {
+	return &WriteTimeoutError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -69,8 +69,8 @@ type ReadTimeoutError struct {
 	DataPresent frame.Byte
 }
 
-func ParseReadTimeoutError(b *frame.Buffer) ReadTimeoutError {
-	return ReadTimeoutError{
+func ParseReadTimeoutError(b *frame.Buffer) *ReadTimeoutError {
+	return &ReadTimeoutError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -92,8 +92,8 @@ type ReadFailureError struct {
 	DataPresent frame.Byte
 }
 
-func ParseReadFailureError(b *frame.Buffer) ReadFailureError {
-	return ReadFailureError{
+func ParseReadFailureError(b *frame.Buffer) *ReadFailureError {
+	return &ReadFailureError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -114,8 +114,8 @@ type FuncFailureError struct {
 	ArgTypes frame.StringList
 }
 
-func ParseFuncFailureError(b *frame.Buffer) FuncFailureError {
-	return FuncFailureError{
+func ParseFuncFailureError(b *frame.Buffer) *FuncFailureError {
+	return &FuncFailureError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -136,8 +136,8 @@ type WriteFailureError struct {
 	WriteType   frame.WriteType
 }
 
-func ParseWriteFailureError(b *frame.Buffer) WriteFailureError {
-	return WriteFailureError{
+func ParseWriteFailureError(b *frame.Buffer) *WriteFailureError {
+	return &WriteFailureError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -157,8 +157,8 @@ type AlreadyExistsError struct {
 	Table    string
 }
 
-func ParseAlreadyExistsError(b *frame.Buffer) AlreadyExistsError {
-	return AlreadyExistsError{
+func ParseAlreadyExistsError(b *frame.Buffer) *AlreadyExistsError {
+	return &AlreadyExistsError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),
@@ -174,8 +174,8 @@ type UnpreparedError struct {
 	UnknownID frame.ShortBytes
 }
 
-func ParseUnpreparedError(b *frame.Buffer) UnpreparedError {
-	return UnpreparedError{
+func ParseUnpreparedError(b *frame.Buffer) *UnpreparedError {
+	return &UnpreparedError{
 		Error: Error{
 			Code:    b.ReadErrorCode(),
 			Message: b.ReadString(),

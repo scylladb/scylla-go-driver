@@ -9,10 +9,10 @@ type Startup struct {
 	Options frame.StartupOptions
 }
 
-func (s Startup) WriteTo(b *frame.Buffer) {
+func (s *Startup) WriteTo(b *frame.Buffer) {
 	b.WriteStartupOptions(s.Options)
 }
 
-func (Startup) OpCode() frame.OpCode {
+func (*Startup) OpCode() frame.OpCode {
 	return frame.OpStartup
 }

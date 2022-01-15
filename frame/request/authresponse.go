@@ -9,10 +9,10 @@ type AuthResponse struct {
 	Token frame.Bytes
 }
 
-func (a AuthResponse) WriteTo(b *frame.Buffer) {
+func (a *AuthResponse) WriteTo(b *frame.Buffer) {
 	b.WriteBytes(a.Token)
 }
 
-func (AuthResponse) OpCode() frame.OpCode {
+func (*AuthResponse) OpCode() frame.OpCode {
 	return frame.OpAuthResponse
 }
