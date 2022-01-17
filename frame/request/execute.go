@@ -10,11 +10,11 @@ type Execute struct {
 	Options frame.QueryOptions
 }
 
-func (e Execute) WriteTo(b *frame.Buffer) { // nolint:gocritic
+func (e *Execute) WriteTo(b *frame.Buffer) {
 	b.WriteShortBytes(e.ID)
 	b.WriteQueryOptions(e.Options)
 }
 
-func (Execute) OpCode() frame.OpCode {
+func (*Execute) OpCode() frame.OpCode {
 	return frame.OpExecute
 }

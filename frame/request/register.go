@@ -9,10 +9,10 @@ type Register struct {
 	EventTypes []frame.EventType
 }
 
-func (r Register) WriteTo(b *frame.Buffer) {
+func (r *Register) WriteTo(b *frame.Buffer) {
 	b.WriteEventTypes(r.EventTypes)
 }
 
-func (Register) OpCode() frame.OpCode {
+func (*Register) OpCode() frame.OpCode {
 	return frame.OpRegister
 }

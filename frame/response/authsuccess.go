@@ -9,8 +9,8 @@ type AuthSuccess struct {
 	Token frame.Bytes
 }
 
-func ParseAuthSuccess(b *frame.Buffer) AuthSuccess {
-	return AuthSuccess{
+func ParseAuthSuccess(b *frame.Buffer) *AuthSuccess {
+	return &AuthSuccess{
 		Token: b.ReadBytes(),
 	}
 }

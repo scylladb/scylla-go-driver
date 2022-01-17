@@ -9,10 +9,10 @@ type Prepare struct {
 	Query string
 }
 
-func (p Prepare) WriteTo(b *frame.Buffer) {
+func (p *Prepare) WriteTo(b *frame.Buffer) {
 	b.WriteLongString(p.Query)
 }
 
-func (Prepare) OpCode() frame.OpCode {
+func (*Prepare) OpCode() frame.OpCode {
 	return frame.OpPrepare
 }

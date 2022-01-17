@@ -9,8 +9,8 @@ type AuthChallenge struct {
 	Token frame.Bytes
 }
 
-func ParseAuthChallenge(b *frame.Buffer) AuthChallenge {
-	return AuthChallenge{
+func ParseAuthChallenge(b *frame.Buffer) *AuthChallenge {
+	return &AuthChallenge{
 		Token: b.ReadBytes(),
 	}
 }

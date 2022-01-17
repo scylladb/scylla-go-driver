@@ -30,7 +30,7 @@ func TestSupportedEncodeDecode(t *testing.T) {
 			var out frame.Buffer
 			out.Write(tc.content)
 			a := ParseSupported(&out)
-			if diff := cmp.Diff(a, tc.expected); diff != "" {
+			if diff := cmp.Diff(*a, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 			if len(out.Bytes()) != 0 {
