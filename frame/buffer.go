@@ -418,9 +418,9 @@ func (b *Buffer) ReadUUID() UUID {
 	return u
 }
 
-func (b *Buffer) ReadHeaderFlags() QueryFlags {
+func (b *Buffer) ReadHeaderFlags() HeaderFlags {
 	if b.err != nil {
-		return QueryFlags(0)
+		return HeaderFlags(0)
 	}
 
 	return b.ReadByte()

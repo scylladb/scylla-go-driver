@@ -138,7 +138,7 @@ const (
 type BatchQueryKind = byte
 
 // CQLv4 is the only protocol version currently supported.
-const CQLv4 Byte = 0x84
+const CQLv4 Byte = 0x4
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1086-L1107
 type WriteType string
@@ -246,7 +246,10 @@ type StartupOptions StringMap
 // Mandatory values and keys that can be given in Startup body
 // value in the map means option name and key means its possible values.
 var mandatoryOptions = StringMultiMap{
-	"CQL_VERSION": {"3.0.0"},
+	"CQL_VERSION": {
+		"3.0.0",
+		"4.0.0",
+	},
 }
 
 var possibleOptions = StringMultiMap{
