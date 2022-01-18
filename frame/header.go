@@ -4,6 +4,12 @@ import (
 	"fmt"
 )
 
+// StreamID is a type alias for Short.
+type StreamID = Short
+
+// HeaderSize specifies number of header bytes.
+const HeaderSize = 9
+
 // Header spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L101.
 type Header struct {
 	Version  Byte
