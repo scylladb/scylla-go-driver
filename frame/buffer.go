@@ -411,13 +411,10 @@ func (b *Buffer) ReadOpCode() OpCode {
 }
 
 func (b *Buffer) ReadUUID() UUID {
-	if b.err != nil {
-		return UUID{0}
+	var u UUID
+	if _, err := b.buf.Read(u[:]); err != nil {
+		panic(fmt.Errorf("buffer readUUID error: %w", err))
 	}
-
-	s := b.read(16)
-	u := UUID{}
-	copy(u[:], s)
 	return u
 }
 

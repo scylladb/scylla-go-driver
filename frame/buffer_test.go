@@ -158,6 +158,32 @@ func TestBufferWriteStringMultiMap(t *testing.T) {
 	}
 }
 
+func TestBuffer_WriteUUID(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		content  UUID
+		expected []byte
+	}{
+		{
+			"Smoke test",
+			UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+			[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f},
+		},
+	}
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
+			buf.WriteUUID(tc.content)
+			if diff := cmp.Diff(buf.Bytes(), tc.expected); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
 func TestBufferWriteHeader(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
@@ -336,6 +362,33 @@ func TestBufferReadStringMultiMap(t *testing.T) {
 			var buf Buffer
 			buf.Write(tc.content)
 			out := buf.ReadStringMultiMap()
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
+				t.Fatal(diff)
+			}
+		})
+	}
+}
+
+func TestBuffer_ReadUUID(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		content  []byte
+		expected UUID
+	}{
+		{
+			"Smoke test",
+			[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f},
+			UUID{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15},
+		},
+	}
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var buf Buffer
+			buf.Write(tc.content)
+			out := buf.ReadUUID()
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
