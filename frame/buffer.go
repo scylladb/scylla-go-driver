@@ -349,21 +349,6 @@ func (b *Buffer) read(n int) Bytes {
 	return p
 }
 
-// readRawBytes returns a slice containing n next bytes from the buffer.
-// The slice is only valid until the next call to a read or write method.
-func (b *Buffer) readRawBytes(n int) Bytes { // nolint:unused // TODO Try to optimize reading by not copying when possible.
-	if b.err != nil {
-		return nil
-	}
-
-	p := b.buf.Next(n)
-	if len(p) != n {
-		b.recordError(fmt.Errorf("buffer readRawBytes error: invalid length"))
-	}
-
-	return p
-}
-
 func (b *Buffer) ReadByte() Byte {
 	if b.err != nil {
 		return Byte(0)
