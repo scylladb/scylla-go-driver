@@ -1,9 +1,5 @@
 package frame
 
-import (
-	"fmt"
-)
-
 // StreamID is a type alias for Short.
 type StreamID = Short
 
@@ -20,18 +16,13 @@ type Header struct {
 }
 
 func ParseHeader(b *Buffer) Header {
-	h := Header{
+	return Header{
 		Version:  b.ReadByte(),
 		Flags:    b.ReadHeaderFlags(),
 		StreamID: b.ReadShort(),
 		OpCode:   b.ReadOpCode(),
 		Length:   b.ReadInt(),
 	}
-	// Currently, we only accept CQLv4 spec response frames.
-	if h.Version != CQLv4 {
-		b.recordError(fmt.Errorf("invalid protocol version, only CQLv4 is accepted"))
-	}
-	return h
 }
 
 func (h Header) WriteTo(b *Buffer) {
