@@ -4,6 +4,8 @@ import (
 	"scylla-go-driver/frame"
 )
 
+var _ frame.Request = (*Execute)(nil)
+
 // Execute spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L403
 type Execute struct {
 	ID      frame.Bytes

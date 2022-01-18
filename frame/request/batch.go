@@ -9,6 +9,8 @@ const (
 	WithNamesForValues = 0x40
 )
 
+var _ frame.Request = (*Batch)(nil)
+
 // Batch spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L414
 type Batch struct {
 	Type              frame.BatchTypeFlag
