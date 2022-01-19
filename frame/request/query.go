@@ -4,6 +4,8 @@ import (
 	"scylla-go-driver/frame"
 )
 
+var _ frame.Request = (*Query)(nil)
+
 // Query spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L337
 type Query struct {
 	Query       string
