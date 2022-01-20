@@ -50,7 +50,7 @@ const (
 	OpAuthSuccess   OpCode = 0x10
 )
 
-var ValidOpCodes = map[OpCode]struct{}{
+var allOpCodes = map[OpCode]struct{}{
 	OpError:         {},
 	OpStartup:       {},
 	OpReady:         {},
@@ -85,8 +85,6 @@ const (
 	LOCALSERIAL Consistency = 0x0009
 	LOCALONE    Consistency = 0x000A
 )
-
-const InvalidConsistency Consistency = 0x000B
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L125-L158
 type HeaderFlags = Byte
@@ -154,7 +152,7 @@ const (
 	CDC           WriteType = "CDC"
 )
 
-var ValidWriteTypes = map[WriteType]struct{}{
+var allWriteTypes = map[WriteType]struct{}{
 	Simple:        {},
 	Batch:         {},
 	UnloggedBatch: {},
@@ -174,7 +172,7 @@ const (
 	SchemaChange   EventType = "SCHEMA_CHANGE"
 )
 
-var ValidEventTypes = map[EventType]struct{}{
+var allEventTypes = map[EventType]struct{}{
 	TopologyChange: {},
 	StatusChange:   {},
 	SchemaChange:   {},
@@ -188,7 +186,7 @@ const (
 	RemovedNode TopologyChangeType = "REMOVED_NODE"
 )
 
-var topologyChangeTypes = map[TopologyChangeType]struct{}{
+var allTopologyChangeTypes = map[TopologyChangeType]struct{}{
 	NewNode:     {},
 	RemovedNode: {},
 }
@@ -201,7 +199,7 @@ const (
 	Down StatusChangeType = "DOWN"
 )
 
-var statusChangeTypes = map[StatusChangeType]struct{}{
+var allStatusChangeTypes = map[StatusChangeType]struct{}{
 	Up:   {},
 	Down: {},
 }
@@ -215,7 +213,7 @@ const (
 	Dropped SchemaChangeType = "DROPPED"
 )
 
-var schemaChangeTypes = map[SchemaChangeType]struct{}{
+var allSchemaChangeTypes = map[SchemaChangeType]struct{}{
 	Created: {},
 	Updated: {},
 	Dropped: {},
@@ -232,7 +230,7 @@ const (
 	Aggregate SchemaChangeTarget = "AGGREGATE"
 )
 
-var validSchemaChangeTargets = map[SchemaChangeTarget]struct{}{
+var allSchemaChangeTargets = map[SchemaChangeTarget]struct{}{
 	Keyspace:  {},
 	Table:     {},
 	UserType:  {},
@@ -354,7 +352,7 @@ const (
 	ErrCodeUnprepared ErrorCode = 0x2500
 )
 
-var validErrorCodes = map[ErrorCode]struct{}{
+var allErrorCodes = map[ErrorCode]struct{}{
 	ErrCodeServer:          {},
 	ErrCodeProtocol:        {},
 	ErrCodeCredentials:     {},
