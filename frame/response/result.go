@@ -10,7 +10,9 @@ import (
 // VoidResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L562
 type VoidResult struct{}
 
-func ParseVoidResult(_ *frame.Buffer) {}
+func ParseVoidResult(_ *frame.Buffer) *VoidResult {
+	return &VoidResult{}
+}
 
 // RowsResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L568
 type RowsResult struct {
