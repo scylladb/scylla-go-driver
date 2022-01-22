@@ -16,6 +16,7 @@ type Query struct {
 func (q *Query) WriteTo(b *frame.Buffer) {
 	b.WriteLongString(q.Query)
 	b.WriteConsistency(q.Consistency)
+	q.Options.SetFlags()
 	b.WriteQueryOptions(q.Options)
 }
 

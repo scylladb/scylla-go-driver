@@ -273,6 +273,27 @@ type QueryOptions struct {
 	Timestamp         Long
 }
 
+func (q *QueryOptions) SetFlags() {
+	if q.Values != nil {
+		q.Flags |= Values
+	}
+	if q.PageSize != 0 {
+		q.Flags |= PageSize
+	}
+	if q.PagingState != nil {
+		q.Flags |= WithPagingState
+	}
+	if q.SerialConsistency != 0 {
+		q.Flags |= WithSerialConsistency
+	}
+	if q.Timestamp != 0 {
+		q.Flags |= WithDefaultTimestamp
+	}
+	if q.Names != nil {
+		q.Flags |= WithNamesForValues
+	}
+}
+
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L236-L239
 type OptionID Short
 
