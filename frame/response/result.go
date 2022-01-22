@@ -71,3 +71,31 @@ func ParseSchemaChangeResult(b *frame.Buffer) *SchemaChangeResult {
 		SchemaChange: *ParseSchemaChange(b),
 	}
 }
+
+type ResultKind = frame.Int
+
+const (
+	VoidKind         ResultKind = 1
+	RowsKind         ResultKind = 2
+	SetKeySpaceKind  ResultKind = 3
+	PreparedKind     ResultKind = 4
+	SchemaChangeKind ResultKind = 5
+)
+
+func ParseResult(b *frame.Buffer) frame.Response {
+	resultKind := b.ReadInt()
+	switch resultKind {
+	case VoidKind:
+		return ParseVoidResult(b)
+	case RowsKind:
+		return ParseRowsResult(b)
+	case SetKeySpaceKind:
+		return ParseSetKeyspaceResult(b)
+	case PreparedKind:
+		return ParsePreparedResult(b)
+	case SchemaChangeKind:
+		return ParseSchemaChangeResult(b)
+	default:
+		return nil
+	}
+}

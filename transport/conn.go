@@ -176,6 +176,8 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		return ParseError(&c.buf)
 	case frame.OpReady:
 		return ParseReady(&c.buf)
+	case frame.OpResult:
+		return ParseResult(&c.buf)
 	case frame.OpSupported:
 		return ParseSupported(&c.buf)
 	default:
@@ -245,10 +247,12 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 		return nil, fmt.Errorf("setting TCP no delay option: %w", err)
 	}
 
-	return WrapConn(tcpConn), nil
+	return WrapConn(tcpConn)
 }
 
-func WrapConn(conn net.Conn) *Conn {
+// WrapConn transforms tcp connection to a working Scylla connection with given StreamID allocator.
+// If returned error is not nil, connection is not valid - it can not be used and must be closed.
+func WrapConn(conn net.Conn) (*Conn, error) {
 	c := &Conn{
 		conn: conn,
 		w: connWriter{
@@ -263,13 +267,42 @@ func WrapConn(conn net.Conn) *Conn {
 	go c.w.loop()
 	go c.r.loop()
 
-	return c
+	err := c.init()
+	return c, err
+}
+
+var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
+
+func (c *Conn) init() error {
+	res, err := c.Startup(startupOptions)
+	if err != nil {
+		return err
+	}
+
+	switch v := res.(type) {
+	case *Ready:
+		return nil
+	case *Error:
+		return fmt.Errorf("init: %s", v.Message)
+	default:
+		return fmt.Errorf("init: unimplemented response %T, %+v", v, v)
+	}
 }
 
 // TODO add conn Close, make sure go routines exit
 
 func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
 	return c.sendRequest(&Startup{Options: options}, false, false)
+}
+
+func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
+	req := newQueryForStatement(s, pagingState)
+	res, err := c.sendRequest(req, s.Compression, s.Tracing)
+	if err != nil {
+		return QueryResult{}, err
+	}
+
+	return makeQueryResult(res)
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
