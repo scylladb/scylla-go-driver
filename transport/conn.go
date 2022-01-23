@@ -8,7 +8,9 @@ import (
 	"log"
 	"net"
 	"runtime"
+	"strconv"
 	"sync"
+	"time"
 
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
@@ -174,6 +176,8 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		return ParseError(&c.buf)
 	case frame.OpReady:
 		return ParseReady(&c.buf)
+	case frame.OpSupported:
+		return ParseSupported(&c.buf)
 	default:
 		log.Fatalf("not supported %d", op)
 		return nil
@@ -186,10 +190,63 @@ type Conn struct {
 	r    connReader
 }
 
+type ConnConfig struct {
+	TCPNoDelay bool
+	Timeout    time.Duration
+	// This will be used.
+	// DefaultConsistency frame.Consistency
+}
+
 const (
 	requestChanSize = 1024
 	ioBufferSize    = 8192
 )
+
+// OpenShardConn opens connection mapped to a specific shard on scylla node.
+func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { // nolint:unused // This will be used.
+	it := ShardPortIterator(si)
+	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
+	for i := 0; i < maxTries; i++ {
+		if conn, err := OpenLocalPortConn(addr, it(), cfg); err == nil {
+			return conn, nil
+		}
+	}
+
+	return nil, fmt.Errorf("failed to open connection on shard port: all local ports are busy")
+}
+
+// OpenLocalPortConn opens connection on a given local port.
+func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
+	// Not sure about local IP address. Empty IP and 172.19.0.1 works fine during tests but localhost does not.
+	// The problem is that when using localhost as IP connections are not mapped for appropriate shards
+	// even when using shard aware policy.
+	localAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(int(localPort)))
+	if err != nil {
+		return nil, fmt.Errorf("resolving local TCP address: %w", err)
+	}
+
+	return OpenConn(addr, localAddr, cfg)
+}
+
+// OpenConn opens connection with specific local address.
+// In case lAddr is nil, random local address is chosen.
+func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error) {
+	d := net.Dialer{
+		Timeout:   cfg.Timeout,
+		LocalAddr: localAddr,
+	}
+	conn, err := d.Dial("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("dialing TCP address %s: %w", addr, err)
+	}
+
+	tcpConn := conn.(*net.TCPConn)
+	if err = tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
+		return nil, fmt.Errorf("setting TCP no delay option: %w", err)
+	}
+
+	return WrapConn(tcpConn), nil
+}
 
 func WrapConn(conn net.Conn) *Conn {
 	c := &Conn{
