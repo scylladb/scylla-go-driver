@@ -91,12 +91,18 @@ type connReader struct {
 
 	h  map[frame.StreamID]responseHandler
 	mu sync.Mutex
+
+	stream StreamIDAllocator
 }
 
-func (c *connReader) setHandler(streamID frame.StreamID, h responseHandler) {
+func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	c.mu.Lock()
-	c.h[streamID] = h
+	streamID, err := c.stream.Alloc()
+	if err == nil {
+		c.h[streamID] = h
+	}
 	c.mu.Unlock()
+	return streamID, err
 }
 
 func (c *connReader) handler(streamID frame.StreamID) responseHandler {
@@ -168,8 +174,6 @@ type Conn struct {
 	conn net.Conn
 	w    connWriter
 	r    connReader
-
-	stream StreamIDAllocator
 }
 
 const (
@@ -185,10 +189,10 @@ func WrapConn(conn net.Conn, s StreamIDAllocator) *Conn {
 			requestCh: make(chan request, requestChanSize),
 		},
 		r: connReader{
-			conn: bufio.NewReaderSize(conn, ioBufferSize),
-			h:    make(map[frame.StreamID]responseHandler),
+			conn:   bufio.NewReaderSize(conn, ioBufferSize),
+			h:      make(map[frame.StreamID]responseHandler),
+			stream: s,
 		},
-		stream: s,
 	}
 	go c.w.loop()
 	go c.r.loop()
@@ -203,12 +207,13 @@ func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	streamID, err := c.stream.Alloc()
+	h := make(responseHandler)
+
+	streamID, err := c.r.setHandler(h)
 	if err != nil {
-		return nil, fmt.Errorf("stream ID alloc: %w", err)
+		return nil, err
 	}
 
-	h := make(responseHandler)
 	r := request{
 		Request:         req,
 		StreamID:        streamID,
@@ -216,11 +221,11 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 		Tracing:         tracing,
 		ResponseHandler: h,
 	}
-	c.r.setHandler(streamID, h)
+
 	c.w.submit(r)
 
 	resp := <-h
-	c.stream.Free(streamID)
+	c.r.stream.Free(streamID)
 
 	return resp.Response, resp.Err
 }
