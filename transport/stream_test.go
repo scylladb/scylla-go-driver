@@ -5,11 +5,9 @@ import (
 	"testing"
 )
 
-var _ StreamIDAllocator = &DefaultStreamIDAllocator{}
-
 func TestDefaultStreamAllocatorAlloc(t *testing.T) {
 	t.Parallel()
-	s := DefaultStreamIDAllocator{}
+	s := streamIDAllocator{}
 
 	allocated := make(map[frame.StreamID]struct{})
 
@@ -39,7 +37,7 @@ func TestDefaultStreamAllocatorAlloc(t *testing.T) {
 
 func TestDefaultStreamAllocatorFree(t *testing.T) {
 	t.Parallel()
-	s := DefaultStreamIDAllocator{}
+	s := streamIDAllocator{}
 
 	allocated := make(map[frame.StreamID]struct{})
 

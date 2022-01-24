@@ -7,22 +7,19 @@ import (
 	"scylla-go-driver/frame"
 )
 
-type StreamIDAllocator interface {
-	Alloc() (frame.StreamID, error)
-	Free(id frame.StreamID)
-}
+const (
+	maxStreamID = math.MaxInt16
 
-const maxStreamID = math.MaxInt16
+	bucketSize = 64
+	buckets    = (maxStreamID + 1) / bucketSize
+)
 
-const bucketSize = 64
-const buckets = (maxStreamID + 1) / bucketSize
-
-// DefaultStreamIDAllocator is a StreamIDAllocator that always allocates the smallest possible stream on Alloc().
-type DefaultStreamIDAllocator struct {
+type streamIDAllocator struct {
 	usedBitmap [buckets]uint64
 }
 
-func (s *DefaultStreamIDAllocator) Alloc() (frame.StreamID, error) {
+// Alloc() allocates the smallest possible stream ID on Alloc().
+func (s *streamIDAllocator) Alloc() (frame.StreamID, error) {
 	for blockID, block := range &s.usedBitmap {
 		if block < math.MaxUint64 {
 			offset := bits.TrailingZeros64(^block)
@@ -30,10 +27,10 @@ func (s *DefaultStreamIDAllocator) Alloc() (frame.StreamID, error) {
 			return frame.StreamID(offset + blockID*bucketSize), nil
 		}
 	}
-	return 0, fmt.Errorf("stream ID alloc: all stream ID's are busy")
+	return 0, fmt.Errorf("all stream ID's are busy")
 }
 
-func (s *DefaultStreamIDAllocator) Free(id frame.StreamID) {
+func (s *streamIDAllocator) Free(id frame.StreamID) {
 	blockID := id / bucketSize
 	offset := id % bucketSize
 	s.usedBitmap[blockID] ^= 1 << offset
