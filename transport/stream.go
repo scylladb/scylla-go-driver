@@ -27,7 +27,7 @@ func (s *streamIDAllocator) Alloc() (frame.StreamID, error) {
 			return frame.StreamID(offset + blockID*bucketSize), nil
 		}
 	}
-	return 0, fmt.Errorf("all stream ID's are busy")
+	return 0, fmt.Errorf("all stream IDs are busy")
 }
 
 func (s *streamIDAllocator) Free(id frame.StreamID) {

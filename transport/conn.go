@@ -194,7 +194,6 @@ func WrapConn(conn net.Conn) *Conn {
 		r: connReader{
 			conn: bufio.NewReaderSize(conn, ioBufferSize),
 			h:    make(map[frame.StreamID]responseHandler),
-			s:    streamIDAllocator{},
 		},
 	}
 	go c.w.loop()
@@ -214,7 +213,7 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 
 	streamID, err := c.r.setHandler(h)
 	if err != nil {
-		return nil, fmt.Errorf("setHandler: %w", err)
+		return nil, fmt.Errorf("set handler: %w", err)
 	}
 
 	r := request{

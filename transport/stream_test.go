@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-func TestDefaultStreamAllocatorAlloc(t *testing.T) {
+func TestStreamIDAllocator(t *testing.T) {
 	t.Parallel()
 	s := streamIDAllocator{}
 
 	allocated := make(map[frame.StreamID]struct{})
 
-	// Check if allocating all possible non-negative streams is possible.
+	// Allocate all possible non-negative streams.
 	for i := 0; i <= maxStreamID; i++ {
 		stream, err := s.Alloc()
 		if err != nil {
@@ -32,27 +32,6 @@ func TestDefaultStreamAllocatorAlloc(t *testing.T) {
 	// All streams are taken, we shouldn't be able to Alloc() another.
 	if _, err := s.Alloc(); err == nil {
 		t.Fatalf("allocating more than maxStreamID + 1 times in a row should fail")
-	}
-}
-
-func TestDefaultStreamAllocatorFree(t *testing.T) {
-	t.Parallel()
-	s := streamIDAllocator{}
-
-	allocated := make(map[frame.StreamID]struct{})
-
-	// Allocate all possible non-negative streams.
-	for i := 0; i <= maxStreamID; i++ {
-		stream, err := s.Alloc()
-		if err != nil {
-			t.Fatalf("unable to get stream %d", i)
-		}
-
-		if _, ok := allocated[stream]; ok {
-			t.Fatalf("got an already allocated stream %d", stream)
-		}
-
-		allocated[stream] = struct{}{}
 	}
 
 	// All streams are taken, so Alloc() after Free(x) should return streamID x.
