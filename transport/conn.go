@@ -108,6 +108,13 @@ func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	return streamID, err
 }
 
+func (c *connReader) freeHandler(streamID frame.StreamID) {
+	c.mu.Lock()
+	c.s.Free(streamID)
+	delete(c.h, streamID)
+	c.mu.Unlock()
+}
+
 func (c *connReader) handler(streamID frame.StreamID) responseHandler {
 	c.mu.Lock()
 	h := c.h[streamID]
@@ -227,7 +234,7 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	c.w.submit(r)
 
 	resp := <-h
-	c.r.s.Free(streamID)
+	c.r.freeHandler(streamID)
 
 	return resp.Response, resp.Err
 }
