@@ -89,14 +89,23 @@ type connReader struct {
 	buf  frame.Buffer
 	bufw io.Writer
 
-	h  map[frame.StreamID]responseHandler
+	h map[frame.StreamID]responseHandler
+	s streamIDAllocator
+	// mu guards h and s.
 	mu sync.Mutex
 }
 
-func (c *connReader) setHandler(streamID frame.StreamID, h responseHandler) {
+func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	c.mu.Lock()
+	streamID, err := c.s.Alloc()
+	if err != nil {
+		c.mu.Unlock()
+		return 0, fmt.Errorf("stream ID alloc: %w", err)
+	}
+
 	c.h[streamID] = h
 	c.mu.Unlock()
+	return streamID, err
 }
 
 func (c *connReader) handler(streamID frame.StreamID) responseHandler {
@@ -168,8 +177,6 @@ type Conn struct {
 	conn net.Conn
 	w    connWriter
 	r    connReader
-
-	stream StreamIDAllocator
 }
 
 const (
@@ -177,7 +184,7 @@ const (
 	ioBufferSize    = 8192
 )
 
-func WrapConn(conn net.Conn, s StreamIDAllocator) *Conn {
+func WrapConn(conn net.Conn) *Conn {
 	c := &Conn{
 		conn: conn,
 		w: connWriter{
@@ -188,7 +195,6 @@ func WrapConn(conn net.Conn, s StreamIDAllocator) *Conn {
 			conn: bufio.NewReaderSize(conn, ioBufferSize),
 			h:    make(map[frame.StreamID]responseHandler),
 		},
-		stream: s,
 	}
 	go c.w.loop()
 	go c.r.loop()
@@ -203,12 +209,13 @@ func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	streamID, err := c.stream.Alloc()
+	h := make(responseHandler)
+
+	streamID, err := c.r.setHandler(h)
 	if err != nil {
-		return nil, fmt.Errorf("stream ID alloc: %w", err)
+		return nil, fmt.Errorf("set handler: %w", err)
 	}
 
-	h := make(responseHandler)
 	r := request{
 		Request:         req,
 		StreamID:        streamID,
@@ -216,11 +223,11 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 		Tracing:         tracing,
 		ResponseHandler: h,
 	}
-	c.r.setHandler(streamID, h)
+
 	c.w.submit(r)
 
 	resp := <-h
-	c.stream.Free(streamID)
+	c.r.s.Free(streamID)
 
 	return resp.Response, resp.Err
 }

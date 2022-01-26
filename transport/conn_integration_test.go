@@ -14,7 +14,7 @@ func TestConnStartup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	conn := WrapConn(nc, TestStreamIDAllocator{})
+	conn := WrapConn(nc)
 
 	opts := frame.StartupOptions{
 		"CQL_VERSION": "3.0.0",
