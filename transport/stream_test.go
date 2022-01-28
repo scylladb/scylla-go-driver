@@ -1,15 +1,18 @@
 package transport
 
 import (
-	"scylla-go-driver/frame"
 	"testing"
+
+	"scylla-go-driver/frame"
 )
 
 func TestStreamIDAllocator(t *testing.T) {
 	t.Parallel()
-	s := streamIDAllocator{}
 
-	allocated := make(map[frame.StreamID]struct{})
+	var (
+		s         streamIDAllocator
+		allocated = make(map[frame.StreamID]struct{})
+	)
 
 	// Allocate all possible non-negative streams.
 	for i := 0; i <= maxStreamID; i++ {
