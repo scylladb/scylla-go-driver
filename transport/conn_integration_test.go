@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	"scylla-go-driver/frame"
 	"github.com/google/go-cmp/cmp"
+	"scylla-go-driver/frame"
 )
 
 func TestConnStartup(t *testing.T) {
@@ -81,7 +81,6 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	if _, err = conn.Query(insert2, nil); err != nil {
 		t.Fatal(err)
 	}
-
 
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 	expectedRow1 := frame.Row{

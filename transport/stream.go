@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/bits"
+
 	"scylla-go-driver/frame"
 )
 
