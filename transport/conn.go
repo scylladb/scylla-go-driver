@@ -221,9 +221,12 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 	it := ShardPortIterator(si)
 	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
 	for i := 0; i < maxTries; i++ {
-		if conn, err := OpenLocalPortConn(addr, it(), cfg); err == nil {
-			return conn, nil
+		conn, err := OpenLocalPortConn(addr, it(), cfg)
+		if err != nil {
+			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
+			continue
 		}
+		return conn, nil
 	}
 
 	return nil, fmt.Errorf("failed to open connection on shard port: all local ports are busy")
