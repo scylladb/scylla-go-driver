@@ -18,7 +18,6 @@ import (
 )
 
 // TODO on send and recv i/o error we shall reset the connection
-// TODO request coelasting if there is more items in requestCh than we can send them together, we can check channel length, we need a write buffer
 
 type response struct {
 	frame.Header
@@ -37,7 +36,7 @@ type request struct {
 }
 
 type connWriter struct {
-	conn      io.Writer
+	conn      *bufio.Writer
 	buf       frame.Buffer
 	requestCh chan request
 }
@@ -49,15 +48,28 @@ func (c *connWriter) submit(r request) {
 func (c *connWriter) loop() {
 	runtime.LockOSThread()
 
+	// When requests pile up, allow sending up to 10% in one syscall.
+	var maxCoalescedRequests = requestChanSize / 10
+
 	for {
 		r, ok := <-c.requestCh
 		if !ok {
 			return
 		}
 
-		if err := c.send(r); err != nil {
-			r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
+		size := len(c.requestCh) + 1
+		if size > maxCoalescedRequests {
+			size = maxCoalescedRequests
 		}
+		for i := 0; i < size; i++ {
+			if i > 0 {
+				r = <-c.requestCh
+			}
+			if err := c.send(r); err != nil {
+				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
+			}
+		}
+		c.conn.Flush()
 	}
 }
 
@@ -256,7 +268,7 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 	c := &Conn{
 		conn: conn,
 		w: connWriter{
-			conn:      conn,
+			conn:      bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh: make(chan request, requestChanSize),
 		},
 		r: connReader{
