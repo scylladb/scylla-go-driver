@@ -28,32 +28,40 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	}
 }
 
-func TestConnMassiveQueryIntegration(t *testing.T) {
+type connTestHelper struct {
+	t    testing.TB
+	conn *Conn
+}
+
+func newConnTestHelper(t testing.TB) *connTestHelper {
 	nc, err := net.Dial("tcp", "localhost:9042")
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	conn, err := WrapConn(nc)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return &connTestHelper{t: t, conn: conn}
+}
 
-	exec := func(cql string) {
-		t.Helper()
-		s := Statement{
-			Content:     cql,
-			Consistency: frame.ONE,
-		}
-		if _, err = conn.Query(s, nil); err != nil {
-			t.Fatal(err)
-		}
+func (h *connTestHelper) exec(cql string) {
+	h.t.Helper()
+	s := Statement{
+		Content:     cql,
+		Consistency: frame.ONE,
 	}
+	if _, err := h.conn.Query(s, nil); err != nil {
+		h.t.Fatal(err)
+	}
+}
 
-	exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
-	exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
-	exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
-	exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+func TestConnMassiveQueryIntegration(t *testing.T) {
+	h := newConnTestHelper(t)
+	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
 
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 	expected := []frame.Row{
@@ -78,7 +86,7 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			res, err := conn.Query(query, nil)
+			res, err := h.conn.Query(query, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -96,4 +104,30 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+var benchmarkConnQueryResult QueryResult
+
+func BenchmarkConnQueryIntegration(b *testing.B) {
+	h := newConnTestHelper(b)
+	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+
+	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
+
+	b.ResetTimer()
+
+	var (
+		r   QueryResult
+		err error
+	)
+	for n := 0; n < b.N; n++ {
+		r, err = h.conn.Query(query, nil)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+	benchmarkConnQueryResult = r
 }
