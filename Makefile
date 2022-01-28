@@ -14,7 +14,12 @@ test-no-cache:
 
 integration-test: RUN=Integration
 integration-test:
-	go test -v -tags integration -run $(RUN) ./transport $(ARGS)
+	go test -v -tags integration -run $(RUN) -race ./transport $(ARGS)
+
+integration-bench: RUN=Integration
+integration-bench:
+	go test -v -tags integration -run XXX -bench=$(RUN) -benchmem -benchtime=5s -cpuprofile cpu.out ./transport $(ARGS)
+	go tool pprof -http :8080 cpu.out
 
 .PHONY: scylla-up
 scylla-up:
