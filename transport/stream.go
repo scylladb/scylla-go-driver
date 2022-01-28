@@ -19,7 +19,6 @@ type streamIDAllocator struct {
 	usedBitmap [buckets]uint64
 }
 
-// Alloc() allocates the smallest possible stream ID on Alloc().
 func (s *streamIDAllocator) Alloc() (frame.StreamID, error) {
 	for blockID, block := range &s.usedBitmap {
 		if block < math.MaxUint64 {
