@@ -9,6 +9,7 @@ import (
 	"net"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -142,11 +143,19 @@ func (c *connReader) loop() {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
+
+		// Checks if connection was closed.
+		if resp.Err != nil && strings.Contains(resp.Err.Error(), net.ErrClosed.Error()) {
+			// Not sure about this checking, maybe it would be easier
+			// to put unchanged error inside resp in recv.
+			return
+		}
+
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
 			// FIXME gracefully handle recv error
-			log.Fatalf("recv error: %+v, %+v", resp.Header, resp.Response)
+			log.Fatalf("recv error: %+v, %+v, %v", resp.Header, resp.Response, resp.Err)
 		}
 	}
 }
@@ -304,7 +313,11 @@ func (c *Conn) init() error {
 	}
 }
 
-// TODO add conn Close, make sure go routines exit
+// Close closes connection and terminates reader and writer go rutines.
+func (c *Conn) Close() error {
+	close(c.w.requestCh)
+	return c.conn.Close()
+}
 
 func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
 	return c.sendRequest(&Startup{Options: options}, false, false)
