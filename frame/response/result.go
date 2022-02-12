@@ -10,7 +10,9 @@ import (
 // VoidResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L562
 type VoidResult struct{}
 
-func ParseVoidResult(_ *frame.Buffer) {}
+func ParseVoidResult(_ *frame.Buffer) *VoidResult {
+	return &VoidResult{}
+}
 
 // RowsResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L568
 type RowsResult struct {
@@ -67,5 +69,33 @@ type SchemaChangeResult struct {
 func ParseSchemaChangeResult(b *frame.Buffer) *SchemaChangeResult {
 	return &SchemaChangeResult{
 		SchemaChange: *ParseSchemaChange(b),
+	}
+}
+
+type ResultKind = frame.Int
+
+const (
+	VoidKind         ResultKind = 1
+	RowsKind         ResultKind = 2
+	SetKeySpaceKind  ResultKind = 3
+	PreparedKind     ResultKind = 4
+	SchemaChangeKind ResultKind = 5
+)
+
+func ParseResult(b *frame.Buffer) frame.Response {
+	resultKind := b.ReadInt()
+	switch resultKind {
+	case VoidKind:
+		return ParseVoidResult(b)
+	case RowsKind:
+		return ParseRowsResult(b)
+	case SetKeySpaceKind:
+		return ParseSetKeyspaceResult(b)
+	case PreparedKind:
+		return ParsePreparedResult(b)
+	case SchemaChangeKind:
+		return ParseSchemaChangeResult(b)
+	default:
+		return nil
 	}
 }

@@ -1,0 +1,9 @@
+version: "3.7"
+
+services:
+  node:
+    image: ${SCYLLA_IMAGE}:${SCYLLA_VERSION}
+    command: ${SCYLLA_ARGS}
+    ports:
+      - "9042:9042"
+      - "19042:19042"
