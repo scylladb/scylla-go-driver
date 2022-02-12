@@ -9,6 +9,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"go.uber.org/goleak"
 	"scylla-go-driver/frame"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestMain(m *testing.M) {
@@ -24,7 +25,7 @@ func TestConnStartup(t *testing.T) {
 	// shard aware policy. I tested it manually using time.sleep() and checking if connection was
 	// mapped to appropriate shard with cqlsh ("SELECT * FROM system.clients;").
 	// Here only 172.19.0.2 IP ensures correct shard mapping.
-	// Ip of 172.19.0.2 is my computer specific, this is dockers fault, this will be fixed in the near future.
+	// Ip of 172.19.0.2 is computer specific, this is dockers fault, this will be fixed in the near future.
 	c, err := OpenShardConn("172.19.0.2:19042", si, ConnConfig{}, nil)
 	defer c.Close()
 	if err != nil {
@@ -77,7 +78,7 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	if _, err = conn.Query(insert2, nil); err != nil {
 		t.Fatal(err)
 	}
-
+  
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 	expectedRow1 := frame.Row{
 		frame.Bytes{0x0, 0x0, 0x0, 0x1},
