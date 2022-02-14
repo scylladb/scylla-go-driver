@@ -10,7 +10,7 @@ import (
 const refillerBackoff = 250 * time.Millisecond
 
 func TestNodeConnPoolIntegration(t *testing.T) {
-	p, err := NewConnPool(TestHost+":9042", ConnConfig{})
+	p, err := NewConnPool(TestHost, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

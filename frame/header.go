@@ -1,7 +1,7 @@
 package frame
 
-// StreamID is a type alias for Short.
-type StreamID = Short
+// StreamID is a type alias for SIGNED Short.
+type StreamID = int16
 
 // HeaderSize specifies number of header bytes.
 const HeaderSize = 9
@@ -10,7 +10,7 @@ const HeaderSize = 9
 type Header struct {
 	Version  Byte
 	Flags    HeaderFlags
-	StreamID Short
+	StreamID StreamID
 	OpCode   OpCode
 	Length   Int
 }
@@ -19,7 +19,7 @@ func ParseHeader(b *Buffer) Header {
 	return Header{
 		Version:  b.ReadByte(),
 		Flags:    b.ReadHeaderFlags(),
-		StreamID: b.ReadShort(),
+		StreamID: b.ReadStreamID(),
 		OpCode:   b.ReadOpCode(),
 		Length:   b.ReadInt(),
 	}
@@ -28,7 +28,7 @@ func ParseHeader(b *Buffer) Header {
 func (h Header) WriteTo(b *Buffer) {
 	b.WriteByte(h.Version)
 	b.WriteHeaderFlags(h.Flags)
-	b.WriteShort(h.StreamID)
+	b.WriteStreamID(h.StreamID)
 	b.WriteOpCode(h.OpCode)
 	b.WriteInt(h.Length)
 }

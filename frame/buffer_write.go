@@ -19,6 +19,13 @@ func (b *Buffer) WriteShort(v Short) {
 	})
 }
 
+func (b *Buffer) WriteStreamID(v StreamID) {
+	_, _ = b.buf.Write([]byte{
+		byte(v >> 8),
+		byte(v),
+	})
+}
+
 func (b *Buffer) WriteInt(v Int) {
 	_, _ = b.buf.Write([]byte{
 		byte(v >> 24),

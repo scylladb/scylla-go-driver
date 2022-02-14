@@ -111,10 +111,11 @@ func (c *connWriter) send(r request) error {
 }
 
 type connReader struct {
-	conn    *bufio.Reader
-	buf     frame.Buffer
-	bufw    io.Writer
-	metrics *connMetrics
+	conn        *bufio.Reader
+	buf         frame.Buffer
+	bufw        io.Writer
+	metrics     *connMetrics
+	handleEvent func(r response)
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
@@ -159,6 +160,14 @@ func (c *connReader) loop() {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
+		if resp.StreamID == eventStreamID {
+			if c.handleEvent != nil {
+				c.handleEvent(resp)
+			} else {
+				log.Printf("unregistered connection received event: %#+v", resp)
+			}
+			continue
+		}
 
 		if resp.Err != nil {
 			c.drainHandlers()
@@ -208,6 +217,10 @@ func (c *connReader) recv() response {
 		return r
 	}
 	r.Response = c.parse(r.Header.OpCode)
+	if r.Response == nil {
+		r.Err = fmt.Errorf("response type not supported")
+		return r
+	}
 	if err := c.buf.Error(); err != nil {
 		r.Err = fmt.Errorf("parse body: %w", err)
 		return r
@@ -227,6 +240,8 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		return ParseResult(&c.buf)
 	case frame.OpSupported:
 		return ParseSupported(&c.buf)
+	case frame.OpEvent:
+		return ParseEvent(&c.buf)
 	default:
 		log.Fatalf("not supported %d", op)
 		return nil
@@ -243,10 +258,9 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	TCPNoDelay bool
-	Timeout    time.Duration
-	// This will be used.
-	// DefaultConsistency frame.Consistency
+	TCPNoDelay         bool
+	Timeout            time.Duration
+	DefaultConsistency frame.Consistency
 }
 
 const (
@@ -279,7 +293,7 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
 	localAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(int(localPort)))
 	if err != nil {
-		return nil, fmt.Errorf("resolving local TCP address: %w", err)
+		return nil, fmt.Errorf("resolve local TCP address: %w", err)
 	}
 
 	return OpenConn(addr, localAddr, cfg)
@@ -296,12 +310,12 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	}
 	conn, err := d.Dial("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("dialing TCP address %s: %w", addr, err)
+		return nil, fmt.Errorf("dial TCP address %s: %w", addr, err)
 	}
 
 	tcpConn := conn.(*net.TCPConn)
-	if err = tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
-		return nil, fmt.Errorf("setting TCP no delay option: %w", err)
+	if err := tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
+		return nil, fmt.Errorf("set TCP no delay option: %w", err)
 	}
 
 	return WrapConn(tcpConn)
@@ -436,4 +450,16 @@ func (c *Conn) Close() {
 
 func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
+}
+
+func (c *Conn) register(h func(r response), e ...frame.EventType) error {
+	c.r.handleEvent = h
+	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
+	if err != nil {
+		return err
+	}
+	if _, ok := res.(*Ready); ok {
+		return nil
+	}
+	return responseAsError(res)
 }
