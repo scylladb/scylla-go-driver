@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	maxStreamID = math.MaxInt16
+	maxStreamID   = math.MaxInt16
+	eventStreamID = -1
 
 	bucketSize = 64
 	buckets    = (maxStreamID + 1) / bucketSize

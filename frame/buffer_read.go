@@ -54,6 +54,10 @@ func (b *Buffer) ReadShort() Short {
 	return Short(b.readByte())<<8 | Short(b.readByte())
 }
 
+func (b *Buffer) ReadStreamID() StreamID {
+	return StreamID(b.readByte())<<8 | StreamID(b.readByte())
+}
+
 func (b *Buffer) ReadInt() Int {
 	a := [4]byte{0, 0, 0, 0}
 	b.readInto(a[:])

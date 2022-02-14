@@ -1,6 +1,7 @@
 package response
 
 import (
+	"log"
 	"scylla-go-driver/frame"
 )
 
@@ -69,5 +70,20 @@ func ParseSchemaChange(b *frame.Buffer) *SchemaChange {
 		}
 	default:
 		return &SchemaChange{}
+	}
+}
+
+func ParseEvent(b *frame.Buffer) frame.Response {
+	s := b.ReadString()
+	switch s {
+	case "TOPOLOGY_CHANGE":
+		return ParseTopologyChange(b)
+	case "STATUS_CHANGE":
+		return ParseStatusChange(b)
+	case "SCHEMA_CHANGE":
+		return ParseSchemaChange(b)
+	default:
+		log.Printf("event type not supported: %s", s)
+		return nil
 	}
 }
