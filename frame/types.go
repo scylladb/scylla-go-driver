@@ -1,5 +1,9 @@
 package frame
 
+import (
+	"net"
+)
+
 // Generic types from CQL binary protocol.
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L214-L266
 type (
@@ -26,6 +30,11 @@ type Value struct {
 type Inet struct {
 	IP   Bytes
 	Port Int
+}
+
+// String only takes care of IP part of the address.
+func (i Inet) String() string {
+	return net.IP(i.IP).String()
 }
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L183-L201

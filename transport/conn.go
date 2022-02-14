@@ -139,6 +139,15 @@ func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	return streamID, err
 }
 
+func (c *connReader) setEventHandler() eventHandler {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	h := make(eventHandler, eventChanSize)
+	c.h[eventStreamID] = h
+	return h
+}
+
 func (c *connReader) freeHandler(streamID frame.StreamID) {
 	c.mu.Lock()
 	c.s.Free(streamID)
@@ -227,6 +236,8 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		return ParseResult(&c.buf)
 	case frame.OpSupported:
 		return ParseSupported(&c.buf)
+	case frame.OpEvent:
+		return ParseEvent(&c.buf)
 	default:
 		log.Fatalf("not supported %d", op)
 		return nil
@@ -243,10 +254,9 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	TCPNoDelay bool
-	Timeout    time.Duration
-	// This will be used.
-	// DefaultConsistency frame.Consistency
+	TCPNoDelay         bool
+	Timeout            time.Duration
+	DefaultConsistency frame.Consistency
 }
 
 const (
@@ -436,4 +446,19 @@ func (c *Conn) Close() {
 
 func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
+}
+
+func (c *Conn) registerEvents(e []frame.EventType) (eventHandler, error) {
+	h := c.r.setEventHandler()
+	req := &Register{EventTypes: e}
+
+	res, err := c.sendRequest(req, false, false)
+	if err != nil {
+		return nil, fmt.Errorf("registering for events: %w", err)
+	}
+	if _, ok := res.(*Ready); ok {
+		return h, nil
+	}
+
+	return nil, fmt.Errorf("invalid response for register request")
 }
