@@ -9,13 +9,17 @@ import (
 	"time"
 )
 
+type ConnPool struct {
+	conns []*Conn
+}
+
 type PoolRefiller struct {
 	address    string
 	connConfig ConnConfig
-	conns      []*Conn
+	connPool   ConnPool
 
 	activeShards uint16
-	NrShards     uint16
+	nrShards     uint16
 
 	connOptions      frame.ScyllaSupported
 	errRcv           chan uint16
@@ -65,18 +69,18 @@ func (p *PoolRefiller) onFillError() {
 }
 
 func (p *PoolRefiller) needsFilling() bool { // nolint:unused // This will be used.
-	return p.activeShards < p.NrShards
+	return p.activeShards < p.nrShards
 }
 
 func (p *PoolRefiller) removeConnection(nr uint16) { // nolint:unused // This will be used.
-	err := p.conns[nr].conn.Close()
+	err := p.connPool.conns[nr].conn.Close()
 	p.errorSinceRefill = p.errorSinceRefill || (err != nil)
-	p.conns[nr] = nil
-	p.activeShards++
+	p.connPool.conns[nr] = nil
+	p.activeShards--
 }
 
 func (p *PoolRefiller) fill() {
-	if p.activeShards == 0 && p.NrShards == 0 {
+	if p.activeShards == 0 && p.nrShards == 0 {
 		// First connection is needed to be done a bit differently,
 		// without opening it to a specific shard to read frame.ScyllaSupported.
 		conn, err := OpenConn(p.address, nil, p.connConfig, p.errRcv, 0)
@@ -88,17 +92,17 @@ func (p *PoolRefiller) fill() {
 			return
 		}
 
-		p.NrShards = p.connOptions.NrShards
-		p.conns = make([]*Conn, p.NrShards)
-		p.conns[p.connOptions.Shard] = conn
+		p.nrShards = p.connOptions.NrShards
+		p.connPool.conns = make([]*Conn, p.nrShards)
+		p.connPool.conns[p.connOptions.Shard] = conn
 		p.activeShards++
 		// Adjust shard number for the fact that we passed it as 0.
 		conn.shardNr = p.connOptions.Shard
 	}
 
 	n := p.connOptions.NrShards
-	for i := uint16(0); i < n && p.activeShards < p.NrShards; i++ {
-		if p.conns[i] != nil {
+	for i := uint16(0); i < n && p.activeShards < p.nrShards; i++ {
+		if p.connPool.conns[i] != nil {
 			continue
 		}
 
@@ -109,7 +113,7 @@ func (p *PoolRefiller) fill() {
 
 		conn, err := OpenShardConn(p.address, shard, p.connConfig, p.errRcv)
 		if err == nil {
-			p.conns[shard.Shard] = conn
+			p.connPool.conns[shard.Shard] = conn
 			p.activeShards++
 		} else {
 			p.errorSinceRefill = true
@@ -130,12 +134,12 @@ func getScyllaSupported(conn *Conn) (frame.ScyllaSupported, error) {
 	return supp.ParseScyllaSupported(), nil
 }
 
-func InitNodeConnPool(addr string, connConfig ConnConfig) *PoolRefiller { // nolint:unused // This will be used.
+func InitNodeConnPool(addr string, connConfig ConnConfig) *ConnPool { // nolint:unused // This will be used.
 	pr := PoolRefiller{
 		address:    addr,
 		connConfig: connConfig,
 	}
 
 	go pr.loop()
-	return &pr
+	return &pr.connPool
 }
