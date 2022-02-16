@@ -367,6 +367,28 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 	return makeQueryResult(res)
 }
 
+func (c *Conn) Prepare(s string) (Statement, error) {
+	req := &Prepare{
+		Query: s,
+	}
+	res, err := c.sendRequest(req, false, false)
+	if err != nil {
+		return Statement{}, err
+	}
+
+	return makePrepareResult(res)
+}
+
+func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error) {
+	req := newExecuteForStatement(s, pagingState)
+	res, err := c.sendRequest(req, s.Compression, s.Tracing)
+	if err != nil {
+		return QueryResult{}, err
+	}
+
+	return makeQueryResult(res)
+}
+
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
 	// Each handler may encounter 2 responses, one from connWriter.loop()
 	// and one from drainHandlers().

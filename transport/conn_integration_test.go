@@ -175,4 +175,26 @@ func TestCloseHangingIntegration(t *testing.T) {
 	}
 
 	wg.Wait()
+
+}
+
+func TestPreparedStatement(t *testing.T) {
+	h := newConnTestHelper(t)
+	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+
+	stmt, err := conn.Prepare("SELECT * FROM mykeyspace.users WHERE user_id = ?")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	stmt.Consistency = frame.ONE // This will be in session.
+
+	BindNumber[int](&stmt, 1, 0)
+	_, err = conn.Execute(stmt, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 }
