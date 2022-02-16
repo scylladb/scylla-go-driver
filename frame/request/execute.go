@@ -8,12 +8,15 @@ var _ frame.Request = (*Execute)(nil)
 
 // Execute spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L403
 type Execute struct {
-	ID      frame.Bytes
-	Options frame.QueryOptions
+	ID          frame.Bytes
+	Consistency frame.Consistency
+	Options     frame.QueryOptions
 }
 
 func (e *Execute) WriteTo(b *frame.Buffer) {
 	b.WriteShortBytes(e.ID)
+	b.WriteConsistency(e.Consistency)
+	e.Options.SetFlags()
 	b.WriteQueryOptions(e.Options)
 }
 

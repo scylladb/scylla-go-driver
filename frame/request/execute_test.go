@@ -17,8 +17,8 @@ func TestExecuteWriteTo(t *testing.T) {
 	}{
 		{
 			name:     "Smoke encode",
-			content:  Execute{ID: frame.Bytes{0x01, 0x02}},
-			expected: []byte{0x00, 0x02, 0x01, 0x02, 0x00},
+			content:  Execute{ID: frame.Bytes{0x01, 0x02}, Consistency: frame.ONE},
+			expected: []byte{0x00, 0x02, 0x01, 0x02, 0x00, 0x01, 0x00},
 		},
 	}
 	for i := 0; i < len(testCases); i++ {
