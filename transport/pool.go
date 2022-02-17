@@ -6,11 +6,13 @@ import (
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
 	. "scylla-go-driver/frame/response"
+	"sync"
 	"time"
 )
 
 type ConnPool struct {
 	conns []*Conn
+	mu    sync.Mutex
 }
 
 type PoolRefiller struct {
@@ -73,22 +75,27 @@ func (p *PoolRefiller) needsFilling() bool { // nolint:unused // This will be us
 }
 
 func (p *PoolRefiller) removeConnection(nr uint16) { // nolint:unused // This will be used.
+	p.connPool.mu.Lock()
 	err := p.connPool.conns[nr].conn.Close()
 	p.errorSinceRefill = p.errorSinceRefill || (err != nil)
 	p.connPool.conns[nr] = nil
 	p.activeShards--
+	p.connPool.mu.Unlock()
 }
 
 func (p *PoolRefiller) fill() {
+	p.connPool.mu.Lock()
 	if p.activeShards == 0 && p.nrShards == 0 {
 		// First connection is needed to be done a bit differently,
 		// without opening it to a specific shard to read frame.ScyllaSupported.
 		conn, err := OpenConn(p.address, nil, p.connConfig, p.errRcv, 0)
 		if err != nil {
+			p.connPool.mu.Unlock()
 			return
 		}
 		p.connOptions, err = getScyllaSupported(conn)
 		if err != nil {
+			p.connPool.mu.Unlock()
 			return
 		}
 
@@ -119,6 +126,7 @@ func (p *PoolRefiller) fill() {
 			p.errorSinceRefill = true
 		}
 	}
+	p.connPool.mu.Unlock()
 }
 
 func getScyllaSupported(conn *Conn) (frame.ScyllaSupported, error) {
