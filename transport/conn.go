@@ -9,7 +9,6 @@ import (
 	"net"
 	"runtime"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -144,18 +143,11 @@ func (c *connReader) loop() {
 	for {
 		resp := c.recv()
 
-		// Checks if connection was closed.
-		if resp.Err != nil && strings.Contains(resp.Err.Error(), net.ErrClosed.Error()) {
-			// Not sure about this checking, maybe it would be easier
-			// to put unchanged error inside resp in recv.
-			return
-		}
-
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			// FIXME gracefully handle recv error
-			log.Fatalf("recv error: %+v, %+v, %v", resp.Header, resp.Response, resp.Err)
+			// Connection is corrupted. Must be closed.
+			return
 		}
 	}
 }
@@ -205,6 +197,14 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		log.Fatalf("not supported %d", op)
 		return nil
 	}
+}
+
+func (c *connReader) clearHandlers() {
+	c.mu.Lock()
+	for _, h := range c.h {
+		h <- response{Err: fmt.Errorf("connection closed")}
+	}
+	c.mu.Unlock()
 }
 
 type Conn struct {
@@ -314,9 +314,10 @@ func (c *Conn) init() error {
 }
 
 // Close closes connection and terminates reader and writer go rutines.
-func (c *Conn) Close() error {
+func (c *Conn) Close() {
+	_ = c.conn.Close()
 	close(c.w.requestCh)
-	return c.conn.Close()
+	c.r.clearHandlers()
 }
 
 func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
