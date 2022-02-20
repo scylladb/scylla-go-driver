@@ -28,6 +28,29 @@ type Inet struct {
 	Port Int
 }
 
+// ScyllaSupported represents Scylla connection options as sent in SUPPORTED frame.
+// https://github.com/scylladb/scylla/blob/master/docs/design-notes/protocol-extensions.md#intranode-sharding
+type ScyllaSupported struct {
+	Shard             uint16
+	NrShards          uint16
+	MsbIgnore         uint8
+	Partitioner       string
+	ShardingAlgorithm string
+	ShardAwarePort    uint16
+	ShardAwarePortSSL uint16
+	LwtFlagMask       int
+}
+
+const (
+	ScyllaShard             = "SCYLLA_SHARD"
+	ScyllaNrShards          = "SCYLLA_NR_SHARDS"
+	ScyllaPartitioner       = "SCYLLA_PARTITIONER"
+	ScyllaShardingAlgorithm = "SCYLLA_SHARDING_ALGORITHM"
+	ScyllaShardingIgnoreMSB = "SCYLLA_SHARDING_IGNORE_MSB"
+	ScyllaShardAwarePort    = "SCYLLA_SHARD_AWARE_PORT"
+	ScyllaShardAwarePortSSL = "SCYLLA_SHARD_AWARE_PORT_SSL"
+)
+
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L183-L201
 type OpCode = Byte
 
