@@ -1,6 +1,10 @@
 package transport
 
-import "math/rand"
+import (
+	"math/rand"
+
+	"scylla-go-driver/transport/murmur"
+)
 
 const (
 	// Range of ports that can be used to establish connection.
@@ -36,4 +40,15 @@ func ShardPortIterator(si ShardInfo) func() uint16 {
 		}
 		return port
 	}
+}
+
+// Token is used to identify both nodes and partitions, it's value is hashed partition key.
+type Token struct {
+	value int64
+}
+
+// MurmurToken is a function which given partition key hashes it, using Murmurhash3.
+func MurmurToken(partitionKey []byte) Token { // nolint:unused // This will be used.
+	h := murmur.Hash3(partitionKey)
+	return Token{value: h}
 }
