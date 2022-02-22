@@ -35,6 +35,8 @@ type request struct {
 	ResponseHandler responseHandler
 }
 
+var closeRequest = request{}
+
 type connWriter struct {
 	conn      *bufio.Writer
 	buf       frame.Buffer
@@ -52,21 +54,20 @@ func (c *connWriter) loop() {
 	var maxCoalescedRequests = requestChanSize / 10
 
 	for {
-		r, ok := <-c.requestCh
-		if !ok {
-			return
-		}
-
-		size := len(c.requestCh) + 1
+		size := len(c.requestCh)
 		if size > maxCoalescedRequests {
 			size = maxCoalescedRequests
 		}
+
 		for i := 0; i < size; i++ {
-			if i > 0 {
-				r = <-c.requestCh
+			r := <-c.requestCh
+			if r == closeRequest {
+				return
 			}
+
 			if err := c.send(r); err != nil {
 				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
+				// TODO: notify connection owner that connection needs to be replaced.
 			}
 		}
 		c.conn.Flush()
@@ -103,22 +104,27 @@ type connReader struct {
 	buf  frame.Buffer
 	bufw io.Writer
 
-	h map[frame.StreamID]responseHandler
-	s streamIDAllocator
-	// mu guards h and s.
+	h      map[frame.StreamID]responseHandler
+	s      streamIDAllocator
+	closed bool
+	// mu guards h, s and closed.
 	mu sync.Mutex
 }
 
 func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.closed {
+		return 0, fmt.Errorf("connection closed")
+	}
+
 	streamID, err := c.s.Alloc()
 	if err != nil {
-		c.mu.Unlock()
 		return 0, fmt.Errorf("stream ID alloc: %w", err)
 	}
 
 	c.h[streamID] = h
-	c.mu.Unlock()
 	return streamID, err
 }
 
@@ -136,6 +142,15 @@ func (c *connReader) handler(streamID frame.StreamID) responseHandler {
 	return h
 }
 
+func (c *connReader) drainHandlers() {
+	c.mu.Lock()
+	c.closed = true
+	for _, h := range c.h {
+		h <- response{Err: fmt.Errorf("connection closed")}
+	}
+	c.mu.Unlock()
+}
+
 func (c *connReader) loop() {
 	runtime.LockOSThread()
 
@@ -143,10 +158,15 @@ func (c *connReader) loop() {
 	for {
 		resp := c.recv()
 
+		if resp.Err != nil {
+			c.drainHandlers()
+			return
+		}
+
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			// Connection is corrupted. Must be closed.
+			c.drainHandlers()
 			return
 		}
 	}
@@ -199,14 +219,6 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 	}
 }
 
-func (c *connReader) clearHandlers() {
-	c.mu.Lock()
-	for _, h := range c.h {
-		h <- response{Err: fmt.Errorf("connection closed")}
-	}
-	c.mu.Unlock()
-}
-
 type Conn struct {
 	conn net.Conn
 	w    connWriter
@@ -223,6 +235,10 @@ type ConnConfig struct {
 const (
 	requestChanSize = 1024
 	ioBufferSize    = 8192
+
+	// Each handler may encounter 2 responses, one from connWriter.loop()
+	// and one from drainHandlers().
+	responseHandlerCapacity = 2
 )
 
 // OpenShardConn opens connection mapped to a specific shard on scylla node.
@@ -313,11 +329,10 @@ func (c *Conn) init() error {
 	}
 }
 
-// Close closes connection and terminates reader and writer go rutines.
+// Close closes connection and terminates reader and writer go routines.
 func (c *Conn) Close() {
 	_ = c.conn.Close()
-	close(c.w.requestCh)
-	c.r.clearHandlers()
+	c.w.requestCh <- closeRequest
 }
 
 func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
@@ -335,7 +350,7 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	h := make(responseHandler)
+	h := make(responseHandler, responseHandlerCapacity)
 
 	streamID, err := c.r.setHandler(h)
 	if err != nil {
@@ -350,6 +365,9 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 		ResponseHandler: h,
 	}
 
+	// Note: requestCh might be full after terminating writeLoop so some goroutines could hang here forever.
+	// this could be fixed by changing requestChanSize to be able to hold all possible streamIDs,
+	// adding a grace period before terminating writeLoop or counting active streams.
 	c.w.submit(r)
 
 	resp := <-h
