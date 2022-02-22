@@ -142,15 +142,6 @@ func (c *connReader) handler(streamID frame.StreamID) responseHandler {
 	return h
 }
 
-func (c *connReader) drainHandlers() {
-	c.mu.Lock()
-	c.closed = true
-	for _, h := range c.h {
-		h <- response{Err: fmt.Errorf("connection closed")}
-	}
-	c.mu.Unlock()
-}
-
 func (c *connReader) loop() {
 	runtime.LockOSThread()
 
@@ -166,10 +157,20 @@ func (c *connReader) loop() {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
+			// Connection is corrupted, must be closed.
 			c.drainHandlers()
 			return
 		}
 	}
+}
+
+func (c *connReader) drainHandlers() {
+	c.mu.Lock()
+	c.closed = true
+	for _, h := range c.h {
+		h <- response{Err: fmt.Errorf("connection closed")}
+	}
+	c.mu.Unlock()
 }
 
 func (c *connReader) recv() response {
@@ -235,10 +236,6 @@ type ConnConfig struct {
 const (
 	requestChanSize = 1024
 	ioBufferSize    = 8192
-
-	// Each handler may encounter 2 responses, one from connWriter.loop()
-	// and one from drainHandlers().
-	responseHandlerCapacity = 2
 )
 
 // OpenShardConn opens connection mapped to a specific shard on scylla node.
@@ -350,7 +347,9 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	h := make(responseHandler, responseHandlerCapacity)
+	// Each handler may encounter 2 responses, one from connWriter.loop()
+	// and one from drainHandlers().
+	h := make(responseHandler, 2)
 
 	streamID, err := c.r.setHandler(h)
 	if err != nil {
@@ -365,7 +364,7 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 		ResponseHandler: h,
 	}
 
-	// Note: requestCh might be full after terminating writeLoop so some goroutines could hang here forever.
+	// requestCh might be full after terminating writeLoop so some goroutines could hang here forever.
 	// this could be fixed by changing requestChanSize to be able to hold all possible streamIDs,
 	// adding a grace period before terminating writeLoop or counting active streams.
 	c.w.submit(r)
