@@ -403,7 +403,7 @@ func (c *Conn) Startup(options frame.StartupOptions) error {
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
 	req := makeQueryForStatement(s, pagingState)
-	res, err := c.sendRequest(&req, s.Compression, s.Tracing)
+	res, err := c.sendRequest(&req, s.compression, s.tracing)
 	if err != nil {
 		return QueryResult{}, err
 	}
