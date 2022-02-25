@@ -238,7 +238,7 @@ const (
 	ioBufferSize    = 8192
 )
 
-// OpenShardConn opens connection mapped to a specific shard on scylla node.
+// OpenShardConn opens connection mapped to a specific shard on Scylla node.
 func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { // nolint:unused // This will be used.
 	it := ShardPortIterator(si)
 	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
@@ -246,6 +246,9 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 		conn, err := OpenLocalPortConn(addr, it(), cfg)
 		if err != nil {
 			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
+			if conn != nil {
+				conn.Close()
+			}
 			continue
 		}
 		return conn, nil
@@ -255,6 +258,8 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 }
 
 // OpenLocalPortConn opens connection on a given local port.
+//
+// If error and connection are returned the connection is not valid and must be closed by the caller.
 func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
 	// Not sure about local IP address. Empty IP and 172.19.0.1 works fine during tests but localhost does not.
 	// The problem is that when using localhost as IP connections are not mapped for appropriate shards
@@ -268,7 +273,9 @@ func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, er
 }
 
 // OpenConn opens connection with specific local address.
-// In case lAddr is nil, random local address is chosen.
+// In case lAddr is nil, random local address is used.
+//
+// If error and connection are returned the connection is not valid and must be closed by the caller.
 func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error) {
 	d := net.Dialer{
 		Timeout:   cfg.Timeout,
@@ -287,8 +294,8 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	return WrapConn(tcpConn)
 }
 
-// WrapConn transforms tcp connection to a working Scylla connection with given StreamID allocator.
-// If returned error is not nil, connection is not valid - it can not be used and must be closed.
+// WrapConn transforms tcp connection to a working Scylla connection.
+// If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
 	c := &Conn{
 		conn: conn,
@@ -304,8 +311,7 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 	go c.w.loop()
 	go c.r.loop()
 
-	err := c.init()
-	return c, err
+	return c, c.init()
 }
 
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
