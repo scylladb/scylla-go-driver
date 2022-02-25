@@ -221,9 +221,10 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 }
 
 type Conn struct {
-	conn net.Conn
-	w    connWriter
-	r    connReader
+	conn  net.Conn
+	shard uint16
+	w     connWriter
+	r     connReader
 }
 
 type ConnConfig struct {
@@ -317,16 +318,26 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
 
 func (c *Conn) init() error {
+	if s, err := c.Supported(); err != nil {
+		return fmt.Errorf("supported: %w", err)
+	} else {
+		c.shard = s.ScyllaSupported().Shard
+	}
 	if err := c.Startup(startupOptions); err != nil {
 		return fmt.Errorf("startup: %w", err)
 	}
 	return nil
 }
 
-// Close closes connection and terminates reader and writer go routines.
-func (c *Conn) Close() {
-	_ = c.conn.Close()
-	c.w.requestCh <- closeRequest
+func (c *Conn) Supported() (*Supported, error) {
+	res, err := c.sendRequest(&Options{}, false, false)
+	if err != nil {
+		return nil, err
+	}
+	if v, ok := res.(*Supported); ok {
+		return v, nil
+	}
+	return nil, responseAsError(res)
 }
 
 func (c *Conn) Startup(options frame.StartupOptions) error {
@@ -377,4 +388,10 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	c.r.freeHandler(streamID)
 
 	return resp.Response, resp.Err
+}
+
+// Close closes connection and terminates reader and writer go routines.
+func (c *Conn) Close() {
+	_ = c.conn.Close()
+	c.w.requestCh <- closeRequest
 }
