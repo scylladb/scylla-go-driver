@@ -63,4 +63,5 @@ linters:
 
 issues:
   exclude:
+    - indent-error-flow
     - should not use dot imports
