@@ -3,7 +3,6 @@
 package transport
 
 import (
-	"net"
 	"sync"
 	"testing"
 	"time"
@@ -22,10 +21,11 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	// TODO check shard info from supported
 	// Note that only direct IP calls ensures correct shard mapping.
 	// I tested it manually using time.sleep() and checking if connection was mapped to appropriate shard with cqlsh ("SELECT * FROM system.clients;").
-	_, err := OpenShardConn("127.0.0.1:19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
+	c, err := OpenShardConn("127.0.0.1:19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
+	c.Close()
 }
 
 type connTestHelper struct {
@@ -34,11 +34,7 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	nc, err := net.Dial("tcp", "localhost:9042")
-	if err != nil {
-		t.Fatal(err)
-	}
-	conn, err := WrapConn(nc)
+	conn, err := OpenConn("localhost:9042", nil, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,6 +54,8 @@ func (h *connTestHelper) exec(cql string) {
 
 func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
+	defer h.conn.Close()
+
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
@@ -130,4 +128,51 @@ func BenchmarkConnQueryIntegration(b *testing.B) {
 		}
 	}
 	benchmarkConnQueryResult = r
+}
+
+func TestCloseHangingIntegration(t *testing.T) {
+	h := newConnTestHelper(t)
+	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
+	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+
+	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
+
+	const n = 10000
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+
+		go func(id int) {
+			defer wg.Done()
+
+			res, err := h.conn.Query(query, nil)
+			if len(res.Rows) != 2 && err == nil {
+				t.Fatalf("invalid number of rows")
+			}
+			// Shut the connection down in the middle of querying
+			if id == n/2 {
+				h.conn.Close()
+			}
+		}(i)
+
+	}
+
+	wg.Wait()
+
+	// After closing all queries should return an error.
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := h.conn.Query(query, nil)
+			if err == nil {
+				t.Fatalf("connection should be closed!")
+			}
+		}()
+
+	}
+
+	wg.Wait()
 }
