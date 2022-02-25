@@ -25,6 +25,9 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if c.shard != si.Shard {
+
+	}
 	c.close()
 }
 
