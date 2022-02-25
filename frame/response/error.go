@@ -1,6 +1,8 @@
 package response
 
 import (
+	"fmt"
+
 	"scylla-go-driver/frame"
 )
 
@@ -9,6 +11,14 @@ import (
 type Error struct {
 	Code    frame.ErrorCode
 	Message string
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
+}
+
+func (e *Error) String() string {
+	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
 }
 
 func ParseError(b *frame.Buffer) *Error {

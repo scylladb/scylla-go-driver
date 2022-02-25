@@ -317,19 +317,10 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
 
 func (c *Conn) init() error {
-	res, err := c.Startup(startupOptions)
-	if err != nil {
-		return err
+	if err := c.Startup(startupOptions); err != nil {
+		return fmt.Errorf("startup: %w", err)
 	}
-
-	switch v := res.(type) {
-	case *Ready:
-		return nil
-	case *Error:
-		return fmt.Errorf("init: %s", v.Message)
-	default:
-		return fmt.Errorf("init: unimplemented response %T, %+v", v, v)
-	}
+	return nil
 }
 
 // Close closes connection and terminates reader and writer go routines.
@@ -338,8 +329,15 @@ func (c *Conn) Close() {
 	c.w.requestCh <- closeRequest
 }
 
-func (c *Conn) Startup(options frame.StartupOptions) (frame.Response, error) {
-	return c.sendRequest(&Startup{Options: options}, false, false)
+func (c *Conn) Startup(options frame.StartupOptions) error {
+	res, err := c.sendRequest(&Startup{Options: options}, false, false)
+	if err != nil {
+		return err
+	}
+	if _, ok := res.(*Ready); ok {
+		return nil
+	}
+	return responseAsError(res)
 }
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
