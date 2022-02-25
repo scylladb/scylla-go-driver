@@ -312,7 +312,13 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 	go c.w.loop()
 	go c.r.loop()
 
-	return c, c.init()
+	if err := c.init(); err != nil {
+		return c, err
+	}
+
+	log.Printf("%s connected", c)
+
+	return c, nil
 }
 
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
@@ -392,6 +398,15 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 
 // closes connection and terminates reader and writer go routines.
 func (c *Conn) close() {
+	log.Printf("%s closing", c)
 	_ = c.conn.Close()
 	c.w.requestCh <- closeRequest
+}
+
+func (c *Conn) Shard() uint16 {
+	return c.shard
+}
+
+func (c *Conn) String() string {
+	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
 }
