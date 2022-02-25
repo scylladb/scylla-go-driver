@@ -25,7 +25,7 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c.Close()
+	c.close()
 }
 
 type connTestHelper struct {
@@ -54,7 +54,7 @@ func (h *connTestHelper) exec(cql string) {
 
 func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
-	defer h.conn.Close()
+	defer h.conn.close()
 
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
@@ -153,7 +153,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 			}
 			// Shut the connection down in the middle of querying
 			if id == n/2 {
-				h.conn.Close()
+				h.conn.close()
 			}
 		}(i)
 
