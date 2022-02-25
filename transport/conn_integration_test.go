@@ -15,18 +15,15 @@ import (
 func TestOpenShardConnIntegration(t *testing.T) {
 	si := ShardInfo{
 		Shard:    1,
-		NrShards: 2, // Note that scylla node from docker-compose has only 2 shards.
+		NrShards: 2, // Scylla node from docker-compose has only 2 shards
 	}
 
-	// TODO check shard info from supported
-	// Note that only direct IP calls ensures correct shard mapping.
-	// I tested it manually using time.sleep() and checking if connection was mapped to appropriate shard with cqlsh ("SELECT * FROM system.clients;").
-	c, err := OpenShardConn("127.0.0.1:19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
+	c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if c.shard != si.Shard {
-
+		t.Fatal("wrong shard", c)
 	}
 	c.close()
 }
@@ -37,7 +34,7 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn("localhost:9042", nil, ConnConfig{})
+	conn, err := OpenConn(TestHost+":9042", nil, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}

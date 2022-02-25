@@ -4,6 +4,7 @@
 ./bin
 *.exe
 *.exe~
+*.dev
 *.dll
 *.so
 *.dylib
