@@ -248,7 +248,7 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 		if err != nil {
 			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
 			if conn != nil {
-				conn.close()
+				conn.Close()
 			}
 			continue
 		}
@@ -396,8 +396,8 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	return resp.Response, resp.Err
 }
 
-// closes connection and terminates reader and writer go routines.
-func (c *Conn) close() {
+// Close closes connection and terminates reader and writer go routines.
+func (c *Conn) Close() {
 	log.Printf("%s closing", c)
 	_ = c.conn.Close()
 	c.w.requestCh <- closeRequest
