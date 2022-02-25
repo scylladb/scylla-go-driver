@@ -19,7 +19,8 @@ linters-settings:
       - diagnostic
       - performance
       - style
-
+    disabled-checks:
+      - evalOrder
   lll:
     line-length: 180
   nestif:
