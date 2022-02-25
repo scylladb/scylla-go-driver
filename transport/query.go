@@ -1,8 +1,6 @@
 package transport
 
 import (
-	"fmt"
-
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
 	. "scylla-go-driver/frame/response"
@@ -49,9 +47,7 @@ func makeQueryResult(res frame.Response) (QueryResult, error) {
 		}, nil
 	case *VoidResult, *SchemaChangeResult:
 		return QueryResult{}, nil
-	case *Error:
-		return QueryResult{}, fmt.Errorf("make query result: %s", v.Message)
 	default:
-		return QueryResult{}, fmt.Errorf("make query result: invalid result type %T, %+v", v, v)
+		return QueryResult{}, responseAsError(res)
 	}
 }
