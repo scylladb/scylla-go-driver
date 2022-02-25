@@ -45,17 +45,17 @@ func TestParseScyllaSupported(t *testing.T) {
 	testCases := []struct {
 		name     string
 		content  Supported
-		expected frame.ScyllaSupported
+		expected ScyllaSupported
 	}{
 		{
 			name: "Smoke test",
 			content: Supported{frame.StringMultiMap{
-				frame.ScyllaNrShards:          []string{"52213"},
-				frame.ScyllaShardingIgnoreMSB: []string{"22"},
-				frame.ScyllaPartitioner:       []string{"org.apache.cassandra.dht.Murmur3Partitioner"},
-				frame.ScyllaShardingAlgorithm: []string{"biased-token-round-robin"},
+				ScyllaNrShards:          []string{"52213"},
+				ScyllaShardingIgnoreMSB: []string{"22"},
+				ScyllaPartitioner:       []string{"org.apache.cassandra.dht.Murmur3Partitioner"},
+				ScyllaShardingAlgorithm: []string{"biased-token-round-robin"},
 			}},
-			expected: frame.ScyllaSupported{
+			expected: ScyllaSupported{
 				NrShards:          52213,
 				MsbIgnore:         22,
 				Partitioner:       "org.apache.cassandra.dht.Murmur3Partitioner",
@@ -65,15 +65,15 @@ func TestParseScyllaSupported(t *testing.T) {
 		{
 			name: "All options",
 			content: Supported{frame.StringMultiMap{
-				frame.ScyllaShard:             []string{"3"},
-				frame.ScyllaNrShards:          []string{"12"},
-				frame.ScyllaShardingIgnoreMSB: []string{"22"},
-				frame.ScyllaPartitioner:       []string{"org.apache.cassandra.dht.Murmur3Partitioner"},
-				frame.ScyllaShardingAlgorithm: []string{"biased-token-round-robin"},
-				frame.ScyllaShardAwarePort:    []string{"19042"},
-				frame.ScyllaShardAwarePortSSL: []string{"19142"},
+				ScyllaShard:             []string{"3"},
+				ScyllaNrShards:          []string{"12"},
+				ScyllaShardingIgnoreMSB: []string{"22"},
+				ScyllaPartitioner:       []string{"org.apache.cassandra.dht.Murmur3Partitioner"},
+				ScyllaShardingAlgorithm: []string{"biased-token-round-robin"},
+				ScyllaShardAwarePort:    []string{"19042"},
+				ScyllaShardAwarePortSSL: []string{"19142"},
 			}},
-			expected: frame.ScyllaSupported{
+			expected: ScyllaSupported{
 				Shard:             3,
 				NrShards:          12,
 				MsbIgnore:         22,
@@ -88,7 +88,7 @@ func TestParseScyllaSupported(t *testing.T) {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			out := tc.content.ParseScyllaSupported()
+			out := tc.content.ScyllaSupported()
 			if diff := cmp.Diff(*out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
