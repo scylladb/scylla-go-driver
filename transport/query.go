@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"fmt"
+
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
 	. "scylla-go-driver/frame/response"
