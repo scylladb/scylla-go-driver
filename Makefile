@@ -17,13 +17,13 @@ test-no-cache:
 integration-test: RUN=Integration
 integration-test:
 ifeq ($(OS),Linux)
-	go test -v -tags integration -run $(RUN) -race ./transport $(ARGS)
+	go test -v -tags integration -run $(RUN) -race -short ./transport $(ARGS)
 else ifeq ($(OS),Darwin)
 	@CGO_ENABLED=0 GOOS=linux go test -v -tags integration -c -o ./integration-test.dev ./transport
 	@docker run --name "integration-test" \
 		--network scylla_go_driver_public \
 		-v "$(PWD)/integration-test.dev:/usr/bin/integration-test:ro" \
-		-it --read-only --rm ubuntu integration-test -test.v -test.run $(RUN) $(ARGS)
+		-it --read-only --rm ubuntu integration-test -test.v -test.run $(RUN) -test.short $(ARGS)
 else
 	$(error Unsupported OS $(OS))
 endif
