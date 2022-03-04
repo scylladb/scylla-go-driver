@@ -15,6 +15,8 @@ import (
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
 	. "scylla-go-driver/frame/response"
+
+	"go.uber.org/atomic"
 )
 
 // TODO on send and recv i/o error we shall reset the connection
@@ -37,13 +39,20 @@ type request struct {
 
 var _connCloseRequest = request{}
 
+type connMetrics struct {
+	InFlight atomic.Uint32
+	InQueue  atomic.Uint32
+}
+
 type connWriter struct {
 	conn      *bufio.Writer
 	buf       frame.Buffer
 	requestCh chan request
+	metrics   *connMetrics
 }
 
 func (c *connWriter) submit(r request) {
+	c.metrics.InQueue.Inc()
 	c.requestCh <- r
 }
 
@@ -64,12 +73,14 @@ func (c *connWriter) loop() {
 			if r == _connCloseRequest {
 				return
 			}
+			c.metrics.InQueue.Dec()
 
 			if err := c.send(r); err != nil {
 				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
 				// TODO: notify connection owner that connection needs to be replaced.
 			}
 		}
+		c.metrics.InFlight.Add(uint32(size))
 		c.conn.Flush()
 	}
 }
@@ -100,15 +111,15 @@ func (c *connWriter) send(r request) error {
 }
 
 type connReader struct {
-	conn *bufio.Reader
-	buf  frame.Buffer
-	bufw io.Writer
+	conn    *bufio.Reader
+	buf     frame.Buffer
+	bufw    io.Writer
+	metrics *connMetrics
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
 	closed bool
-	// mu guards h, s and closed.
-	mu sync.Mutex
+	mu     sync.Mutex // mu guards h, s and closed
 }
 
 func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
@@ -153,6 +164,8 @@ func (c *connReader) loop() {
 			c.drainHandlers()
 			return
 		}
+
+		c.metrics.InFlight.Dec()
 
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
@@ -225,6 +238,7 @@ type Conn struct {
 	shard   uint16
 	w       connWriter
 	r       connReader
+	metrics *connMetrics
 	onClose func(conn *Conn)
 }
 
@@ -296,16 +310,20 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
+	m := new(connMetrics)
 	c := &Conn{
 		conn: conn,
 		w: connWriter{
 			conn:      bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh: make(chan request, requestChanSize),
+			metrics:   m,
 		},
 		r: connReader{
-			conn: bufio.NewReaderSize(conn, ioBufferSize),
-			h:    make(map[frame.StreamID]responseHandler),
+			conn:    bufio.NewReaderSize(conn, ioBufferSize),
+			metrics: m,
+			h:       make(map[frame.StreamID]responseHandler),
 		},
+		metrics: m,
 	}
 	go c.w.loop()
 	go c.r.loop()
@@ -392,6 +410,10 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	c.r.freeHandler(streamID)
 
 	return resp.Response, resp.Err
+}
+
+func (c *Conn) Waiting() int {
+	return int(c.metrics.InQueue.Load() + c.metrics.InFlight.Load())
 }
 
 func (c *Conn) setOnClose(f func(conn *Conn)) {
