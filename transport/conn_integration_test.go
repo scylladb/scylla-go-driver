@@ -131,6 +131,10 @@ func BenchmarkConnQueryIntegration(b *testing.B) {
 }
 
 func TestCloseHangingIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping in short mode")
+	}
+
 	h := newConnTestHelper(t)
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
