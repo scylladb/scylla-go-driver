@@ -14,7 +14,7 @@ func TestNodeConnPoolIntegration(t *testing.T) {
 	}
 
 	t.Log("Wait for refiller to fill connections to shards")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 
 	t.Log("Check if connections to shards are established")
 	for i, c := range p.AllConns() {
@@ -29,7 +29,7 @@ func TestNodeConnPoolIntegration(t *testing.T) {
 	}
 
 	t.Log("Wait for refiller to fill connections to shards")
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 
 	t.Log("Check if connections have been refilled")
 	for i, c := range p.AllConns() {
@@ -40,7 +40,7 @@ func TestNodeConnPoolIntegration(t *testing.T) {
 
 	t.Log("Close pool")
 	p.Close()
-	time.Sleep(1000 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
 
 	t.Log("Check if connections are closed")
 	for _, c := range p.AllConns() {
