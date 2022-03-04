@@ -13,10 +13,9 @@ const (
 )
 
 type ShardInfo struct {
-	Shard    uint16
-	NrShards uint16
-	// This will be used.
-	// MsbIgnore uint8
+	Shard     uint16
+	NrShards  uint16
+	MsbIgnore uint8
 }
 
 // RandomShardPort returns randomly generated port that can be used

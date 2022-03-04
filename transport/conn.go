@@ -35,7 +35,7 @@ type request struct {
 	ResponseHandler responseHandler
 }
 
-var closeRequest = request{}
+var _connCloseRequest = request{}
 
 type connWriter struct {
 	conn      *bufio.Writer
@@ -61,7 +61,7 @@ func (c *connWriter) loop() {
 
 		for i := 0; i < size; i++ {
 			r := <-c.requestCh
-			if r == closeRequest {
+			if r == _connCloseRequest {
 				return
 			}
 
@@ -221,10 +221,11 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 }
 
 type Conn struct {
-	conn  net.Conn
-	shard uint16
-	w     connWriter
-	r     connReader
+	conn    net.Conn
+	shard   uint16
+	w       connWriter
+	r       connReader
+	onClose func(conn *Conn)
 }
 
 type ConnConfig struct {
@@ -262,9 +263,6 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 //
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
-	// Not sure about local IP address. Empty IP and 172.19.0.1 works fine during tests but localhost does not.
-	// The problem is that when using localhost as IP connections are not mapped for appropriate shards
-	// even when using shard aware policy.
 	localAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(int(localPort)))
 	if err != nil {
 		return nil, fmt.Errorf("resolving local TCP address: %w", err)
@@ -396,15 +394,22 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	return resp.Response, resp.Err
 }
 
+func (c *Conn) setOnClose(f func(conn *Conn)) {
+	c.onClose = f
+}
+
+func (c *Conn) Shard() int {
+	return int(c.shard)
+}
+
 // Close closes connection and terminates reader and writer go routines.
 func (c *Conn) Close() {
 	log.Printf("%s closing", c)
 	_ = c.conn.Close()
-	c.w.requestCh <- closeRequest
-}
-
-func (c *Conn) Shard() uint16 {
-	return c.shard
+	c.w.requestCh <- _connCloseRequest
+	if c.onClose != nil {
+		c.onClose(c)
+	}
 }
 
 func (c *Conn) String() string {
