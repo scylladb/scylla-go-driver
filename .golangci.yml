@@ -62,6 +62,11 @@ linters:
     - wsl
 
 issues:
+  exclude-use-default: false
   exclude:
+    - exported
     - indent-error-flow
     - should not use dot imports
+    - stdmethods
+    - ST1000
+
