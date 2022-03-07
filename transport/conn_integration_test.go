@@ -64,14 +64,14 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 	expected := []frame.Row{
 		{
-			frame.Bytes{0x0, 0x0, 0x0, 0x1},
-			frame.Bytes{'r', 'i', 'c', 'k'},
-			frame.Bytes{'s', 'a', 'n', 'c', 'h', 'e', 'z'},
+			frame.CqlFromInt(1),
+			frame.CqlFromText("rick"),
+			frame.CqlFromText("sanchez"),
 		},
 		{
-			frame.Bytes{0x0, 0x0, 0x0, 0x4},
-			frame.Bytes{'r', 'u', 's', 't'},
-			frame.Bytes{'c', 'o', 'h', 'l', 'e'},
+			frame.CqlFromInt(4),
+			frame.CqlFromText("rust"),
+			frame.CqlFromText("cohle"),
 		},
 	}
 
