@@ -301,7 +301,7 @@ type OptionID Short
 const (
 	CustomID    OptionID = 0x0000
 	ASCIIID     OptionID = 0x0001
-	BigintID    OptionID = 0x0002
+	BigIntID    OptionID = 0x0002
 	BlobID      OptionID = 0x0003
 	BooleanID   OptionID = 0x0004
 	CounterID   OptionID = 0x0005
@@ -317,8 +317,8 @@ const (
 	InetID      OptionID = 0x0010
 	DateID      OptionID = 0x0011
 	TimeID      OptionID = 0x0012
-	SmallintID  OptionID = 0x0013
-	TinyintID   OptionID = 0x0014
+	SmallIntID  OptionID = 0x0013
+	TinyIntID   OptionID = 0x0014
 	ListID      OptionID = 0x0020
 	MapID       OptionID = 0x0021
 	SetID       OptionID = 0x0022
@@ -395,7 +395,7 @@ type ColumnSpec struct {
 	Type     Option
 }
 
-type Row []Bytes
+type Row []CqlValue
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L681-L724
 type PreparedMetadata struct {

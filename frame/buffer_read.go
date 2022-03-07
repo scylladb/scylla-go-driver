@@ -401,7 +401,7 @@ func (b *Buffer) ReadOption() Option {
 		}
 	default:
 		if Debug {
-			if id < ASCIIID || TinyintID < id {
+			if id < ASCIIID || TinyIntID < id {
 				log.Printf("unknown Option ID: %d", id)
 			}
 		}
@@ -409,14 +409,6 @@ func (b *Buffer) ReadOption() Option {
 			ID: id,
 		}
 	}
-}
-
-func (b *Buffer) ReadRow(n Int) Row {
-	r := make([]Bytes, n)
-	for i := range r {
-		r[i] = b.ReadBytes()
-	}
-	return r
 }
 
 func (b *Buffer) ReadColumnSpec(f ResultFlags) ColumnSpec {
