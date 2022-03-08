@@ -5,7 +5,11 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"net"
+	"strings"
 	"time"
+
+	. "scylla-go-driver/frame/response"
 
 	"go.uber.org/atomic"
 )
@@ -127,10 +131,36 @@ func (p *ConnPool) closeAll() {
 }
 
 type PoolRefiller struct {
-	addr   string
-	pool   ConnPool
-	cfg    ConnConfig
-	active int
+	addr           string
+	shardAwarePort string
+	pool           ConnPool
+	cfg            ConnConfig
+	active         int
+}
+
+func (r *PoolRefiller) setShardAwarePort(s *Supported) {
+	if s, ok := s.Options[ScyllaShardAwarePort]; ok {
+		r.shardAwarePort = s[0]
+	}
+}
+
+func trimIPv6Brackets(host string) string {
+	host = strings.TrimPrefix(host, "[")
+	return strings.TrimSuffix(host, "]")
+}
+
+func getShardAwareAddress(addr, port string) string {
+	if port == "" {
+		return addr
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		if strings.Contains(err.Error(), "missing port in address") {
+			return net.JoinHostPort(trimIPv6Brackets(addr), port)
+		}
+		panic(err)
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func (r *PoolRefiller) initConnPool() error {
@@ -145,6 +175,7 @@ func (r *PoolRefiller) initConnPool() error {
 		return fmt.Errorf("supported: %w", err)
 	}
 	ss := s.ScyllaSupported()
+	r.setShardAwarePort(s)
 
 	r.pool = ConnPool{
 		nrShards:     int(ss.NrShards),
@@ -206,7 +237,7 @@ func (r *PoolRefiller) fill() {
 		}
 
 		si.Shard = uint16(i)
-		conn, err := OpenShardConn(r.addr, si, r.cfg)
+		conn, err := OpenShardConn(getShardAwareAddress(r.addr, r.shardAwarePort), si, r.cfg)
 		if err != nil {
 			log.Printf("failed to open shard conn: %s", err)
 			continue
