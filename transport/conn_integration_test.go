@@ -28,6 +28,28 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	c.Close()
 }
 
+func TestConnReceiveErrorHandling(t *testing.T) {
+	h := newConnTestHelper(t)
+
+	_, err := h.conn.conn.Write([]byte("Not a valid response"))
+	if err != nil {
+		t.Fatal("couldn't send message to conn")
+	}
+}
+
+func TestConnSendErrorHandling(t *testing.T) {
+	h := newConnTestHelper(t)
+
+	err := h.conn.conn.Close()
+	if err != nil {
+		t.Fatal("error closing connection")
+	}
+	_, err = h.conn.Supported()
+	if err == nil {
+		t.Fatal("error should have occurred")
+	}
+}
+
 type connTestHelper struct {
 	t    testing.TB
 	conn *Conn

@@ -49,6 +49,7 @@ type connWriter struct {
 	buf       frame.Buffer
 	requestCh chan request
 	metrics   *connMetrics
+	connClose func()
 }
 
 func (c *connWriter) submit(r request) {
@@ -77,7 +78,10 @@ func (c *connWriter) loop() {
 
 			if err := c.send(r); err != nil {
 				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
-				// TODO: notify connection owner that connection needs to be replaced.
+				if c.connClose != nil {
+					c.connClose()
+				}
+				return
 			}
 		}
 		c.metrics.InFlight.Add(uint32(size))
@@ -116,6 +120,7 @@ type connReader struct {
 	bufw        io.Writer
 	metrics     *connMetrics
 	handleEvent func(r response)
+	connClose   func()
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
@@ -171,6 +176,9 @@ func (c *connReader) loop() {
 
 		if resp.Err != nil {
 			c.drainHandlers()
+			if c.connClose != nil {
+				c.connClose()
+			}
 			return
 		}
 
@@ -179,8 +187,10 @@ func (c *connReader) loop() {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			// Connection is corrupted, must be closed.
 			c.drainHandlers()
+			if c.connClose != nil {
+				c.connClose()
+			}
 			return
 		}
 	}
@@ -255,6 +265,7 @@ type Conn struct {
 	r       connReader
 	metrics *connMetrics
 	onClose func(conn *Conn)
+	once    sync.Once
 }
 
 type ConnConfig struct {
@@ -321,34 +332,42 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	return WrapConn(tcpConn)
 }
 
+func (c *Conn) closeOnce() {
+	c.once.Do(c.Close)
+}
+
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
 	m := new(connMetrics)
-	c := &Conn{
+	var c Conn
+	c = Conn{
 		conn: conn,
 		w: connWriter{
 			conn:      bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh: make(chan request, requestChanSize),
 			metrics:   m,
+			connClose: c.closeOnce,
 		},
 		r: connReader{
-			conn:    bufio.NewReaderSize(conn, ioBufferSize),
-			metrics: m,
-			h:       make(map[frame.StreamID]responseHandler),
+			conn:      bufio.NewReaderSize(conn, ioBufferSize),
+			metrics:   m,
+			h:         make(map[frame.StreamID]responseHandler),
+			connClose: c.closeOnce,
 		},
 		metrics: m,
 	}
+
 	go c.w.loop()
 	go c.r.loop()
 
 	if err := c.init(); err != nil {
-		return c, err
+		return &c, err
 	}
 
-	log.Printf("%s connected", c)
+	log.Printf("%s connected", &c)
 
-	return c, nil
+	return &c, nil
 }
 
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
