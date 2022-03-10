@@ -13,6 +13,8 @@ import (
 	"go.uber.org/atomic"
 )
 
+const awaitingChanges = 250 * time.Millisecond
+
 func compareNodes(c *Cluster, addr string, expected *Node) error {
 	m := c.GetPeers()
 	got, ok := m[addr]
@@ -64,7 +66,7 @@ func TestClusterIntegration(t *testing.T) {
 	}
 	expected.SetStatus(statusDown)
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(awaitingChanges)
 	// Checks if TestHost's status was updated.
 	if err = compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
@@ -77,15 +79,15 @@ func TestClusterIntegration(t *testing.T) {
 		},
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(awaitingChanges)
 	// Checks if cluster can handle (fake) topology change.
 	if err = compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
 	}
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(awaitingChanges)
 
 	c.StopCluster()
 
-	time.Sleep(250 * time.Millisecond)
+	time.Sleep(awaitingChanges)
 }
