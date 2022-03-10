@@ -49,6 +49,7 @@ type connWriter struct {
 	buf       frame.Buffer
 	requestCh chan request
 	metrics   *connMetrics
+	reset     func()
 }
 
 func (c *connWriter) submit(r request) {
@@ -62,6 +63,8 @@ func (c *connWriter) loop() {
 	// When requests pile up, allow sending up to 10% in one syscall.
 	var maxCoalescedRequests = requestChanSize / 10
 
+	recentRequests := make([]*request, maxCoalescedRequests)
+
 	for {
 		size := len(c.requestCh)
 		if size > maxCoalescedRequests {
@@ -70,6 +73,7 @@ func (c *connWriter) loop() {
 
 		for i := 0; i < size; i++ {
 			r := <-c.requestCh
+			recentRequests[i] = &r
 			if r == _connCloseRequest {
 				return
 			}
@@ -81,7 +85,16 @@ func (c *connWriter) loop() {
 			}
 		}
 		c.metrics.InFlight.Add(uint32(size))
-		c.conn.Flush()
+
+		if err := c.conn.Flush(); err != nil {
+			for i := 0; i < size; i++ {
+				recentRequests[i].ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
+			}
+			if c.reset != nil {
+				c.reset()
+			}
+			// TODO: else close Conn
+		}
 	}
 }
 
@@ -307,6 +320,12 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	return WrapConn(tcpConn)
 }
 
+func (c *Conn) setWriterReseter() {
+	c.w.reset = func() {
+		c.w.conn.Reset(c.conn)
+	}
+}
+
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
@@ -325,6 +344,7 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 		},
 		metrics: m,
 	}
+	c.setWriterReseter()
 	go c.w.loop()
 	go c.r.loop()
 
@@ -427,7 +447,10 @@ func (c *Conn) Shard() int {
 // Close closes connection and terminates reader and writer go routines.
 func (c *Conn) Close() {
 	log.Printf("%s closing", c)
-	_ = c.conn.Close()
+
+	if err := c.conn.Close(); err != nil {
+		log.Printf("%s failed to close: %s", c, err)
+	}
 	c.w.requestCh <- _connCloseRequest
 	if c.onClose != nil {
 		c.onClose(c)
