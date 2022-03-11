@@ -279,13 +279,7 @@ func (b *Buffer) ReadSchemaChangeTarget() SchemaChangeTarget {
 }
 
 func (b *Buffer) ReadErrorCode() ErrorCode {
-	v := b.ReadInt()
-	if Debug {
-		if _, ok := allErrorCodes[v]; !ok {
-			log.Printf("unknown error code: %d", v)
-		}
-	}
-	return v
+	return b.ReadInt()
 }
 
 func (b *Buffer) ReadConsistency() Consistency {
