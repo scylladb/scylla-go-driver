@@ -86,6 +86,9 @@ const (
 	LOCALONE    Consistency = 0x000A
 )
 
+// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L502
+type ErrorCode = Int
+
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L125-L158
 type HeaderFlags = Byte
 
