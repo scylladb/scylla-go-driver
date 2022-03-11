@@ -20,10 +20,10 @@ type ConnPool struct {
 	connClosedCh chan int // notification channel for when connection is closed
 }
 
-func NewConnPool(addr string, connConfig ConnConfig) (*ConnPool, error) {
+func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
-		addr:   addr,
-		config: connConfig,
+		addr: addr,
+		cfg:  cfg,
 	}
 	if err := r.initConnPool(); err != nil {
 		return nil, err
@@ -101,12 +101,12 @@ func (p *ConnPool) closeAll() {
 type PoolRefiller struct {
 	addr   string
 	pool   ConnPool
-	config ConnConfig
+	cfg    ConnConfig
 	active int
 }
 
 func (r *PoolRefiller) initConnPool() error {
-	conn, err := OpenConn(r.addr, nil, r.config)
+	conn, err := OpenConn(r.addr, nil, r.cfg)
 	if err != nil {
 		return err
 	}
@@ -178,7 +178,7 @@ func (r *PoolRefiller) fill() {
 		}
 
 		si.Shard = uint16(i)
-		conn, err := OpenShardConn(r.addr, si, r.config)
+		conn, err := OpenShardConn(r.addr, si, r.cfg)
 		if err != nil {
 			log.Printf("failed to open shard conn: %s", err)
 			continue
