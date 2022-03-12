@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"go.uber.org/atomic"
@@ -22,8 +23,8 @@ type ConnPool struct {
 
 func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
-		addr: addr,
-		cfg:  cfg,
+		addr:   appendDefaultPort(addr),
+		cfg: cfg,
 	}
 	if err := r.initConnPool(); err != nil {
 		return nil, err
@@ -32,6 +33,12 @@ func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	go r.loop()
 
 	return &r.pool, nil
+}
+
+const defaultPort = 19042 // TODO: change to 9042 after rebasing to main.
+
+func appendDefaultPort(addr string) string {
+	return addr + ":" + strconv.Itoa(defaultPort)
 }
 
 func (p *ConnPool) RandConn() *Conn {

@@ -14,13 +14,13 @@ import (
 const awaitingChanges = 250 * time.Millisecond
 
 func compareNodes(c *Cluster, addr string, expected *Node) error {
-	m := c.GetPeers()
+	m := c.Peers()
 	got, ok := m[addr]
 	switch {
 	case !ok:
 		return fmt.Errorf("couldn't find node: %s in cluster's nodes", addr)
-	case got.status.Load() != expected.status.Load():
-		return fmt.Errorf("got status: %t, expected: %t", got.status.Load(), expected.status.Load())
+	case got.Status() != expected.Status():
+		return fmt.Errorf("got status: %t, expected: %t", got.Status(), expected.Status())
 	case got.addr != expected.addr:
 		return fmt.Errorf("got IP address: %s, expected: %s", got.addr, got.addr)
 	case got.rack != expected.rack:
@@ -50,10 +50,10 @@ func TestClusterIntegration(t *testing.T) {
 		datacenter: "datacenter1",
 		rack:       "rack1",
 	}
-	expected.status.Store(statusUP)
+	expected.setStatus(statusUP)
 
 	// Checks if TestHost is present in cluster with correct attributes.
-	if err = compareNodes(c, TestHost, expected); err != nil {
+	if err := compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -63,11 +63,11 @@ func TestClusterIntegration(t *testing.T) {
 			Address: addr,
 		},
 	}
-	expected.status.Store(statusDown)
+	expected.setStatus(statusDown)
 
 	time.Sleep(awaitingChanges)
 	// Checks if TestHost's status was updated.
-	if err = compareNodes(c, TestHost, expected); err != nil {
+	if err := compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
 	}
 
@@ -80,13 +80,13 @@ func TestClusterIntegration(t *testing.T) {
 
 	time.Sleep(awaitingChanges)
 	// Checks if cluster can handle (fake) topology change.
-	if err = compareNodes(c, TestHost, expected); err != nil {
+	if err := compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	time.Sleep(awaitingChanges)
 
-	c.StopCluster()
+	c.Close()
 
 	time.Sleep(awaitingChanges)
 }

@@ -19,3 +19,11 @@ type Node struct {
 	pool       *ConnPool
 	status     nodeStatus
 }
+
+func (n *Node) Status() bool {
+	return n.status.Load()
+}
+
+func (n *Node) setStatus(v bool) {
+	n.status.Store(v)
+}

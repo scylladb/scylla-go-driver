@@ -303,7 +303,7 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	}
 
 	tcpConn := conn.(*net.TCPConn)
-	if err = tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
+	if err := tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
 		return nil, fmt.Errorf("set TCP no delay option: %w", err)
 	}
 

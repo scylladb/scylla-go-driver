@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strconv"
 	"time"
 
 	"scylla-go-driver/frame"
@@ -44,17 +43,16 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 		return nil, fmt.Errorf("at least one host is required to create cluster")
 	}
 
-	p := atomic.Value{}
-	p.Store(PeerMap{})
 	k := make([]string, len(hosts))
 	copy(k, hosts)
 
 	c := &Cluster{
-		peers:         p,
 		cfg:           cfg,
 		handledEvents: e,
 		knownHosts:    k,
+		refresher:     make(refreshHandler, refreshChanSize),
 	}
+	c.setPeers(PeerMap{})
 
 	if err := c.NewControl(); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -69,26 +67,26 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 
 func (c *Cluster) NewControl() error {
 	log.Printf("open control connection")
-	for _, v := range c.knownHosts {
-		control, err := OpenConn(v, nil, c.cfg)
+	for _, addr := range c.knownHosts {
+		conn, err := OpenConn(addr, nil, c.cfg)
 		if err == nil {
-			if events, err := control.registerEvents(c.handledEvents...); err == nil {
-				c.control = control
+			if events, err := conn.registerEvents(c.handledEvents...); err == nil {
+				c.control = conn
 				c.events = events
 
 				go c.handleEvents()
 				return nil
 			} else {
-				log.Printf("open control connection: node %s failed to register for events: %v", v, err)
+				log.Printf("open control connection: node %s failed to register for events: %v", addr, err)
 			}
 		} else {
-			log.Printf("open control connection: node %s failed to connect: %v", v, err)
+			log.Printf("open control connection: node %s failed to connect: %v", addr, err)
 		}
-		if control != nil {
-			control.Close()
+		if conn != nil {
+			conn.Close()
 		}
 	}
-	return fmt.Errorf("couldn't open control connection to any known host")
+	return fmt.Errorf("couldn't open control connection to any known host: %v", c.knownHosts)
 }
 
 // refreshTopology creates new PeerMap filled with the result of both localQuery and peerQuery.
@@ -101,10 +99,10 @@ func (c *Cluster) refreshTopology() error {
 	}
 	// If node is present in both maps we can update already created node
 	// instead of creating new one from the scratch.
-	old := c.GetPeers()
+	old := c.Peers()
 	m := PeerMap{}
 	for _, v := range rows {
-		addr := net.IP(v[nodeAddr]).String()
+		addr := net.IP(v[nodeAddr]).String() // TODO: add parsing for columns in query result.
 
 		if node, ok := old[addr]; ok {
 			node.tokens = v[nodeTokens]
@@ -116,10 +114,10 @@ func (c *Cluster) refreshTopology() error {
 				rack:       string(v[nodeRack]),
 				tokens:     v[nodeTokens],
 			}
-			if pool, err := NewConnPool(appendDefaultPort(addr), c.cfg); err != nil {
-				n.status.Store(statusDown)
+			if pool, err := NewConnPool(addr, c.cfg); err != nil {
+				n.setStatus(statusDown)
 			} else {
-				n.status.Store(statusUP)
+				n.setStatus(statusUP)
 				n.pool = pool
 			}
 			m[addr] = n
@@ -131,7 +129,7 @@ func (c *Cluster) refreshTopology() error {
 			v.pool.Close()
 		}
 	}
-	c.SetPeers(m)
+	c.setPeers(m)
 	return nil
 }
 
@@ -169,18 +167,12 @@ func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 	return append(peerRes.Rows, localRes.Rows[0]), nil
 }
 
-func (c *Cluster) GetPeers() PeerMap {
+func (c *Cluster) Peers() PeerMap {
 	return c.peers.Load().(PeerMap)
 }
 
-func (c *Cluster) SetPeers(m PeerMap) {
+func (c *Cluster) setPeers(m PeerMap) {
 	c.peers.Store(m)
-}
-
-const defaultPort = 9042
-
-func appendDefaultPort(addr string) string {
-	return addr + ":" + strconv.Itoa(defaultPort)
 }
 
 const eventChanSize = 32
@@ -211,14 +203,14 @@ func (c *Cluster) handleTopologyChange(v *TopologyChange) {
 
 func (c *Cluster) handleStatusChange(v *StatusChange) {
 	log.Printf("handle status change: %+#v", v)
-	m := c.GetPeers()
+	m := c.Peers()
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
 		switch v.Status {
 		case frame.Up:
-			n.status.Store(statusUP)
+			n.setStatus(statusUP)
 		case frame.Down:
-			n.status.Store(statusDown)
+			n.setStatus(statusDown)
 		default:
 			log.Printf("status change not supported: %+#v", v)
 		}
@@ -240,7 +232,6 @@ const (
 
 // loop handles refresh topology requests.
 func (c *Cluster) loop() {
-	c.refresher = make(refreshHandler, refreshChanSize)
 	ticker := time.NewTimer(refreshInterval)
 	for {
 		select {
@@ -265,12 +256,12 @@ func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
 		log.Printf("refresh topology: %s", err.Error())
 		c.control.Close()
-		if err = c.NewControl(); err != nil {
-			c.StopCluster()
+		if err := c.NewControl(); err != nil {
+			c.Close()
 			log.Fatalf("reopen control connection: %v", err)
 		}
-		if err = c.refreshTopology(); err != nil {
-			c.StopCluster()
+		if err := c.refreshTopology(); err != nil {
+			c.Close()
 			log.Fatalf("can't refresh topology after reopening control connetion: %v", err)
 		}
 	}
@@ -280,11 +271,11 @@ func (c *Cluster) StopRefresher() {
 	close(c.refresher)
 }
 
-func (c *Cluster) StopCluster() {
+func (c *Cluster) Close() {
 	c.StopRefresher()
 	// Closing control connection automatically ends handleEvents loop.
 	c.control.Close()
-	m := c.GetPeers()
+	m := c.Peers()
 
 	for _, v := range m {
 		if v.pool != nil {
