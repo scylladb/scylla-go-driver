@@ -40,7 +40,7 @@ type Cluster struct {
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
-	if len(hosts) < 1 {
+	if len(hosts) == 0 {
 		return nil, fmt.Errorf("at least one host is required to create cluster")
 	}
 
@@ -57,10 +57,10 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 	}
 
 	if err := c.NewControl(); err != nil {
-		return nil, fmt.Errorf("creating cluster: %w", err)
+		return nil, fmt.Errorf("create control connection: %w", err)
 	}
 	if err := c.refreshTopology(); err != nil {
-		return nil, fmt.Errorf("creating cluster: %w", err)
+		return nil, fmt.Errorf("refresh topology: %w", err)
 	}
 
 	go c.loop()
@@ -68,7 +68,7 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 }
 
 func (c *Cluster) NewControl() error {
-	log.Printf("opening control connection")
+	log.Printf("open control connection")
 	for _, v := range c.knownHosts {
 		control, err := OpenConn(v, nil, c.cfg)
 		if err == nil {
@@ -78,7 +78,11 @@ func (c *Cluster) NewControl() error {
 
 				go c.handleEvents()
 				return nil
+			} else {
+				log.Printf("open control connection: node %s failed to register for events: %v", v, err)
 			}
+		} else {
+			log.Printf("open control connection: node %s failed to connect: %v", v, err)
 		}
 		if control != nil {
 			control.Close()
@@ -90,10 +94,10 @@ func (c *Cluster) NewControl() error {
 // refreshTopology creates new PeerMap filled with the result of both localQuery and peerQuery.
 // The old map is replaced with the new one atomically to prevent dirty reads.
 func (c *Cluster) refreshTopology() error {
-	log.Printf("refreshing topology")
+	log.Printf("refresh topology")
 	rows, err := c.getAllNodesInfo()
 	if err != nil {
-		return fmt.Errorf("refreh topology: %w", err)
+		return fmt.Errorf("query info about nodes in cluster: %w", err)
 	}
 	// If node is present in both maps we can update already created node
 	// instead of creating new one from the scratch.
@@ -154,12 +158,12 @@ const (
 func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 	peerRes, err := c.control.Query(peerQuery, nil)
 	if err != nil {
-		return nil, fmt.Errorf("discovering peer topology: %w", err)
+		return nil, fmt.Errorf("discover peer topology: %w", err)
 	}
 
 	localRes, err := c.control.Query(localQuery, nil)
 	if err != nil {
-		return nil, fmt.Errorf("discovering local topology: %w", err)
+		return nil, fmt.Errorf("discover local topology: %w", err)
 	}
 
 	return append(peerRes.Rows, localRes.Rows[0]), nil
@@ -201,12 +205,12 @@ func (c *Cluster) handleEvents() {
 }
 
 func (c *Cluster) handleTopologyChange(v *TopologyChange) {
-	log.Printf("handling node: %s topology change to: %s", v.Address.String(), v.Change)
+	log.Printf("handle topology change: %+#v", v)
 	c.RequestRefresh()
 }
 
 func (c *Cluster) handleStatusChange(v *StatusChange) {
-	log.Printf("handling node: %s status change to: %s", v.Address.String(), v.Status)
+	log.Printf("handle status change: %+#v", v)
 	m := c.GetPeers()
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
@@ -216,16 +220,15 @@ func (c *Cluster) handleStatusChange(v *StatusChange) {
 		case frame.Down:
 			n.status.Store(statusDown)
 		default:
-			log.Fatalf("status change not supported: %s", v.Status)
+			log.Printf("status change not supported: %+#v", v)
 		}
 	} else {
-		log.Printf("node which status is being set to %s was not present in known topology: %s", v.Status, addr)
+		log.Printf("unknown node %s recives status change: %+#v", addr, v)
 		c.RequestRefresh()
 	}
 }
 
 // RequestRefresh notifies cluster that it should update topology.
-// TODO: do we need some mechanism for notifying requester that refresh was successful?
 func (c *Cluster) RequestRefresh() {
 	c.refresher <- struct{}{}
 }
@@ -260,15 +263,15 @@ func (c *Cluster) loop() {
 // In case of error tries to reopen control connection and tries again.
 func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
-		log.Printf("failed to refresh topology: %s", err.Error())
+		log.Printf("refresh topology: %s", err.Error())
 		c.control.Close()
 		if err = c.NewControl(); err != nil {
 			c.StopCluster()
-			log.Fatalf("cant't reopen control connection: %v", err)
+			log.Fatalf("reopen control connection: %v", err)
 		}
 		if err = c.refreshTopology(); err != nil {
 			c.StopCluster()
-			log.Fatalf("can't refresh topology even after reopening control connetion: %v", err)
+			log.Fatalf("can't refresh topology after reopening control connetion: %v", err)
 		}
 	}
 }

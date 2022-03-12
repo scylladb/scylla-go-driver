@@ -282,7 +282,7 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
 	localAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(int(localPort)))
 	if err != nil {
-		return nil, fmt.Errorf("resolving local TCP address: %w", err)
+		return nil, fmt.Errorf("resolve local TCP address: %w", err)
 	}
 
 	return OpenConn(addr, localAddr, cfg)
@@ -299,12 +299,12 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	}
 	conn, err := d.Dial("tcp", addr)
 	if err != nil {
-		return nil, fmt.Errorf("dialing TCP address %s: %w", addr, err)
+		return nil, fmt.Errorf("dial TCP address %s: %w", addr, err)
 	}
 
 	tcpConn := conn.(*net.TCPConn)
 	if err = tcpConn.SetNoDelay(cfg.TCPNoDelay); err != nil {
-		return nil, fmt.Errorf("setting TCP no delay option: %w", err)
+		return nil, fmt.Errorf("set TCP no delay option: %w", err)
 	}
 
 	return WrapConn(tcpConn)
@@ -445,7 +445,7 @@ func (c *Conn) registerEvents(e ...frame.EventType) (responseHandler, error) {
 	h := c.r.setEventHandler()
 	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
 	if err != nil {
-		return nil, fmt.Errorf("registering for events: %w", err)
+		return nil, err
 	}
 	if _, ok := res.(*Ready); ok {
 		return h, nil
