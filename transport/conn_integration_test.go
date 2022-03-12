@@ -52,6 +52,11 @@ func (h *connTestHelper) exec(cql string) {
 	}
 }
 
+func cqlText(s string) frame.CqlValue {
+	v, _ := frame.CqlFromText(s)
+	return v
+}
+
 func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
 	defer h.conn.Close()
@@ -64,14 +69,14 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 	expected := []frame.Row{
 		{
-			frame.CqlFromInt(1),
-			frame.CqlFromText("rick"),
-			frame.CqlFromText("sanchez"),
+			frame.CqlFromInt32(1),
+			cqlText("rick"),
+			cqlText("sanchez"),
 		},
 		{
-			frame.CqlFromInt(4),
-			frame.CqlFromText("rust"),
-			frame.CqlFromText("cohle"),
+			frame.CqlFromInt32(4),
+			cqlText("rust"),
+			cqlText("cohle"),
 		},
 	}
 
