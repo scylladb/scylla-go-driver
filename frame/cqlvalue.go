@@ -2,8 +2,10 @@ package frame
 
 import (
 	"fmt"
+	"math"
 	"net"
 	"unicode"
+	"unicode/utf8"
 )
 
 type CqlValue struct {
@@ -49,7 +51,7 @@ func (c CqlValue) AsUUID() ([16]byte, error) {
 	}
 
 	if len(c.Value) != 16 {
-		return [16]byte{}, fmt.Errorf("expected 16 bytes, got %v", len(c.Value))
+		return [16]byte{}, fmt.Errorf("expected 16 bytes, got %d", len(c.Value))
 	}
 
 	var v [16]byte
@@ -63,21 +65,30 @@ func (c CqlValue) AsTimeUUID() ([16]byte, error) {
 	}
 
 	if len(c.Value) != 16 {
-		return [16]byte{}, fmt.Errorf("expected 16 bytes, got %v", len(c.Value))
+		return [16]byte{}, fmt.Errorf("expected 16 bytes, got %d", len(c.Value))
 	}
 
 	var v [16]byte
 	copy(v[:], c.Value)
+	if uuidVersion(v) != 1 {
+		return [16]byte{}, fmt.Errorf("%v is not a version 1 UUID", v)
+	}
+
 	return v, nil
 }
 
-func (c CqlValue) AsInt() (int32, error) {
+func uuidVersion(u [16]byte) int {
+	// See section 4.1.3 of RFC 4122.
+	return int(u[6] & 0xF0 >> 4)
+}
+
+func (c CqlValue) AsInt32() (int32, error) {
 	if c.Type.ID != IntID {
 		return 0, fmt.Errorf("%v is not of Int type", c)
 	}
 
 	if len(c.Value) != 4 {
-		return 0, fmt.Errorf("expected 4 bytes, got %v", len(c.Value))
+		return 0, fmt.Errorf("expected 4 bytes, got %d", len(c.Value))
 	}
 
 	return int32(c.Value[0])<<24 |
@@ -86,37 +97,37 @@ func (c CqlValue) AsInt() (int32, error) {
 		int32(c.Value[3]), nil
 }
 
-func (c CqlValue) AsSmallInt() (int16, error) {
+func (c CqlValue) AsInt16() (int16, error) {
 	if c.Type.ID != SmallIntID {
 		return 0, fmt.Errorf("%v is not of SmallInt type", c)
 	}
 
 	if len(c.Value) != 2 {
-		return 0, fmt.Errorf("expected 2 bytes, got %v", len(c.Value))
+		return 0, fmt.Errorf("expected 2 bytes, got %d", len(c.Value))
 	}
 
 	return int16(c.Value[0])<<8 | int16(c.Value[1]), nil
 }
 
-func (c CqlValue) AsTinyInt() (int8, error) {
+func (c CqlValue) AsInt8() (int8, error) {
 	if c.Type.ID != TinyIntID {
 		return 0, fmt.Errorf("%v is not of TinyInt type", c)
 	}
 
 	if len(c.Value) != 1 {
-		return 0, fmt.Errorf("expected 1 byte, got %v", len(c.Value))
+		return 0, fmt.Errorf("expected 1 byte, got %d", len(c.Value))
 	}
 
 	return int8(c.Value[0]), nil
 }
 
-func (c CqlValue) AsBigInt() (int64, error) {
+func (c CqlValue) AsInt64() (int64, error) {
 	if c.Type.ID != BigIntID {
 		return 0, fmt.Errorf("%v is not of BigInt type", c)
 	}
 
 	if len(c.Value) != 8 {
-		return 0, fmt.Errorf("expected 8 bytes, got %v", len(c.Value))
+		return 0, fmt.Errorf("expected 8 bytes, got %d", len(c.Value))
 	}
 
 	return int64(c.Value[0])<<56 |
@@ -134,10 +145,14 @@ func (c CqlValue) AsText() (string, error) {
 		return "", fmt.Errorf("%v is not of Text/Varchar type", c)
 	}
 
+	if !utf8.Valid(c.Value) {
+		return "", fmt.Errorf("%v contains non-utf8 characters", c)
+	}
+
 	return string(c.Value), nil
 }
 
-func (c CqlValue) AsInet() (net.IP, error) {
+func (c CqlValue) AsIP() (net.IP, error) {
 	if c.Type.ID != InetID {
 		return nil, fmt.Errorf("%v is not of Inet type", c)
 	}
@@ -149,6 +164,53 @@ func (c CqlValue) AsInet() (net.IP, error) {
 	return net.IP(c.Value), nil
 }
 
+func (c CqlValue) AsFloat32() (float32, error) {
+	if c.Type.ID != FloatID {
+		return 0, fmt.Errorf("%v is not of Float type", c)
+	}
+
+	if len(c.Value) != 4 {
+		return 0, fmt.Errorf("expected 4 bytes, got %d", len(c.Value))
+	}
+
+	return math.Float32frombits(uint32(c.Value[0])<<24 |
+		uint32(c.Value[1])<<16 |
+		uint32(c.Value[2])<<8 |
+		uint32(c.Value[3])), nil
+}
+
+func (c CqlValue) AsFloat64() (float64, error) {
+	if c.Type.ID != DoubleID {
+		return 0, fmt.Errorf("%v is not of Double type", c)
+	}
+
+	if len(c.Value) != 8 {
+		return 0, fmt.Errorf("expected 8 bytes, got %d", len(c.Value))
+	}
+
+	return math.Float64frombits(uint64(c.Value[0])<<56 |
+		uint64(c.Value[1])<<48 |
+		uint64(c.Value[2])<<40 |
+		uint64(c.Value[3])<<32 |
+		uint64(c.Value[4])<<24 |
+		uint64(c.Value[5])<<16 |
+		uint64(c.Value[6])<<8 |
+		uint64(c.Value[7])), nil
+}
+
+func CqlFromASCII(s string) (CqlValue, error) {
+	for _, v := range s {
+		if v > unicode.MaxASCII {
+			return CqlValue{}, fmt.Errorf("string contains non-ascii characters")
+		}
+	}
+
+	return CqlValue{
+		Type:  &Option{ID: ASCIIID},
+		Value: Bytes(s),
+	}, nil
+}
+
 func CqlFromBlob(b []byte) CqlValue {
 	return CqlValue{
 		Type:  &Option{ID: BlobID},
@@ -156,19 +218,134 @@ func CqlFromBlob(b []byte) CqlValue {
 	}
 }
 
-func CqlFromInt(v int32) CqlValue {
+func CqlFromBoolean(b bool) CqlValue {
+	v := CqlValue{
+		Type: &Option{ID: BooleanID},
+	}
+
+	if b {
+		v.Value = []byte{1}
+	} else {
+		v.Value = []byte{0}
+	}
+	return v
+}
+
+func CqlFromInt64(v int64) CqlValue {
 	return CqlValue{
-		Type: &Option{ID: IntID},
-		Value: []byte{byte(v >> 24),
+		Type: &Option{ID: BigIntID},
+		Value: Bytes{byte(v >> 56),
+			byte(v >> 48),
+			byte(v >> 40),
+			byte(v >> 32),
+			byte(v >> 24),
 			byte(v >> 16),
 			byte(v >> 8),
 			byte(v)},
 	}
 }
 
-func CqlFromText(s string) CqlValue {
+func CqlFromInt32(v int32) CqlValue {
+	return CqlValue{
+		Type: &Option{ID: IntID},
+		Value: Bytes{byte(v >> 24),
+			byte(v >> 16),
+			byte(v >> 8),
+			byte(v)},
+	}
+}
+
+func CqlFromInt16(v int16) CqlValue {
+	return CqlValue{
+		Type: &Option{ID: SmallIntID},
+		Value: Bytes{
+			byte(v >> 8),
+			byte(v)},
+	}
+}
+
+func CqlFromInt8(v int8) CqlValue {
+	return CqlValue{
+		Type:  &Option{ID: TinyIntID},
+		Value: Bytes{byte(v)},
+	}
+}
+
+func CqlFromText(s string) (CqlValue, error) {
+	if !utf8.ValidString(s) {
+		return CqlValue{}, fmt.Errorf("%s contains non-utf8 characters", s)
+	}
+
 	return CqlValue{
 		Type:  &Option{ID: VarcharID},
-		Value: []byte(s),
+		Value: Bytes(s),
+	}, nil
+}
+
+func CqlFromUUID(b [16]byte) CqlValue {
+	c := CqlValue{
+		Type:  &Option{ID: UUIDID},
+		Value: make(Bytes, 16),
 	}
+	copy(c.Value, b[:])
+	return c
+}
+
+func CqlFromTimeUUID(b [16]byte) (CqlValue, error) {
+	// See: https://github.com/apache/cassandra/blob/7b91e4cc18e77fa5862864fcc1150fd1eb86a01a/doc/native_protocol_v4.spec#L954
+	if uuidVersion(b) != 1 {
+		return CqlValue{}, fmt.Errorf("%v is not a version 1 uuid", b)
+	}
+
+	c := CqlValue{
+		Type:  &Option{ID: TimeUUIDID},
+		Value: make(Bytes, 16),
+	}
+	copy(c.Value, b[:])
+	return c, nil
+}
+
+func CqlFromIP(ip net.IP) (CqlValue, error) {
+	if len(ip) != 4 || len(ip) != 16 {
+		return CqlValue{}, fmt.Errorf("invalid ip address")
+	}
+
+	c := CqlValue{
+		Type:  &Option{ID: InetID},
+		Value: make(Bytes, len(ip)),
+	}
+	copy(c.Value, ip)
+	return c, nil
+}
+
+func CqlFromFloat32(v float32) CqlValue {
+	c := CqlValue{
+		Type: &Option{ID: FloatID},
+	}
+	bits := math.Float32bits(v)
+	c.Value = Bytes{
+		byte(bits >> 24),
+		byte(bits >> 16),
+		byte(bits >> 8),
+		byte(bits),
+	}
+	return c
+}
+
+func CqlFromFloat64(v float64) CqlValue {
+	c := CqlValue{
+		Type: &Option{ID: DoubleID},
+	}
+	bits := math.Float64bits(v)
+	c.Value = Bytes{
+		byte(bits >> 56),
+		byte(bits >> 48),
+		byte(bits >> 40),
+		byte(bits >> 32),
+		byte(bits >> 24),
+		byte(bits >> 16),
+		byte(bits >> 8),
+		byte(bits),
+	}
+	return c
 }
