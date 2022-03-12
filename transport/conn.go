@@ -441,26 +441,24 @@ func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
 }
 
-func (c *Conn) registerEvents(e []frame.EventType) (eventHandler, error) {
+func (c *Conn) registerEvents(e ...frame.EventType) (responseHandler, error) {
 	h := c.r.setEventHandler()
-	req := &Register{EventTypes: e}
-
-	res, err := c.sendRequest(req, false, false)
+	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
 	if err != nil {
 		return nil, fmt.Errorf("registering for events: %w", err)
 	}
 	if _, ok := res.(*Ready); ok {
 		return h, nil
+	} else {
+		return nil, responseAsError(res)
 	}
-
-	return nil, fmt.Errorf("invalid response for register request")
 }
 
-func (c *connReader) setEventHandler() eventHandler {
+func (c *connReader) setEventHandler() responseHandler {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	h := make(eventHandler, eventChanSize)
+	h := make(responseHandler, eventChanSize)
 	c.h[eventStreamID] = h
 	return h
 }

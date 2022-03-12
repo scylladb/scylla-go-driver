@@ -16,7 +16,6 @@ import (
 type (
 	PeerMap = map[string]*Node
 
-	eventHandler   = responseHandler
 	refreshHandler chan struct{}
 )
 
@@ -24,7 +23,7 @@ type Cluster struct {
 	peers         atomic.Value // PeerMap
 	control       *Conn
 	cfg           ConnConfig
-	events        eventHandler
+	events        responseHandler
 	handledEvents []frame.EventType // This will probably be moved to config.
 	knownHosts    []string
 	refresher     refreshHandler
@@ -73,7 +72,7 @@ func (c *Cluster) NewControl() error {
 	for _, v := range c.knownHosts {
 		control, err := OpenConn(v, nil, c.cfg)
 		if err == nil {
-			if events, err := control.registerEvents(c.handledEvents); err == nil {
+			if events, err := control.registerEvents(c.handledEvents...); err == nil {
 				c.control = control
 				c.events = events
 
