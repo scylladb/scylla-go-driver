@@ -83,7 +83,7 @@ func ParseEvent(b *frame.Buffer) frame.Response {
 	case "SCHEMA_CHANGE":
 		return ParseSchemaChange(b)
 	default:
-		log.Fatalf("event type not supported: %s", s)
+		log.Printf("event type not supported: %s", s)
 		return nil
 	}
 }

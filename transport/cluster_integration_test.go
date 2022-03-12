@@ -9,8 +9,6 @@ import (
 
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/response"
-
-	"go.uber.org/atomic"
 )
 
 const awaitingChanges = 250 * time.Millisecond
@@ -21,14 +19,14 @@ func compareNodes(c *Cluster, addr string, expected *Node) error {
 	switch {
 	case !ok:
 		return fmt.Errorf("couldn't find node: %s in cluster's nodes", addr)
-	case got.GetStatus() != expected.GetStatus():
-		return fmt.Errorf("got status: %t, expected: %t", got.GetStatus(), expected.GetStatus())
-	case got.Addr != expected.Addr:
-		return fmt.Errorf("got IP address: %s, expected: %s", got.Addr, got.Addr)
-	case got.Rack != expected.Rack:
-		return fmt.Errorf("got rack name: %s, expected: %s", got.Rack, expected.Rack)
-	case got.Datacenter != expected.Datacenter:
-		return fmt.Errorf("got DC name: %s, expected: %s", got.Datacenter, expected.Datacenter)
+	case got.status.Load() != expected.status.Load():
+		return fmt.Errorf("got status: %t, expected: %t", got.status.Load(), expected.status.Load())
+	case got.addr != expected.addr:
+		return fmt.Errorf("got IP address: %s, expected: %s", got.addr, got.addr)
+	case got.rack != expected.rack:
+		return fmt.Errorf("got rack name: %s, expected: %s", got.rack, expected.rack)
+	case got.datacenter != expected.datacenter:
+		return fmt.Errorf("got DC name: %s, expected: %s", got.datacenter, expected.datacenter)
 	default:
 		return nil
 	}
@@ -48,11 +46,12 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	expected := &Node{
-		Addr:       TestHost,
-		Datacenter: "datacenter1",
-		Rack:       "rack1",
-		Status:     atomic.NewBool(statusUP),
+		addr:       TestHost,
+		datacenter: "datacenter1",
+		rack:       "rack1",
 	}
+	expected.status.Store(statusUP)
+
 	// Checks if TestHost is present in cluster with correct attributes.
 	if err = compareNodes(c, TestHost, expected); err != nil {
 		t.Fatalf(err.Error())
@@ -64,7 +63,7 @@ func TestClusterIntegration(t *testing.T) {
 			Address: addr,
 		},
 	}
-	expected.SetStatus(statusDown)
+	expected.status.Store(statusDown)
 
 	time.Sleep(awaitingChanges)
 	// Checks if TestHost's status was updated.

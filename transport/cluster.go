@@ -13,18 +13,19 @@ import (
 	"go.uber.org/atomic"
 )
 
-type PeerMap = map[string]*Node
+type (
+	PeerMap = map[string]*Node
 
-type eventHandler = responseHandler
-
-type refreshHandler chan struct{}
+	eventHandler   = responseHandler
+	refreshHandler chan struct{}
+)
 
 type Cluster struct {
 	peers         atomic.Value // PeerMap
 	control       *Conn
 	cfg           ConnConfig
 	events        eventHandler
-	handledEvents []frame.EventType
+	handledEvents []frame.EventType // This will probably be moved to config.
 	knownHosts    []string
 	refresher     refreshHandler
 
@@ -103,20 +104,20 @@ func (c *Cluster) refreshTopology() error {
 		addr := net.IP(v[nodeAddr]).String()
 
 		if node, ok := old[addr]; ok {
-			node.Tokens = v[nodeTokens]
+			node.tokens = v[nodeTokens]
 			m[addr] = node
 		} else {
 			n := &Node{
-				Addr:       addr,
-				Datacenter: string(v[nodeDC]),
-				Rack:       string(v[nodeRack]),
-				Tokens:     v[nodeTokens],
+				addr:       addr,
+				datacenter: string(v[nodeDC]),
+				rack:       string(v[nodeRack]),
+				tokens:     v[nodeTokens],
 			}
 			if pool, err := NewConnPool(appendDefaultPort(addr), c.cfg); err != nil {
-				n.Status = atomic.NewBool(statusDown)
+				n.status.Store(statusDown)
 			} else {
-				n.Status = atomic.NewBool(statusUP)
-				n.Pool = pool
+				n.status.Store(statusUP)
+				n.pool = pool
 			}
 			m[addr] = n
 		}
@@ -124,7 +125,7 @@ func (c *Cluster) refreshTopology() error {
 
 	for k, v := range old {
 		if _, ok := m[k]; !ok {
-			v.Pool.Close()
+			v.pool.Close()
 		}
 	}
 	c.SetPeers(m)
@@ -212,9 +213,9 @@ func (c *Cluster) handleStatusChange(v *StatusChange) {
 	if n, ok := m[addr]; ok {
 		switch v.Status {
 		case frame.Up:
-			n.SetStatus(statusUP)
+			n.status.Store(statusUP)
 		case frame.Down:
-			n.SetStatus(statusDown)
+			n.status.Store(statusDown)
 		default:
 			log.Fatalf("status change not supported: %s", v.Status)
 		}
@@ -228,10 +229,6 @@ func (c *Cluster) handleStatusChange(v *StatusChange) {
 // TODO: do we need some mechanism for notifying requester that refresh was successful?
 func (c *Cluster) RequestRefresh() {
 	c.refresher <- struct{}{}
-}
-
-func (c *Cluster) StopEventHandling() {
-	close(c.events)
 }
 
 const (
@@ -288,8 +285,8 @@ func (c *Cluster) StopCluster() {
 	m := c.GetPeers()
 
 	for _, v := range m {
-		if v.Pool != nil {
-			v.Pool.Close()
+		if v.pool != nil {
+			v.pool.Close()
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package response
 
 import (
+	"log"
 	"scylla-go-driver/frame"
 )
 
@@ -96,6 +97,7 @@ func ParseResult(b *frame.Buffer) frame.Response {
 	case SchemaChangeKind:
 		return ParseSchemaChangeResult(b)
 	default:
+		log.Printf("result kind not supported: %d", resultKind)
 		return nil
 	}
 }

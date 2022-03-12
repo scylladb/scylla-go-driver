@@ -4,7 +4,7 @@ import (
 	"go.uber.org/atomic"
 )
 
-type nodeStatus = *atomic.Bool
+type nodeStatus = atomic.Bool
 
 const (
 	statusDown = false
@@ -12,18 +12,10 @@ const (
 )
 
 type Node struct {
-	Addr       string
-	Datacenter string
-	Rack       string
-	Tokens     []byte // It should be []Token, but we don't have parsing for that yet.
-	Pool       *ConnPool
-	Status     nodeStatus
-}
-
-func (n *Node) SetStatus(status bool) {
-	n.Status.Store(status)
-}
-
-func (n *Node) GetStatus() bool {
-	return n.Status.Load()
+	addr       string
+	datacenter string
+	rack       string
+	tokens     []byte // TODO: change it to []Token (implement parsing for Tokens).
+	pool       *ConnPool
+	status     nodeStatus
 }

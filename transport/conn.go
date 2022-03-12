@@ -139,15 +139,6 @@ func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	return streamID, err
 }
 
-func (c *connReader) setEventHandler() eventHandler {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	h := make(eventHandler, eventChanSize)
-	c.h[eventStreamID] = h
-	return h
-}
-
 func (c *connReader) freeHandler(streamID frame.StreamID) {
 	c.mu.Lock()
 	c.s.Free(streamID)
@@ -168,8 +159,10 @@ func (c *connReader) loop() {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
-
-		if resp.Err != nil {
+		// When we can encounter incorrect data while parsing response
+		// (for example unsupported event type), we set response to nil.
+		// We need to check for that.
+		if resp.Response == nil || resp.Err != nil {
 			c.drainHandlers()
 			return
 		}
@@ -461,4 +454,13 @@ func (c *Conn) registerEvents(e []frame.EventType) (eventHandler, error) {
 	}
 
 	return nil, fmt.Errorf("invalid response for register request")
+}
+
+func (c *connReader) setEventHandler() eventHandler {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	h := make(eventHandler, eventChanSize)
+	c.h[eventStreamID] = h
+	return h
 }
