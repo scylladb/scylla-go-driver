@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"math/rand"
 	"strconv"
 	"time"
 
@@ -17,7 +16,6 @@ type ConnPool struct {
 	nrShards     int
 	msbIgnore    uint8
 	conns        []atomic.Value
-	idx          atomic.Uint64
 	connClosedCh chan int // notification channel for when connection is closed
 }
 
@@ -41,30 +39,53 @@ func appendDefaultPort(addr string) string {
 	return addr + ":" + strconv.Itoa(defaultPort)
 }
 
-func (p *ConnPool) RandConn() *Conn {
-	conn := p.loadConn(rand.Intn(p.nrShards))
-	if conn != nil {
-		return conn
-	}
-	return p.NextConn()
-}
-
-func (p *ConnPool) NextConn() *Conn {
-	idx := p.idx.Add(1)
-	for i := 0; i < p.nrShards; i++ {
-		if conn := p.loadConn(int((idx + uint64(i)) % uint64(p.nrShards))); conn != nil {
-			return conn
-		}
-	}
-	return nil
-}
-
 func (p *ConnPool) Conn(token Token) *Conn {
 	idx := p.shardOf(token)
 	if conn := p.loadConn(idx); conn != nil {
-		return conn
+		return p.maybeReplaceWithLessBusyConnection(conn)
 	}
-	return p.RandConn()
+	return p.LeastBusyConn()
+}
+
+const (
+	loadDiffThreshold  = 0.8
+	heavyLoadThreshold = 0.5
+)
+
+func (p *ConnPool) maybeReplaceWithLessBusyConnection(c *Conn) *Conn {
+	if !c.isHeavyLoaded() {
+		return c
+	}
+	leastBusy := p.LeastBusyConn()
+	if leastBusy == nil || !c.moreLoadedThan(leastBusy) {
+		return c
+	}
+	return leastBusy
+}
+
+func (c *Conn) isHeavyLoaded() bool {
+	return int(float64(c.Waiting())/heavyLoadThreshold) > maxStreamID
+}
+
+func (c *Conn) moreLoadedThan(leastBusy *Conn) bool {
+	return int(float64(c.Waiting())*loadDiffThreshold) > leastBusy.Waiting()
+}
+
+func (p *ConnPool) LeastBusyConn() *Conn {
+	var (
+		leastBusyConn *Conn
+		minBusy       = maxStreamID
+	)
+
+	for i := range p.conns {
+		if conn := p.loadConn(i); conn != nil {
+			if waiting := conn.Waiting(); waiting < minBusy {
+				leastBusyConn = conn
+				minBusy = waiting
+			}
+		}
+	}
+	return leastBusyConn
 }
 
 func (p *ConnPool) shardOf(token Token) int {
