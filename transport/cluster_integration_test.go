@@ -45,6 +45,9 @@ func TestClusterIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Checks cluster behavior after receiving event with error.
+	c.events <- response{Err: fmt.Errorf("fake error")}
+
 	expected := &Node{
 		addr:       TestHost,
 		datacenter: "datacenter1",
@@ -85,8 +88,6 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	time.Sleep(awaitingChanges)
-
 	c.Close()
-
 	time.Sleep(awaitingChanges)
 }

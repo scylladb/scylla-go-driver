@@ -116,29 +116,29 @@ func (c *Cluster) refreshTopology() error {
 	m := PeerMap{}
 	for _, v := range rows {
 		addr := net.IP(v[nodeAddr]).String() // TODO: add parsing for columns in query result.
+		n := &Node{
+			addr:       addr,
+			datacenter: string(v[nodeDC]),
+			rack:       string(v[nodeRack]),
+			tokens:     v[nodeTokens],
+		}
 
 		if node, ok := old[addr]; ok {
-			node.tokens = v[nodeTokens]
-			m[addr] = node
+			n.pool = node.pool
+			n.setStatus(node.Status())
 		} else {
-			n := &Node{
-				addr:       addr,
-				datacenter: string(v[nodeDC]),
-				rack:       string(v[nodeRack]),
-				tokens:     v[nodeTokens],
-			}
 			if pool, err := NewConnPool(addr, c.cfg); err != nil {
 				n.setStatus(statusDown)
 			} else {
 				n.setStatus(statusUP)
 				n.pool = pool
 			}
-			m[addr] = n
 		}
+		m[addr] = n
 	}
 
 	for k, v := range old {
-		if _, ok := m[k]; !ok {
+		if _, ok := m[k]; v.pool != nil && !ok {
 			v.pool.Close()
 		}
 	}
@@ -192,14 +192,13 @@ func (c *Cluster) handleEvents() {
 	for {
 		res := <-c.events
 		if res.Err == closeCluster {
+			// We close channel here since it's the only place where we are sending messages on it.
+			close(c.refresher)
 			return
 		}
 		if res.Err != nil {
-			// After encountering error we try to reopen control connection.
-			if err := c.NewControl(); err != nil {
-				log.Fatalf("can't reopen control connection after error: %v", err)
-			}
-			return
+			log.Printf("received event response with error: %v", res.Err)
+			continue
 		}
 
 		switch v := res.Response.(type) {
@@ -272,6 +271,7 @@ func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
 		log.Printf("refresh topology: %s", err.Error())
 		c.control.Close()
+		c.control = nil
 		if err := c.NewControl(); err != nil {
 			c.Close()
 			log.Fatalf("reopen control connection: %v", err)
@@ -286,8 +286,9 @@ func (c *Cluster) tryRefresh() {
 var closeCluster = fmt.Errorf("close cluster")
 
 func (c *Cluster) Close() {
-	close(c.refresher)
-	c.control.Close()
+	if c.control != nil {
+		c.control.Close()
+	}
 	c.events <- response{Err: closeCluster}
 	m := c.Peers()
 
