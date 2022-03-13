@@ -271,7 +271,6 @@ func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
 		log.Printf("refresh topology: %s", err.Error())
 		c.control.Close()
-		c.control = nil
 		if err := c.NewControl(); err != nil {
 			c.Close()
 			log.Fatalf("reopen control connection: %v", err)
@@ -286,9 +285,7 @@ func (c *Cluster) tryRefresh() {
 var closeCluster = fmt.Errorf("close cluster")
 
 func (c *Cluster) Close() {
-	if c.control != nil {
-		c.control.Close()
-	}
+	c.control.Close()
 	c.events <- response{Err: closeCluster}
 	m := c.Peers()
 
