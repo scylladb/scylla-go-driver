@@ -37,6 +37,11 @@ type Cluster struct {
 // 	rackCnt uint // Type?
 // }
 
+const (
+	eventChanSize   = 32
+	refreshChanSize = 32
+)
+
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
 	if len(hosts) == 0 {
@@ -48,6 +53,7 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 
 	c := &Cluster{
 		cfg:           cfg,
+		events:        make(responseHandler, eventChanSize),
 		handledEvents: e,
 		knownHosts:    k,
 		refresher:     make(refreshHandler, refreshChanSize),
@@ -70,10 +76,16 @@ func (c *Cluster) NewControl() error {
 	for _, addr := range c.knownHosts {
 		conn, err := OpenConn(addr, nil, c.cfg)
 		if err == nil {
-			if events, err := conn.registerEvents(c.handledEvents...); err == nil {
-				c.control = conn
-				c.events = events
+			h := func(r response) {
+				select {
+				case c.events <- r:
+				default:
+					log.Printf("event dropped due to full event channel: %#+v", r)
+				}
+			}
 
+			if err := conn.register(h, c.handledEvents...); err == nil {
+				c.control = conn
 				go c.handleEvents()
 				return nil
 			} else {
@@ -86,6 +98,7 @@ func (c *Cluster) NewControl() error {
 			conn.Close()
 		}
 	}
+	// TODO: should NewControl just log.Fatalf instead of returning an error?
 	return fmt.Errorf("couldn't open control connection to any known host: %v", c.knownHosts)
 }
 
@@ -175,14 +188,20 @@ func (c *Cluster) setPeers(m PeerMap) {
 	c.peers.Store(m)
 }
 
-const eventChanSize = 32
-
 func (c *Cluster) handleEvents() {
 	for {
 		res := <-c.events
-		if res.Err != nil {
+		if res.Err == closeCluster {
 			return
 		}
+		if res.Err != nil {
+			// After encountering error we try to reopen control connection.
+			if err := c.NewControl(); err != nil {
+				log.Fatalf("can't reopen control connection after error: %v", err)
+			}
+			return
+		}
+
 		switch v := res.Response.(type) {
 		case *TopologyChange:
 			c.handleTopologyChange(v)
@@ -225,10 +244,7 @@ func (c *Cluster) RequestRefresh() {
 	c.refresher <- struct{}{}
 }
 
-const (
-	refreshChanSize = 32
-	refreshInterval = 60 * time.Second
-)
+const refreshInterval = 60 * time.Second
 
 // loop handles refresh topology requests.
 func (c *Cluster) loop() {
@@ -267,14 +283,12 @@ func (c *Cluster) tryRefresh() {
 	}
 }
 
-func (c *Cluster) StopRefresher() {
-	close(c.refresher)
-}
+var closeCluster = fmt.Errorf("close cluster")
 
 func (c *Cluster) Close() {
-	c.StopRefresher()
-	// Closing control connection automatically ends handleEvents loop.
+	close(c.refresher)
 	c.control.Close()
+	c.events <- response{Err: closeCluster}
 	m := c.Peers()
 
 	for _, v := range m {

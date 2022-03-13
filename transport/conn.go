@@ -111,10 +111,11 @@ func (c *connWriter) send(r request) error {
 }
 
 type connReader struct {
-	conn    *bufio.Reader
-	buf     frame.Buffer
-	bufw    io.Writer
-	metrics *connMetrics
+	conn        *bufio.Reader
+	buf         frame.Buffer
+	bufw        io.Writer
+	metrics     *connMetrics
+	handleEvent func(r response)
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
@@ -159,10 +160,16 @@ func (c *connReader) loop() {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
-		// When we can encounter incorrect data while parsing response
-		// (for example unsupported event type), we set response to nil.
-		// We need to check for that.
-		if resp.Response == nil || resp.Err != nil {
+		if resp.StreamID == eventStreamID {
+			if c.handleEvent != nil {
+				c.handleEvent(resp)
+			} else {
+				log.Printf("unregistered connection received event: %#+v", resp)
+			}
+			continue
+		}
+
+		if resp.Err != nil {
 			c.drainHandlers()
 			return
 		}
@@ -210,6 +217,10 @@ func (c *connReader) recv() response {
 		return r
 	}
 	r.Response = c.parse(r.Header.OpCode)
+	if r.Response == nil {
+		r.Err = fmt.Errorf("response type not supported")
+		return r
+	}
 	if err := c.buf.Error(); err != nil {
 		r.Err = fmt.Errorf("parse body: %w", err)
 		return r
@@ -441,24 +452,14 @@ func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
 }
 
-func (c *Conn) registerEvents(e ...frame.EventType) (responseHandler, error) {
-	h := c.r.setEventHandler()
+func (c *Conn) register(h func(r response), e ...frame.EventType) error {
+	c.r.handleEvent = h
 	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if _, ok := res.(*Ready); ok {
-		return h, nil
-	} else {
-		return nil, responseAsError(res)
+		return nil
 	}
-}
-
-func (c *connReader) setEventHandler() responseHandler {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	h := make(responseHandler, eventChanSize)
-	c.h[eventStreamID] = h
-	return h
+	return responseAsError(res)
 }
