@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -191,7 +192,7 @@ func (c *Cluster) setPeers(m PeerMap) {
 func (c *Cluster) handleEvents() {
 	for {
 		res := <-c.events
-		if res.Err == closeCluster {
+		if errors.Is(res.Err, closeCluster) {
 			// We close channel here since it's the only place where we are sending messages on it.
 			close(c.refresher)
 			return

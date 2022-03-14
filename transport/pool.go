@@ -23,8 +23,8 @@ type ConnPool struct {
 
 func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
-		addr:   appendDefaultPort(addr),
-		cfg: cfg,
+		addr: appendDefaultPort(addr),
+		cfg:  cfg,
 	}
 	if err := r.initConnPool(); err != nil {
 		return nil, err
