@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"unicode"
 
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/request"
@@ -266,6 +267,7 @@ type Conn struct {
 }
 
 type ConnConfig struct {
+	Keyspace           string
 	TCPNoDelay         bool
 	Timeout            time.Duration
 	DefaultConsistency frame.Consistency
@@ -327,12 +329,12 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 		return nil, fmt.Errorf("set TCP no delay option: %w", err)
 	}
 
-	return WrapConn(tcpConn)
+	return WrapConn(tcpConn, cfg)
 }
 
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
-func WrapConn(conn net.Conn) (*Conn, error) {
+func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 	m := new(connMetrics)
 
 	c := new(Conn)
@@ -360,9 +362,40 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 		return c, err
 	}
 
+	if cfg.Keyspace != "" {
+		if err := c.UseKeyspace(cfg.Keyspace); err != nil {
+			return c, fmt.Errorf("use keyspace %w", err)
+		}
+	}
+
 	log.Printf("%s connected", c)
 
 	return c, nil
+}
+
+func (cfg *ConnConfig) validate() error {
+	if cfg.Keyspace != "" {
+		if err := validateKeyspace(cfg.Keyspace); err != nil {
+			return err
+		}
+	}
+	if cfg.DefaultConsistency < frame.ANY || cfg.DefaultConsistency > frame.LOCALONE {
+		return fmt.Errorf("unknown consistency: %v", cfg.DefaultConsistency)
+	}
+	return nil
+}
+
+func validateKeyspace(keyspace string) error {
+	if keyspace == "" || len(keyspace) > 48 {
+		return fmt.Errorf("keyspace: invalid length")
+	}
+
+	for _, c := range keyspace {
+		if !(unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_') {
+			return fmt.Errorf("keyspace: illegal characters present")
+		}
+	}
+	return nil
 }
 
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
@@ -399,6 +432,11 @@ func (c *Conn) Startup(options frame.StartupOptions) error {
 		return nil
 	}
 	return responseAsError(res)
+}
+
+func (c *Conn) UseKeyspace(ks string) error {
+	_, err := c.Query(newStatementFromCQL(fmt.Sprintf("USE %q", ks)), nil)
+	return err
 }
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {

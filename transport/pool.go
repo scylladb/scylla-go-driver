@@ -120,8 +120,15 @@ type PoolRefiller struct {
 }
 
 func (r *PoolRefiller) init(addr string) error {
+	if err := r.cfg.validate(); err != nil {
+		return fmt.Errorf("config validate :%w", err)
+	}
+
 	conn, err := OpenConn(withDefaultPort(addr), nil, r.cfg)
 	if err != nil {
+		if conn != nil {
+			conn.Close()
+		}
 		return err
 	}
 
@@ -202,6 +209,9 @@ func (r *PoolRefiller) fill() {
 		conn, err := OpenShardConn(r.addr, si, r.cfg)
 		if err != nil {
 			log.Printf("failed to open shard conn: %s", err)
+			if conn != nil {
+				conn.Close()
+			}
 			continue
 		}
 		if conn.Shard() != i {

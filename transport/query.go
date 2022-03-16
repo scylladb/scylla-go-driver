@@ -29,6 +29,13 @@ func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
 	}
 }
 
+func newStatementFromCQL(cql string) Statement {
+	return Statement{
+		Content:     cql,
+		Consistency: frame.ONE,
+	}
+}
+
 type QueryResult struct {
 	Rows        []frame.Row
 	Warnings    []string
@@ -45,7 +52,7 @@ func makeQueryResult(res frame.Response) (QueryResult, error) {
 			PagingState: v.Metadata.PagingState,
 			ColSpec:     v.Metadata.Columns,
 		}, nil
-	case *VoidResult, *SchemaChangeResult:
+	case *VoidResult, *SchemaChangeResult, *SetKeyspaceResult:
 		return QueryResult{}, nil
 	default:
 		return QueryResult{}, responseAsError(res)
