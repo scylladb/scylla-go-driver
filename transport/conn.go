@@ -271,6 +271,7 @@ type ConnConfig struct {
 	TCPNoDelay         bool
 	Timeout            time.Duration
 	DefaultConsistency frame.Consistency
+	Keyspace           string
 }
 
 const (

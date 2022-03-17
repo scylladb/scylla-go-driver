@@ -78,6 +78,7 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
 	h.setupMassiveUsersTable()
 	defer h.close()
+	defer h.exec("DROP KEYSPACE mykeyspace")
 
 	const n = maxStreamID
 
@@ -143,6 +144,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 			}
 			// Shut the connection down in the middle of querying
 			if id == n/2 {
+				h.exec("DROP KEYSPACE mykeyspace")
 				h.conn.Close()
 			}
 		}(i)
