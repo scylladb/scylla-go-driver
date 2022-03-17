@@ -1,8 +1,7 @@
 package transport
 
 import (
-	"scylla-go-driver/frame"
-
+	"github.com/google/btree"
 	"go.uber.org/atomic"
 )
 
@@ -17,7 +16,6 @@ type Node struct {
 	addr       string
 	datacenter string
 	rack       string
-	tokens     frame.CqlValue // TODO: change it to []Token (implement parsing for Tokens).
 	pool       *ConnPool
 	status     nodeStatus
 }
@@ -28,4 +26,13 @@ func (n *Node) Status() bool {
 
 func (n *Node) setStatus(v bool) {
 	n.status.Store(v)
+}
+
+type RingEntry struct {
+	node  *Node
+	token Token
+}
+
+func (r RingEntry) Less(i btree.Item) bool {
+	return r.token < i.(RingEntry).token
 }

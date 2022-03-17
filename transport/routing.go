@@ -42,12 +42,10 @@ func ShardPortIterator(si ShardInfo) func() uint16 {
 }
 
 // Token is used to identify both nodes and partitions, it's value is hashed partition key.
-type Token struct {
-	value int64
-}
+type Token int64
 
 // MurmurToken is a function which given partition key hashes it, using Murmurhash3.
-func MurmurToken(partitionKey []byte) Token { // nolint:unused // This will be used.
+func MurmurToken(partitionKey []byte) Token {
 	h := murmur.Hash3(partitionKey)
-	return Token{value: h}
+	return Token(h)
 }

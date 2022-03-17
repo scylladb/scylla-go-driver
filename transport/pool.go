@@ -76,7 +76,7 @@ func (p *ConnPool) LeastBusyConn() *Conn {
 
 func (p *ConnPool) shardOf(token Token) int {
 	shards := uint64(p.nrShards)
-	z := uint64(token.value+math.MinInt64) << p.msbIgnore
+	z := uint64(token+math.MinInt64) << p.msbIgnore
 	lo := z & 0xffffffff
 	hi := (z >> 32) & 0xffffffff
 	mul1 := lo * shards
