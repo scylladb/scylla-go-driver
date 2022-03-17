@@ -320,12 +320,6 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	return WrapConn(tcpConn)
 }
 
-func (c *Conn) setWriterReseter() {
-	c.w.reset = func() {
-		c.w.conn.Reset(c.conn)
-	}
-}
-
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
@@ -344,7 +338,10 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 		},
 		metrics: m,
 	}
-	c.setWriterReseter()
+	c.w.reset = func() {
+		c.w.conn.Reset(c.conn)
+	}
+
 	go c.w.loop()
 	go c.r.loop()
 
