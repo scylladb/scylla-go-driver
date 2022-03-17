@@ -3,22 +3,25 @@ package transport
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"scylla-go-driver/frame"
 	. "scylla-go-driver/frame/response"
 
+	"github.com/google/btree"
 	"go.uber.org/atomic"
 )
 
 type (
-	PeerMap = map[string]*Node
+	PeerMap      = map[string]*Node
+	RacksInDCMap = map[string]int
 
 	requestChan chan struct{}
 )
 
 type Cluster struct {
-	peers             atomic.Value // PeerMap
+	topology          atomic.Value // *topology
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
@@ -26,16 +29,36 @@ type Cluster struct {
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
-
-	// Yet to be used.
-	// ring        map[Token]*Node
-	// dataCenters map[string]*DataCenter
 }
 
-// type dataCenter struct {
-// 	nodes   []Node
-// 	rackCnt uint // Type?
-// }
+type topology struct {
+	peers     PeerMap
+	racksInDC RacksInDCMap
+	allNodes  []*Node
+	ring      btree.BTree
+}
+
+// ringRange return slice of nodes (desirably of length cnt) holding data described by token.
+// wanted function allows applying additional requirements for nodes to be taken.
+func (t *topology) ringRange(token Token, cnt int, wanted func(*Node, []*Node) bool) []*Node {
+	replicas := make([]*Node, 0, cnt)
+
+	it := func(i btree.Item) bool {
+		n := i.(RingEntry).node
+		if wanted(n, replicas) {
+			replicas = append(replicas, n)
+		}
+		return len(replicas) < cnt
+	}
+
+	re := RingEntry{token: token}
+	t.ring.AscendGreaterOrEqual(re, it)
+	if len(replicas) < cnt {
+		t.ring.AscendLessThan(re, it)
+	}
+
+	return replicas
+}
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
@@ -54,7 +77,7 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 		reopenControlChan: make(requestChan, 1),
 		closeChan:         make(requestChan, 1),
 	}
-	c.setPeers(PeerMap{})
+	c.setTopology(&topology{})
 
 	if err := c.NewControl(); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -100,9 +123,14 @@ func (c *Cluster) refreshTopology() error {
 	}
 	// If node is present in both maps we can reuse its connection pool.
 	old := c.Peers()
-	m := PeerMap{}
-	for _, v := range rows {
-		n, err := cqlRowIntoNode(v)
+	peers := make(PeerMap)
+	racksInDC := make(RacksInDCMap)
+	seenRacks := make(map[string]bool) // Key is rack name appended to its dc name.
+	all := make([]*Node, 0, len(old))
+	ring := *btree.New(2)
+
+	for _, r := range rows {
+		n, err := cqlRowIntoNode(r)
 		if err != nil {
 			return err
 		}
@@ -118,15 +146,41 @@ func (c *Cluster) refreshTopology() error {
 				n.pool = pool
 			}
 		}
-		m[n.addr] = n
+
+		peers[n.addr] = n
+		all = append(all, n)
+		if err := insertNodeTokens(n, r, ring); err != nil {
+			return err
+		}
+
+		if _, ok := racksInDC[n.datacenter]; !ok {
+			racksInDC[n.datacenter] = 1
+		} else {
+			rackID := n.datacenter + n.rack
+			if _, ok := seenRacks[rackID]; !ok {
+				seenRacks[rackID] = true
+				racksInDC[n.datacenter]++
+			}
+		}
 	}
 
 	for k, v := range old {
-		if _, ok := m[k]; v.pool != nil && !ok {
+		if _, ok := peers[k]; v.pool != nil && !ok {
 			v.pool.Close()
 		}
 	}
-	c.setPeers(m)
+
+	c.setTopology(&topology{
+		peers:     peers,
+		racksInDC: racksInDC,
+		allNodes:  all,
+		ring:      ring,
+	})
+	// Discards request that came to us while refreshing.
+	select {
+	case <-c.refreshChan:
+	default:
+	}
 	return nil
 }
 
@@ -177,21 +231,45 @@ func cqlRowIntoNode(r frame.Row) (*Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("rack column: %w", err)
 	}
-	tokens := r[nodeTokens] // TODO: add parsing for string list.
 	return &Node{
 		addr:       addr.String(),
 		datacenter: dc,
 		rack:       rack,
-		tokens:     tokens,
 	}, nil
 }
 
-func (c *Cluster) Peers() PeerMap {
-	return c.peers.Load().(PeerMap)
+func insertNodeTokens(n *Node, r frame.Row, ring btree.BTree) error {
+	if tokens, err := r[nodeTokens].AsTextSet(); err != nil {
+		return err
+	} else {
+		for _, t := range tokens {
+			if v, err := strconv.ParseInt(t, 10, 64); err != nil {
+				return fmt.Errorf("couldn't parse token string: %v", err)
+			} else {
+				ring.ReplaceOrInsert(RingEntry{
+					node:  n,
+					token: Token{value: v},
+				})
+			}
+		}
+	}
+	return nil
 }
 
-func (c *Cluster) setPeers(m PeerMap) {
-	c.peers.Store(m)
+func (c *Cluster) Peers() PeerMap {
+	return c.topology.Load().(*topology).peers
+}
+
+func (c *Cluster) RacksInDC() RacksInDCMap {
+	return c.topology.Load().(*topology).racksInDC
+}
+
+func (c *Cluster) AllNodes() []*Node {
+	return c.topology.Load().(*topology).allNodes
+}
+
+func (c *Cluster) setTopology(t *topology) {
+	c.topology.Store(t)
 }
 
 // handleEvent creates function which is passed to control connection
@@ -281,6 +359,11 @@ func (c *Cluster) reopenControl() {
 	if err := c.NewControl(); err != nil {
 		c.Close()
 		log.Fatalf("failed to reopen control connection: %v", err)
+	}
+	// Discards request that came to us while reopening.
+	select {
+	case <-c.reopenControlChan:
+	default:
 	}
 }
 

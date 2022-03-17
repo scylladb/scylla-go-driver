@@ -200,7 +200,7 @@ func (c CqlValue) AsFloat64() (float64, error) {
 }
 
 func (c CqlValue) AsTextSet() ([]string, error) {
-	if c.Type.ID != SetID || c.Type.List.Element.ID != VarcharID {
+	if c.Type.ID != SetID || c.Type.Set.Element.ID != VarcharID {
 		return nil, fmt.Errorf("%v is not of Set<Text> type", c)
 	}
 

@@ -47,7 +47,7 @@ type Token struct {
 }
 
 // MurmurToken is a function which given partition key hashes it, using Murmurhash3.
-func MurmurToken(partitionKey []byte) Token { // nolint:unused // This will be used.
+func MurmurToken(partitionKey []byte) Token {
 	h := murmur.Hash3(partitionKey)
 	return Token{value: h}
 }
