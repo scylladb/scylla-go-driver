@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"strconv"
 	"net"
-	"strings"
 	"time"
 
 	. "scylla-go-driver/frame/response"
@@ -25,22 +23,15 @@ type ConnPool struct {
 
 func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
-		addr: appendDefaultPort(addr),
-		cfg:  cfg,
+		cfg: cfg,
 	}
-	if err := r.initConnPool(); err != nil {
+	if err := r.init(addr); err != nil {
 		return nil, err
 	}
 
 	go r.loop()
 
 	return &r.pool, nil
-}
-
-const defaultPort = 19042 // TODO: change to 9042 after fixing the scylla supported bug.
-
-func appendDefaultPort(addr string) string {
-	return addr + ":" + strconv.Itoa(defaultPort)
 }
 
 func (p *ConnPool) Conn(token Token) *Conn {
@@ -131,40 +122,14 @@ func (p *ConnPool) closeAll() {
 }
 
 type PoolRefiller struct {
-	addr           string
-	shardAwarePort string
-	pool           ConnPool
-	cfg            ConnConfig
-	active         int
+	addr   string
+	pool   ConnPool
+	cfg    ConnConfig
+	active int
 }
 
-func (r *PoolRefiller) setShardAwarePort(s *Supported) {
-	if s, ok := s.Options[ScyllaShardAwarePort]; ok {
-		r.shardAwarePort = s[0]
-	}
-}
-
-func trimIPv6Brackets(host string) string {
-	host = strings.TrimPrefix(host, "[")
-	return strings.TrimSuffix(host, "]")
-}
-
-func getShardAwareAddress(addr, port string) string {
-	if port == "" {
-		return addr
-	}
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		if strings.Contains(err.Error(), "missing port in address") {
-			return net.JoinHostPort(trimIPv6Brackets(addr), port)
-		}
-		panic(err)
-	}
-	return net.JoinHostPort(host, port)
-}
-
-func (r *PoolRefiller) initConnPool() error {
-	conn, err := OpenConn(r.addr, nil, r.cfg)
+func (r *PoolRefiller) init(addr string) error {
+	conn, err := OpenConn(withDefaultPort(addr), nil, r.cfg)
 	if err != nil {
 		return err
 	}
@@ -175,7 +140,12 @@ func (r *PoolRefiller) initConnPool() error {
 		return fmt.Errorf("supported: %w", err)
 	}
 	ss := s.ScyllaSupported()
-	r.setShardAwarePort(s)
+
+	if v, ok := s.Options[ScyllaShardAwarePort]; ok {
+		r.addr = withPort(addr, v[0])
+	} else {
+		return fmt.Errorf("missing shard aware port information %v", s.Options)
+	}
 
 	r.pool = ConnPool{
 		nrShards:     int(ss.NrShards),
@@ -183,6 +153,7 @@ func (r *PoolRefiller) initConnPool() error {
 		conns:        make([]atomic.Value, int(ss.NrShards)),
 		connClosedCh: make(chan int, int(ss.NrShards)+1),
 	}
+
 	conn.setOnClose(r.onConnClose)
 	r.pool.storeConn(conn)
 	r.active = 1
@@ -237,7 +208,7 @@ func (r *PoolRefiller) fill() {
 		}
 
 		si.Shard = uint16(i)
-		conn, err := OpenShardConn(getShardAwareAddress(r.addr, r.shardAwarePort), si, r.cfg)
+		conn, err := OpenShardConn(r.addr, si, r.cfg)
 		if err != nil {
 			log.Printf("failed to open shard conn: %s", err)
 			continue
@@ -257,4 +228,20 @@ func (r *PoolRefiller) fill() {
 
 func (r *PoolRefiller) needsFilling() bool {
 	return r.active < r.pool.nrShards
+}
+
+const defaultCQLPort = "9042"
+
+func withDefaultPort(addr string) string {
+	host, port, _ := net.SplitHostPort(addr)
+	if port != "" {
+		return addr
+	}
+
+	return net.JoinHostPort(host, defaultCQLPort)
+}
+
+func withPort(addr, port string) string {
+	host, _, _ := net.SplitHostPort(addr)
+	return net.JoinHostPort(host, port)
 }
