@@ -28,28 +28,6 @@ func TestOpenShardConnIntegration(t *testing.T) {
 	c.Close()
 }
 
-func TestConnReceiveErrorHandling(t *testing.T) {
-	h := newConnTestHelper(t)
-
-	_, err := h.conn.conn.Write([]byte("Not a valid response"))
-	if err != nil {
-		t.Fatal("couldn't send message to conn")
-	}
-}
-
-func TestConnSendErrorHandling(t *testing.T) {
-	h := newConnTestHelper(t)
-
-	err := h.conn.conn.Close()
-	if err != nil {
-		t.Fatal("error closing connection")
-	}
-	_, err = h.conn.Supported()
-	if err == nil {
-		t.Fatal("error should have occurred")
-	}
-}
-
 type connTestHelper struct {
 	t    testing.TB
 	conn *Conn
@@ -158,10 +136,6 @@ func BenchmarkConnQueryIntegration(b *testing.B) {
 }
 
 func TestCloseHangingIntegration(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping in short mode")
-	}
-
 	h := newConnTestHelper(t)
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
@@ -170,7 +144,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
 
-	const n = 10000
+	const n = 2 * requestChanSize
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		wg.Add(1)
