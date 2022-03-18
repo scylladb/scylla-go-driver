@@ -53,7 +53,7 @@ func TestConnPoolIntegration(t *testing.T) {
 	}
 }
 
-func TestConnPoolConn(t *testing.T) {
+func TestConnPoolConnIntegration(t *testing.T) {
 	p, err := NewConnPool(TestHost, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +75,7 @@ func TestConnPoolConn(t *testing.T) {
 		t.Fatal("invalid return of Conn")
 	}
 
-	load := uint32(math.Floor(maxStreamID*heavyLoadThreshold + 1))
+	load := uint32(math.Floor(maxStreamID/2 + 1))
 	p.Conn(t0).metrics.InQueue.Store(load)
 
 	if conn := p.Conn(t0); conn == nil {

@@ -71,24 +71,23 @@ func (c *connWriter) loop() {
 
 		for i := 0; i < size; i++ {
 			r := <-c.requestCh
+			c.metrics.InQueue.Dec()
 			if r == _connCloseRequest {
 				return
 			}
-			c.metrics.InQueue.Dec()
-
 			if err := c.send(r); err != nil {
 				log.Printf("fatal send error, closing connection due to %s", err)
 				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
 				c.connClose()
 				return
 			}
+			c.metrics.InFlight.Inc()
 		}
 		if err := c.conn.Flush(); err != nil {
 			log.Printf("fatal flush error, closing connection due to %s", err)
 			c.connClose()
 			return
 		}
-		c.metrics.InFlight.Add(uint32(size))
 	}
 }
 

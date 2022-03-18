@@ -42,33 +42,23 @@ func appendDefaultPort(addr string) string {
 func (p *ConnPool) Conn(token Token) *Conn {
 	idx := p.shardOf(token)
 	if conn := p.loadConn(idx); conn != nil {
-		return p.maybeReplaceWithLessBusyConnection(conn)
+		if isHeavyLoaded(conn) {
+			return p.maybeReplaceWithLessBusyConn(conn)
+		}
+		return conn
 	}
 	return p.LeastBusyConn()
 }
 
-const (
-	loadDiffThreshold  = 0.8
-	heavyLoadThreshold = 0.5
-)
-
-func (p *ConnPool) maybeReplaceWithLessBusyConnection(c *Conn) *Conn {
-	if !c.isHeavyLoaded() {
-		return c
-	}
-	leastBusy := p.LeastBusyConn()
-	if leastBusy == nil || !c.moreLoadedThan(leastBusy) {
-		return c
-	}
-	return leastBusy
+func isHeavyLoaded(conn *Conn) bool {
+	return conn.Waiting() > maxStreamID>>1
 }
 
-func (c *Conn) isHeavyLoaded() bool {
-	return int(float64(c.Waiting())/heavyLoadThreshold) > maxStreamID
-}
-
-func (c *Conn) moreLoadedThan(leastBusy *Conn) bool {
-	return int(float64(c.Waiting())*loadDiffThreshold) > leastBusy.Waiting()
+func (p *ConnPool) maybeReplaceWithLessBusyConn(conn *Conn) *Conn {
+	if lb := p.LeastBusyConn(); conn.Waiting()-lb.Waiting() > maxStreamID<<1/10 {
+		return lb
+	}
+	return conn
 }
 
 func (p *ConnPool) LeastBusyConn() *Conn {
