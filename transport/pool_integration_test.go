@@ -10,7 +10,7 @@ import (
 
 const refillerBackoff = 250 * time.Millisecond
 
-func TestNodeConnPoolIntegration(t *testing.T) {
+func TestConnPoolIntegration(t *testing.T) {
 	p, err := NewConnPool(TestHost, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
@@ -54,10 +54,11 @@ func TestNodeConnPoolIntegration(t *testing.T) {
 }
 
 func TestConnPoolConn(t *testing.T) {
-	p, err := NewConnPool(TestHost+":9042", ConnConfig{})
+	p, err := NewConnPool(TestHost, ConnConfig{})
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer p.Close()
 
 	t.Log("Wait for refiller to fill connections to shards")
 	time.Sleep(refillerBackoff)
@@ -69,24 +70,22 @@ func TestConnPoolConn(t *testing.T) {
 		}
 	}
 
-	murmurToken := MurmurToken([]byte(""))
-	if conn := p.Conn(murmurToken); conn == nil || conn.Shard() != 0 {
+	t0 := MurmurToken([]byte(""))
+	if conn := p.Conn(t0); conn == nil || conn.Shard() != 0 {
 		t.Fatal("invalid return of Conn")
 	}
 
 	load := uint32(math.Floor(maxStreamID*heavyLoadThreshold + 1))
-	p.Conn(murmurToken).metrics.InQueue.Store(load)
-	conn := p.Conn(murmurToken)
-	if conn == nil {
+	p.Conn(t0).metrics.InQueue.Store(load)
+
+	if conn := p.Conn(t0); conn == nil {
 		t.Fatal("invalid return of Conn")
 	} else if conn.Shard() == 0 {
 		t.Fatalf("invalid load distribution")
 	}
 
-	murmurToken = MurmurToken([]byte("0")) // Very big number approx. 3 * 10^18.
-	if conn := p.Conn(murmurToken); conn == nil {
+	t1 := MurmurToken([]byte("0")) // Very big number approx. 3 * 10^18.
+	if conn := p.Conn(t1); conn == nil {
 		t.Fatal("invalid return of Conn")
 	}
-
-	p.Close()
 }
