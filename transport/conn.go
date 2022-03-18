@@ -84,7 +84,11 @@ func (c *connWriter) loop() {
 			}
 		}
 		c.metrics.InFlight.Add(uint32(size))
-		c.conn.Flush()
+		if err := c.conn.Flush(); err != nil {
+			log.Printf("fatal flush error, closing connection due to %s", err)
+			c.connClose()
+			return
+		}
 	}
 }
 
