@@ -410,6 +410,18 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 	return makeQueryResult(res)
 }
 
+func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
+	c.r.handleEvent = h
+	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
+	if err != nil {
+		return err
+	}
+	if _, ok := res.(*Ready); ok {
+		return nil
+	}
+	return responseAsError(res)
+}
+
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
 	// Each handler may encounter 2 responses, one from connWriter.loop()
 	// and one from drainHandlers().
@@ -465,16 +477,4 @@ func (c *Conn) Close() {
 
 func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
-}
-
-func (c *Conn) register(h func(r response), e ...frame.EventType) error {
-	c.r.handleEvent = h
-	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
-	if err != nil {
-		return err
-	}
-	if _, ok := res.(*Ready); ok {
-		return nil
-	}
-	return responseAsError(res)
 }

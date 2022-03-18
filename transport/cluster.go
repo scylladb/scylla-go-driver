@@ -68,19 +68,19 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 }
 
 func (c *Cluster) NewControl() error {
-	log.Printf("open control connection")
+	log.Printf("cluster: open control connection")
 	c.control = nil
 	for _, addr := range c.knownHosts {
 		conn, err := OpenConn(addr, nil, c.cfg)
 		if err == nil {
-			if err := conn.register(c.handleEvent, c.handledEvents...); err == nil {
+			if err := conn.RegisterEventHandler(c.handleEvent, c.handledEvents...); err == nil {
 				c.control = conn
 				return nil
 			} else {
-				log.Printf("open control connection: node %s failed to register for events: %v", addr, err)
+				log.Printf("cluster: open control connection: node %s failed to register for events: %v", conn, err)
 			}
 		} else {
-			log.Printf("open control connection: node %s failed to connect: %v", addr, err)
+			log.Printf("cluster: open control connection: node %s failed to connect: %v", addr, err)
 		}
 		if conn != nil {
 			conn.Close()
@@ -93,7 +93,7 @@ func (c *Cluster) NewControl() error {
 // refreshTopology creates new PeerMap filled with the result of both localQuery and peerQuery.
 // The old map is replaced with the new one atomically to prevent dirty reads.
 func (c *Cluster) refreshTopology() error {
-	log.Printf("refresh topology")
+	log.Printf("cluster: refresh topology")
 	rows, err := c.getAllNodesInfo()
 	if err != nil {
 		return fmt.Errorf("query info about nodes in cluster: %w", err)
@@ -248,8 +248,7 @@ func (c *Cluster) loop() {
 		select {
 		case <-c.refreshChan:
 			c.tryRefresh()
-			ticker.Stop()
-			ticker.Reset(refreshInterval)
+			ticker = time.NewTimer(refreshInterval)
 		case <-c.reopenControlChan:
 			c.reopenControl()
 		case <-c.closeChan:
@@ -257,7 +256,7 @@ func (c *Cluster) loop() {
 			return
 		case <-ticker.C:
 			c.tryRefresh()
-			ticker.Reset(refreshInterval)
+			ticker = time.NewTimer(refreshInterval)
 		}
 	}
 }
@@ -266,7 +265,7 @@ func (c *Cluster) loop() {
 // In case of error tries to reopen control connection and tries again.
 func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
-		log.Printf("refresh topology: %v", err)
+		log.Printf("cluster: refresh topology: %v", err)
 		c.reopenControl()
 		if err := c.refreshTopology(); err != nil {
 			c.Close()
@@ -276,7 +275,7 @@ func (c *Cluster) tryRefresh() {
 }
 
 func (c *Cluster) reopenControl() {
-	log.Printf("reopen control connection")
+	log.Printf("cluster: reopen control connection")
 	c.control.Close()
 	if err := c.NewControl(); err != nil {
 		c.Close()
@@ -285,7 +284,7 @@ func (c *Cluster) reopenControl() {
 }
 
 func (c *Cluster) handleClose() {
-	log.Printf("handle cluster close")
+	log.Printf("cluster: handle cluster close")
 	if c.control != nil {
 		c.control.Close()
 	}
@@ -298,7 +297,7 @@ func (c *Cluster) handleClose() {
 }
 
 func (c *Cluster) RequestRefresh() {
-	log.Printf("requested to refresh cluster topology")
+	log.Printf("cluster: requested to refresh cluster topology")
 	select {
 	case c.refreshChan <- struct{}{}:
 	default:
@@ -306,7 +305,7 @@ func (c *Cluster) RequestRefresh() {
 }
 
 func (c *Cluster) RequestReopenControl() {
-	log.Printf("requested to reopen control connection")
+	log.Printf("cluster: requested to reopen control connection")
 	select {
 	case c.reopenControlChan <- struct{}{}:
 	default:
@@ -314,7 +313,7 @@ func (c *Cluster) RequestReopenControl() {
 }
 
 func (c *Cluster) Close() {
-	log.Printf("requested to close cluster")
+	log.Printf("cluster: requested to close cluster")
 	select {
 	case c.closeChan <- struct{}{}:
 	default:
