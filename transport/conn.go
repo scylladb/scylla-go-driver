@@ -458,8 +458,11 @@ func (c *Conn) Shard() int {
 // Close closes connection and terminates reader and writer go routines.
 func (c *Conn) Close() {
 	c.closeOnce.Do(func() {
-		log.Printf("%s closing", c)
-		_ = c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			log.Printf("%s failed to close: %s", c, err)
+		} else {
+			log.Printf("%s closed", c)
+		}
 		c.w.requestCh <- _connCloseRequest
 		if c.onClose != nil {
 			c.onClose(c)
