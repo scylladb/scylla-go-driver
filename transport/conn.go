@@ -77,10 +77,9 @@ func (c *connWriter) loop() {
 			c.metrics.InQueue.Dec()
 
 			if err := c.send(r); err != nil {
+				log.Printf("fatal send error, closing connection due to %s", err)
 				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
-				if c.connClose != nil {
-					c.connClose()
-				}
+				c.connClose()
 				return
 			}
 		}
@@ -169,16 +168,15 @@ func (c *connReader) loop() {
 			if c.handleEvent != nil {
 				c.handleEvent(resp)
 			} else {
-				log.Printf("unregistered connection received event: %#+v", resp)
+				log.Printf("received event: %#+v", resp)
 			}
 			continue
 		}
 
 		if resp.Err != nil {
+			log.Printf("fatal receive error, closing connection due to %s", resp.Err)
+			c.connClose()
 			c.drainHandlers()
-			if c.connClose != nil {
-				c.connClose()
-			}
 			return
 		}
 
@@ -187,10 +185,9 @@ func (c *connReader) loop() {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
+			log.Printf("received unknown stream ID %d, closing connection", resp.StreamID)
+			c.connClose()
 			c.drainHandlers()
-			if c.connClose != nil {
-				c.connClose()
-			}
 			return
 		}
 	}
@@ -259,13 +256,13 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 }
 
 type Conn struct {
-	conn    net.Conn
-	shard   uint16
-	w       connWriter
-	r       connReader
-	metrics *connMetrics
-	onClose func(conn *Conn)
-	once    sync.Once
+	conn      net.Conn
+	shard     uint16
+	w         connWriter
+	r         connReader
+	metrics   *connMetrics
+	closeOnce sync.Once
+	onClose   func(conn *Conn)
 }
 
 type ConnConfig struct {
@@ -332,28 +329,25 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	return WrapConn(tcpConn)
 }
 
-func (c *Conn) closeOnce() {
-	c.once.Do(c.Close)
-}
-
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn) (*Conn, error) {
 	m := new(connMetrics)
-	var c Conn
-	c = Conn{
+
+	c := new(Conn)
+	*c = Conn{
 		conn: conn,
 		w: connWriter{
 			conn:      bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh: make(chan request, requestChanSize),
 			metrics:   m,
-			connClose: c.closeOnce,
+			connClose: c.Close,
 		},
 		r: connReader{
 			conn:      bufio.NewReaderSize(conn, ioBufferSize),
 			metrics:   m,
 			h:         make(map[frame.StreamID]responseHandler),
-			connClose: c.closeOnce,
+			connClose: c.Close,
 		},
 		metrics: m,
 	}
@@ -362,12 +356,12 @@ func WrapConn(conn net.Conn) (*Conn, error) {
 	go c.r.loop()
 
 	if err := c.init(); err != nil {
-		return &c, err
+		return c, err
 	}
 
-	log.Printf("%s connected", &c)
+	log.Printf("%s connected", c)
 
-	return &c, nil
+	return c, nil
 }
 
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
@@ -459,12 +453,14 @@ func (c *Conn) Shard() int {
 
 // Close closes connection and terminates reader and writer go routines.
 func (c *Conn) Close() {
-	log.Printf("%s closing", c)
-	_ = c.conn.Close()
-	c.w.requestCh <- _connCloseRequest
-	if c.onClose != nil {
-		c.onClose(c)
-	}
+	c.closeOnce.Do(func() {
+		log.Printf("%s closing", c)
+		_ = c.conn.Close()
+		c.w.requestCh <- _connCloseRequest
+		if c.onClose != nil {
+			c.onClose(c)
+		}
+	})
 }
 
 func (c *Conn) String() string {
