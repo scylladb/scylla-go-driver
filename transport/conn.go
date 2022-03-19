@@ -445,7 +445,7 @@ func (c *Conn) UseKeyspace(ks string) error {
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
 	req := makeQueryForStatement(s, pagingState)
-	res, err := c.sendRequest(&req, s.compression, s.tracing)
+	res, err := c.sendRequest(&req, s.Compression, s.Tracing)
 	if err != nil {
 		return QueryResult{}, err
 	}
