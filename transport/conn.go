@@ -459,6 +459,32 @@ func (c *Conn) QueryAsync(s Statement, pagingState frame.Bytes, fn func(QueryRes
 	}()
 }
 
+func (c *Conn) Prepare(s Statement) (Statement, error) {
+	req := &Prepare{Query: s.Content}
+	res, err := c.sendRequest(req, false, false)
+	if err != nil {
+		return Statement{}, err
+	}
+
+	if v, ok := res.(*PreparedResult); ok {
+		s.ID = v.ID
+		s.Values = make([]frame.Value, len(v.Metadata.Columns))
+		return s, nil
+	}
+
+	return Statement{}, fmt.Errorf("prepare failed")
+}
+
+func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error) {
+	req := newQueryForExecute(s, pagingState)
+	res, err := c.sendRequest(req, s.Compression, s.Tracing)
+	if err != nil {
+		return QueryResult{}, err
+	}
+
+	return makeQueryResult(res)
+}
+
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
 	c.r.handleEvent = h
 	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
