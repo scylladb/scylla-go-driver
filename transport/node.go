@@ -28,6 +28,10 @@ func (n *Node) setStatus(v bool) {
 	n.status.Store(v)
 }
 
+func (n *Node) RandomConnection() *Conn {
+	return n.pool.LeastBusyConn()
+}
+
 type RingEntry struct {
 	node  *Node
 	token Token
