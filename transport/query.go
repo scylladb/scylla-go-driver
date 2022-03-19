@@ -7,30 +7,30 @@ import (
 )
 
 type Statement struct {
-	content           string
-	values            []frame.Value
-	pageSize          frame.Int
-	consistency       frame.Consistency
-	serialConsistency frame.Consistency
-	tracing           bool
-	compression       bool
+	Content           string
+	Values            []frame.Value
+	PageSize          frame.Int
+	Consistency       frame.Consistency
+	SerialConsistency frame.Consistency
+	Tracing           bool
+	Compression       bool
 }
 
 func NewStatement(content string) Statement {
 	return Statement{
-		content: content,
+		Content: content,
 	}
 }
 
 func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
 	return Query{
-		Query:       s.content,
-		Consistency: s.consistency,
+		Query:       s.Content,
+		Consistency: s.Consistency,
 		Options: frame.QueryOptions{
-			Values:            s.values,
-			SerialConsistency: s.serialConsistency,
+			Values:            s.Values,
+			SerialConsistency: s.SerialConsistency,
 			PagingState:       pagingState,
-			PageSize:          s.pageSize,
+			PageSize:          s.PageSize,
 		},
 	}
 }
