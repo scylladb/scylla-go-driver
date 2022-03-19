@@ -8,6 +8,7 @@ import (
 
 type Statement struct {
 	Content           string
+	ID                frame.Bytes
 	Values            []frame.Value
 	PageSize          frame.Int
 	Consistency       frame.Consistency
@@ -25,6 +26,19 @@ func NewStatement(content string) Statement {
 func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
 	return Query{
 		Query:       s.Content,
+		Consistency: s.Consistency,
+		Options: frame.QueryOptions{
+			Values:            s.Values,
+			SerialConsistency: s.SerialConsistency,
+			PagingState:       pagingState,
+			PageSize:          s.PageSize,
+		},
+	}
+}
+
+func newQueryForExecute(s Statement, pagingState frame.Bytes) frame.Request {
+	return &Execute{
+		ID:          s.ID,
 		Consistency: s.Consistency,
 		Options: frame.QueryOptions{
 			Values:            s.Values,
