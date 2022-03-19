@@ -29,3 +29,7 @@ func (n *Node) Status() bool {
 func (n *Node) setStatus(v bool) {
 	n.status.Store(v)
 }
+
+func (n *Node) RandomConnection() *Conn {
+	return n.pool.LeastBusyConn()
+}
