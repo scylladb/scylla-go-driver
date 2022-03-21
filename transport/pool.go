@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"net"
+	"strings"
 	"time"
 
 	. "scylla-go-driver/frame/response"
@@ -233,15 +234,25 @@ func (r *PoolRefiller) needsFilling() bool {
 const defaultCQLPort = "9042"
 
 func withDefaultPort(addr string) string {
-	host, port, _ := net.SplitHostPort(addr)
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return net.JoinHostPort(trimIPv6Brackets(addr), defaultCQLPort)
+	}
 	if port != "" {
 		return addr
 	}
-
 	return net.JoinHostPort(host, defaultCQLPort)
 }
 
 func withPort(addr, port string) string {
-	host, _, _ := net.SplitHostPort(addr)
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return net.JoinHostPort(trimIPv6Brackets(addr), port)
+	}
 	return net.JoinHostPort(host, port)
+}
+
+func trimIPv6Brackets(host string) string {
+	host = strings.TrimPrefix(host, "[")
+	return strings.TrimSuffix(host, "]")
 }
