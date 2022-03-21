@@ -694,3 +694,124 @@ func TestCqlValueAsFloat64(t *testing.T) { //nolint:dupl // Tests are different.
 		})
 	}
 }
+
+func stringSliceToBytes(s []string) Bytes {
+	var b Buffer
+	b.WriteInt(int32(len(s)))
+	for _, v := range s {
+		b.WriteLongString(v)
+	}
+	return b.Bytes()
+}
+
+func TestCqlValueStringSlice(t *testing.T) { // nolint:dupl // Tests are different.
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		content  CqlValue
+		expected []string
+		valid    bool
+	}{
+		{
+			name: "set<text>",
+			content: CqlValue{
+				Type: &Option{
+					ID: SetID,
+					Set: &SetOption{
+						Element: Option{ID: VarcharID},
+					},
+				},
+				Value: stringSliceToBytes([]string{"1234567890", "rust", "cohle", "𝒽𝗲ɬł० ω𝒐ṙḹ𝖉"}),
+			},
+			expected: []string{"1234567890", "rust", "cohle", "𝒽𝗲ɬł० ω𝒐ṙḹ𝖉"},
+			valid:    true,
+		},
+		{
+			name: "list<text>",
+			content: CqlValue{
+				Type: &Option{
+					ID: ListID,
+					List: &ListOption{
+						Element: Option{ID: VarcharID},
+					},
+				},
+				Value: stringSliceToBytes([]string{"1234567890", "rust", "cohle", "𝒽𝗲ɬł० ω𝒐ṙḹ𝖉"}),
+			},
+			expected: []string{"1234567890", "rust", "cohle", "𝒽𝗲ɬł० ω𝒐ṙḹ𝖉"},
+			valid:    true,
+		},
+		{
+			name: "list<ascii>",
+			content: CqlValue{
+				Type: &Option{
+					ID: ListID,
+					List: &ListOption{
+						Element: Option{ID: ASCIIID},
+					},
+				},
+				Value: stringSliceToBytes([]string{"1234567890", "rust", "cohle", "Hello World!"}),
+			},
+			expected: []string{"1234567890", "rust", "cohle", "Hello World!"},
+			valid:    true,
+		},
+		{
+			name: "list<ascii>",
+			content: CqlValue{
+				Type: &Option{
+					ID: ListID,
+					List: &ListOption{
+						Element: Option{ID: ASCIIID},
+					},
+				},
+				Value: stringSliceToBytes([]string{"1234567890", "rust", "cohle", "Hello World!"}),
+			},
+			expected: []string{"1234567890", "rust", "cohle", "Hello World!"},
+			valid:    true,
+		},
+		{
+			name:    "non-slice type",
+			content: CqlValue{Type: &Option{ID: MapID}},
+		},
+		{
+			name: "wrong set element type",
+			content: CqlValue{
+				Type: &Option{
+					ID: SetID,
+					Set: &SetOption{
+						Element: Option{ID: IntID},
+					},
+				},
+			},
+		},
+		{
+			name: "wrong list element type",
+			content: CqlValue{
+				Type: &Option{
+					ID: ListID,
+					List: &ListOption{
+						Element: Option{ID: IntID},
+					},
+				},
+			},
+		},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.content.AsStringSlice()
+			if err != nil {
+				if tc.valid {
+					t.Fatal(err)
+				}
+				return
+			}
+			if diff := cmp.Diff(res, tc.expected); diff != "" {
+				t.Fatalf(diff)
+			}
+		})
+	}
+}
