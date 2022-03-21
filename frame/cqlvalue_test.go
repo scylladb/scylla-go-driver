@@ -694,3 +694,54 @@ func TestCqlValueAsFloat64(t *testing.T) { //nolint:dupl // Tests are different.
 		})
 	}
 }
+
+func TestCqlValueTextSet(t *testing.T) { // nolint:dupl // Tests are different.
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		content []string
+		valid   bool
+	}{
+		{
+			name:    "empty list",
+			content: []string{},
+			valid:   true,
+		},
+		{
+			name:    "valid list",
+			content: []string{"1234567890", "rust", "cohle", "𝒽𝗲ɬł० ω𝒐ṙḹ𝖉"},
+			valid:   true,
+		},
+		{
+			name:    "invalid utf-8 in list",
+			content: []string{"\xff"},
+			valid:   false,
+		},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			serialized, err := CqlFromTextSet(tc.content)
+			if tc.valid && err != nil {
+				t.Fatal(err)
+			}
+			if !tc.valid {
+				if err == nil {
+					t.Fatalf("serializing %v as TextSet should result in error", tc.content)
+				}
+				return
+			}
+
+			deserialized, err := serialized.AsTextSet()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if diff := cmp.Diff(deserialized, tc.content); diff != "" {
+				t.Fatalf(diff)
+			}
+		})
+	}
+}

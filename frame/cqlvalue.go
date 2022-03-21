@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"net"
@@ -198,6 +199,31 @@ func (c CqlValue) AsFloat64() (float64, error) {
 		uint64(c.Value[7])), nil
 }
 
+func (c CqlValue) AsTextSet() ([]string, error) {
+	if c.Type.ID != SetID || c.Type.List.Element.ID != VarcharID {
+		return nil, fmt.Errorf("%v is not of Set<Text> type", c)
+	}
+
+	raw := c.Value
+	if len(raw) < 4 {
+		return nil, fmt.Errorf("expected at least 4 bytes, got %d", len(raw))
+	}
+
+	res := make([]string, int32(binary.BigEndian.Uint32(raw)))
+	raw = raw[4:]
+
+	for i := range res {
+		if len(raw) < 4 {
+			return nil, fmt.Errorf("expected at least 4 bytes, got %d", len(raw))
+		}
+		size := binary.BigEndian.Uint32(raw)
+		res[i] = string(raw[4 : size+4])
+		raw = raw[size+4:]
+	}
+
+	return res, nil
+}
+
 func CqlFromASCII(s string) (CqlValue, error) {
 	for _, v := range s {
 		if v > unicode.MaxASCII {
@@ -348,4 +374,23 @@ func CqlFromFloat64(v float64) CqlValue {
 		byte(bits),
 	}
 	return c
+}
+
+func CqlFromTextSet(s []string) (CqlValue, error) {
+	var b Buffer
+	b.WriteInt(int32(len(s)))
+	for _, v := range s {
+		if !utf8.ValidString(v) {
+			return CqlValue{}, fmt.Errorf("%v contains non-utf8 characters", v)
+		}
+		b.WriteLongString(v)
+	}
+
+	return CqlValue{
+		Type: &Option{
+			ID:   SetID,
+			List: &ListOption{Element: Option{ID: VarcharID}},
+		},
+		Value: b.Bytes(),
+	}, nil
 }
