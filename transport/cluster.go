@@ -259,25 +259,24 @@ func (c *Cluster) loop() {
 	}
 }
 
+const tryRefreshInterval = time.Second
+
 // tryRefresh refreshes cluster topology.
 // In case of error tries to reopen control connection and tries again.
 func (c *Cluster) tryRefresh() {
 	if err := c.refreshTopology(); err != nil {
+		c.RequestReopenControl()
+		time.AfterFunc(tryRefreshInterval, c.RequestRefresh)
 		log.Printf("cluster: refresh topology: %v", err)
-		c.tryReopenControl()
-		if err := c.refreshTopology(); err != nil {
-			c.Close()
-			log.Fatalf("cluster: can't refresh topology after reopening control connetion: %v", err)
-		}
 	}
 }
 
-const reopenControlInterval = time.Second
+const tryReopenControlInterval = time.Second
 
 func (c *Cluster) tryReopenControl() {
 	log.Printf("cluster: reopen control connection")
 	if control, err := c.NewControl(); err != nil {
-		time.AfterFunc(reopenControlInterval, c.RequestReopenControl)
+		time.AfterFunc(tryReopenControlInterval, c.RequestReopenControl)
 		log.Printf("cluster: failed to reopen control connection: %v", err)
 	} else {
 		c.control.Close()
