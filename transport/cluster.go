@@ -199,7 +199,7 @@ func (c *Cluster) setPeers(m PeerMap) {
 // of registering handlers for them.
 func (c *Cluster) handleEvent(r response) {
 	if r.Err != nil {
-		log.Printf("received event with error: %v", r.Err)
+		log.Printf("cluster: received event with error: %v", r.Err)
 		c.RequestReopenControl()
 		return
 	}
@@ -211,17 +211,17 @@ func (c *Cluster) handleEvent(r response) {
 	case *SchemaChange:
 		// TODO: add schema change.
 	default:
-		log.Printf("unsupported event type: %v", r.Response)
+		log.Printf("cluster: unsupported event type: %v", r.Response)
 	}
 }
 
 func (c *Cluster) handleTopologyChange(v *TopologyChange) {
-	log.Printf("handle topology change: %+#v", v)
+	log.Printf("cluster: handle topology change: %+#v", v)
 	c.RequestRefresh()
 }
 
 func (c *Cluster) handleStatusChange(v *StatusChange) {
-	log.Printf("handle status change: %+#v", v)
+	log.Printf("cluster: handle status change: %+#v", v)
 	m := c.Peers()
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
@@ -231,10 +231,10 @@ func (c *Cluster) handleStatusChange(v *StatusChange) {
 		case frame.Down:
 			n.setStatus(statusDown)
 		default:
-			log.Printf("status change not supported: %+#v", v)
+			log.Printf("cluster: status change not supported: %+#v", v)
 		}
 	} else {
-		log.Printf("unknown node %s received status change: %+#v in topology %v", addr, v, m)
+		log.Printf("cluster: unknown node %s received status change: %+#v in topology %v", addr, v, m)
 		c.RequestRefresh()
 	}
 }
@@ -243,12 +243,11 @@ const refreshInterval = 60 * time.Second
 
 // loop handles cluster requests.
 func (c *Cluster) loop() {
-	ticker := time.NewTimer(refreshInterval)
+	ticker := time.NewTicker(refreshInterval)
 	for {
 		select {
 		case <-c.refreshChan:
 			c.tryRefresh()
-			ticker = time.NewTimer(refreshInterval)
 		case <-c.reopenControlChan:
 			c.reopenControl()
 		case <-c.closeChan:
@@ -256,7 +255,6 @@ func (c *Cluster) loop() {
 			return
 		case <-ticker.C:
 			c.tryRefresh()
-			ticker = time.NewTimer(refreshInterval)
 		}
 	}
 }
@@ -269,7 +267,7 @@ func (c *Cluster) tryRefresh() {
 		c.reopenControl()
 		if err := c.refreshTopology(); err != nil {
 			c.Close()
-			log.Fatalf("can't refresh topology after reopening control connetion: %v", err)
+			log.Fatalf("cluster: can't refresh topology after reopening control connetion: %v", err)
 		}
 	}
 }
@@ -279,7 +277,7 @@ func (c *Cluster) reopenControl() {
 	c.control.Close()
 	if err := c.NewControl(); err != nil {
 		c.Close()
-		log.Fatalf("failed to reopen control connection: %v", err)
+		log.Fatalf("cluster: failed to reopen control connection: %v", err)
 	}
 }
 
