@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"net"
@@ -196,6 +197,42 @@ func (c CqlValue) AsFloat64() (float64, error) {
 		uint64(c.Value[5])<<16 |
 		uint64(c.Value[6])<<8 |
 		uint64(c.Value[7])), nil
+}
+
+func (c CqlValue) AsStringSlice() ([]string, error) {
+	if c.Type.ID != SetID && c.Type.ID != ListID {
+		return nil, fmt.Errorf("%v can't be interpreted as a slice", c)
+	}
+
+	var elemID OptionID
+	if c.Type.ID == SetID {
+		elemID = c.Type.Set.Element.ID
+	} else {
+		elemID = c.Type.List.Element.ID
+	}
+
+	if elemID != VarcharID && elemID != ASCIIID {
+		return nil, fmt.Errorf("%v can't be interpreted as []string", c)
+	}
+
+	raw := c.Value
+	if len(raw) < 4 {
+		return nil, fmt.Errorf("expected at least 4 bytes, got %d", len(raw))
+	}
+
+	res := make([]string, int32(binary.BigEndian.Uint32(raw)))
+	raw = raw[4:]
+
+	for i := range res {
+		if len(raw) < 4 {
+			return nil, fmt.Errorf("expected at least 4 bytes, got %d", len(raw))
+		}
+		size := binary.BigEndian.Uint32(raw)
+		res[i] = string(raw[4 : size+4])
+		raw = raw[size+4:]
+	}
+
+	return res, nil
 }
 
 func CqlFromASCII(s string) (CqlValue, error) {
