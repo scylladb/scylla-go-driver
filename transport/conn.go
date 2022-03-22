@@ -67,6 +67,8 @@ func (c *connWriter) loop() {
 		size := len(c.requestCh)
 		if size > maxCoalescedRequests {
 			size = maxCoalescedRequests
+		} else if size == 0 {
+			size = 1
 		}
 
 		for i := 0; i < size; i++ {
