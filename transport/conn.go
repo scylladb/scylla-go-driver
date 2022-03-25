@@ -19,8 +19,6 @@ import (
 	"go.uber.org/atomic"
 )
 
-// TODO on send and recv i/o error we shall reset the connection
-
 type response struct {
 	frame.Header
 	frame.Response
@@ -59,9 +57,6 @@ func (c *connWriter) submit(r request) {
 
 func (c *connWriter) loop() {
 	runtime.LockOSThread()
-
-	// When requests pile up, allow sending up to 10% in one syscall.
-	var maxCoalescedRequests = requestChanSize / 10
 
 	for {
 		size := len(c.requestCh)
@@ -277,8 +272,9 @@ type ConnConfig struct {
 }
 
 const (
-	requestChanSize = 1024
-	ioBufferSize    = 8192
+	requestChanSize      = maxStreamID / 2
+	maxCoalescedRequests = 100
+	ioBufferSize         = 8192
 )
 
 // OpenShardConn opens connection mapped to a specific shard on Scylla node.
@@ -406,13 +402,19 @@ func (c *Conn) Startup(options frame.StartupOptions) error {
 }
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
-	req := newQueryForStatement(s, pagingState)
-	res, err := c.sendRequest(req, s.Compression, s.Tracing)
+	req := makeQueryForStatement(s, pagingState)
+	res, err := c.sendRequest(&req, s.Compression, s.Tracing)
 	if err != nil {
 		return QueryResult{}, err
 	}
 
 	return makeQueryResult(res)
+}
+
+func (c *Conn) QueryAsync(s Statement, pagingState frame.Bytes, fn func(QueryResult, error)) {
+	go func() {
+		fn(c.Query(s, pagingState))
+	}()
 }
 
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
