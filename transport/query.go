@@ -16,8 +16,8 @@ type Statement struct {
 	Compression       bool
 }
 
-func newQueryForStatement(s Statement, pagingState frame.Bytes) frame.Request {
-	return &Query{
+func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
+	return Query{
 		Query:       s.Content,
 		Consistency: s.Consistency,
 		Options: frame.QueryOptions{
