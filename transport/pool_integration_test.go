@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-const refillerBackoff = 250 * time.Millisecond
+const refillerBackoff = 500 * time.Millisecond
 
 func TestConnPoolIntegration(t *testing.T) {
 	p, err := NewConnPool(TestHost, ConnConfig{})

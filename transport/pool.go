@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"log"
 	"math"
-	"strconv"
+	"net"
+	"strings"
 	"time"
+
+	. "scylla-go-driver/frame/response"
 
 	"go.uber.org/atomic"
 )
@@ -21,22 +24,15 @@ type ConnPool struct {
 
 func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
-		addr: appendDefaultPort(addr),
-		cfg:  cfg,
+		cfg: cfg,
 	}
-	if err := r.initConnPool(); err != nil {
+	if err := r.init(addr); err != nil {
 		return nil, err
 	}
 
 	go r.loop()
 
 	return &r.pool, nil
-}
-
-const defaultPort = 19042 // TODO: change to 9042 after fixing the scylla supported bug.
-
-func appendDefaultPort(addr string) string {
-	return addr + ":" + strconv.Itoa(defaultPort)
 }
 
 func (p *ConnPool) Conn(token Token) *Conn {
@@ -123,8 +119,8 @@ type PoolRefiller struct {
 	active int
 }
 
-func (r *PoolRefiller) initConnPool() error {
-	conn, err := OpenConn(r.addr, nil, r.cfg)
+func (r *PoolRefiller) init(addr string) error {
+	conn, err := OpenConn(withDefaultPort(addr), nil, r.cfg)
 	if err != nil {
 		return err
 	}
@@ -136,12 +132,19 @@ func (r *PoolRefiller) initConnPool() error {
 	}
 	ss := s.ScyllaSupported()
 
+	if v, ok := s.Options[ScyllaShardAwarePort]; ok {
+		r.addr = withPort(addr, v[0])
+	} else {
+		return fmt.Errorf("missing shard aware port information %v", s.Options)
+	}
+
 	r.pool = ConnPool{
 		nrShards:     int(ss.NrShards),
 		msbIgnore:    ss.MsbIgnore,
 		conns:        make([]atomic.Value, int(ss.NrShards)),
 		connClosedCh: make(chan int, int(ss.NrShards)+1),
 	}
+
 	conn.setOnClose(r.onConnClose)
 	r.pool.storeConn(conn)
 	r.active = 1
@@ -216,4 +219,30 @@ func (r *PoolRefiller) fill() {
 
 func (r *PoolRefiller) needsFilling() bool {
 	return r.active < r.pool.nrShards
+}
+
+const defaultCQLPort = "9042"
+
+func withDefaultPort(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return net.JoinHostPort(trimIPv6Brackets(addr), defaultCQLPort)
+	}
+	if port != "" {
+		return addr
+	}
+	return net.JoinHostPort(host, defaultCQLPort)
+}
+
+func withPort(addr, port string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return net.JoinHostPort(trimIPv6Brackets(addr), port)
+	}
+	return net.JoinHostPort(host, port)
+}
+
+func trimIPv6Brackets(host string) string {
+	host = strings.TrimPrefix(host, "[")
+	return strings.TrimSuffix(host, "]")
 }
