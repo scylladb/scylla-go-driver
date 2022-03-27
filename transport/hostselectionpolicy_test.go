@@ -91,36 +91,26 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) {
 		{
 			name:     "iteration 1",
 			qi:       QueryInfo{topology: topology},
-			expected: []string{"4", "5", "1", "2", "3"},
+			expected: []string{"1", "2", "3", "4", "5"},
 		},
 		{
 			name:     "iteration 2",
 			qi:       QueryInfo{topology: topology},
-			expected: []string{"5", "1", "2", "3", "4"},
+			expected: []string{"2", "3", "1", "5", "4"},
 		},
 		{
 			name:     "iteration 3",
 			qi:       QueryInfo{topology: topology},
-			expected: []string{"1", "2", "3", "4", "5"},
+			expected: []string{"3", "1", "2", "4", "5"},
 		},
 		{
 			name:     "iteration 4",
 			qi:       QueryInfo{topology: topology},
-			expected: []string{"2", "3", "4", "5", "1"},
-		},
-		{
-			name:     "iteration 5",
-			qi:       QueryInfo{topology: topology},
-			expected: []string{"3", "4", "5", "1", "2"},
-		},
-		{
-			name:     "iteration 6",
-			qi:       QueryInfo{topology: topology},
-			expected: []string{"4", "5", "1", "2", "3"},
+			expected: []string{"1", "2", "3", "5", "4"},
 		},
 	}
 
-	policy := newDCAwareRoundRobin("us")
+	policy := newDCAwareRoundRobin("eu")
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
@@ -175,22 +165,22 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) {
 	}{
 		{
 			name:     "replication factor = 2",
-			qi:       QueryInfo{token: Token{value: 160}, topology: topology, rf: 2},
+			qi:       QueryInfo{token: &Token{value: 160}, topology: topology, rf: 2},
 			expected: []string{"3", "1"},
 		},
 		{
 			name:     "replication factor = 3",
-			qi:       QueryInfo{token: Token{value: 60}, topology: topology, rf: 3},
+			qi:       QueryInfo{token: &Token{value: 60}, topology: topology, rf: 3},
 			expected: []string{"1", "2", "3"},
 		},
 		{
 			name:     "token value equal to the one in the ring",
-			qi:       QueryInfo{token: Token{value: 500}, topology: topology, rf: 3},
+			qi:       QueryInfo{token: &Token{value: 500}, topology: topology, rf: 3},
 			expected: []string{"1", "2", "3"},
 		},
 	}
 
-	policy := newTokenAwarePolicy(true, nil)
+	policy := newTokenAwarePolicy(true, dummyWrapper{})
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
@@ -264,7 +254,7 @@ func TestTokenAwareNetworkStrategyPolicy(t *testing.T) {
 		{
 			name: "\"waw\" dc with rf = 2, \"her\" dc with rf = 3",
 			qi: QueryInfo{
-				token:    Token{value: 0},
+				token:    &Token{value: 0},
 				topology: topology,
 				dcRF:     map[string]int{"waw": 2, "her": 3},
 			},
@@ -272,7 +262,7 @@ func TestTokenAwareNetworkStrategyPolicy(t *testing.T) {
 		},
 	}
 
-	policy := newTokenAwarePolicy(false, nil)
+	policy := newTokenAwarePolicy(false, dummyWrapper{})
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
@@ -288,5 +278,23 @@ func TestTokenAwareNetworkStrategyPolicy(t *testing.T) {
 				t.Fatalf("TestTokenAwareNetworkStrategyPolicy: plan iter didn't return nil after making the whole cycle")
 			}
 		})
+	}
+}
+
+type dummyWrapper struct{}
+
+func (d dummyWrapper) PlanIter(qi QueryInfo) func() *Node {
+	return d.WrapPlan(qi.topology.allNodes)
+}
+
+func (d dummyWrapper) WrapPlan(plan []*Node) func() *Node {
+	counter := 0
+	return func() *Node {
+		if counter == len(plan) {
+			return nil
+		}
+
+		defer func() { counter++ }()
+		return plan[counter]
 	}
 }

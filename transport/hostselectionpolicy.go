@@ -5,7 +5,7 @@ import (
 )
 
 type QueryInfo struct {
-	token    Token
+	token    *Token
 	topology *topology
 
 	// TODO: change those two so that necessary data is retrieved from keyspace.
@@ -19,21 +19,20 @@ type HostSelectionPolicy interface {
 	PlanIter(QueryInfo) func() *Node
 }
 
-// PolicyWrapper is used to combine round-robin policies with token aware ones.
-type PolicyWrapper interface {
+// WrapperPolicy is used to combine round-robin policies with token aware ones.
+type WrapperPolicy interface {
+	HostSelectionPolicy
 	WrapPlan([]*Node) func() *Node
 }
 
-// In both round-robin policies it is important that:
-// - counter has to be taken modulo length of node slice
-// - initially we set counter to -1 because it is incremented each time we read it
+// In both round-robin policies counter has to be taken modulo length of node slice.
 
 type roundRobinPolicy struct {
 	counter atomic.Int64
 }
 
 func newRoundRobinPolicy() roundRobinPolicy {
-	return roundRobinPolicy{counter: *atomic.NewInt64(-1)}
+	return roundRobinPolicy{counter: *atomic.NewInt64(0)}
 }
 
 func (r *roundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
@@ -41,7 +40,7 @@ func (r *roundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
 }
 
 func (r *roundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
-	i := int(r.counter.Inc())
+	i := int(r.counter.Inc() - 1)
 	start := i
 
 	return func() *Node {
@@ -61,7 +60,7 @@ type dcAwareRoundRobinPolicy struct {
 
 func newDCAwareRoundRobin(dc string) dcAwareRoundRobinPolicy {
 	return dcAwareRoundRobinPolicy{
-		counter: *atomic.NewInt64(-1),
+		counter: *atomic.NewInt64(0),
 		localDC: dc,
 	}
 }
@@ -71,9 +70,7 @@ func (d *dcAwareRoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
 }
 
 func (d *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
-	i := int(d.counter.Inc())
-	start := i
-
+	i := d.counter.Inc() - 1
 	local := make([]*Node, 0)
 	remote := make([]*Node, 0)
 	for _, n := range plan {
@@ -84,18 +81,13 @@ func (d *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 		}
 	}
 
+	lit := (&roundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(local)
+	rit := (&roundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(remote)
 	return func() *Node {
-		if i == start+len(plan) {
-			return nil
-		}
-
-		defer func() { i++ }()
-		index := i % len(plan)
-
-		if index < len(local) {
-			return local[index]
+		if n := lit(); n != nil {
+			return n
 		} else {
-			return remote[index-len(local)]
+			return rit()
 		}
 	}
 }
@@ -103,33 +95,31 @@ func (d *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 type tokenAwarePolicy struct {
 	// TODO: information about strategy can also be retrieved from keyspace.
 	simpleStrategy bool
-	wrapper        PolicyWrapper
+	wrapperPolicy  WrapperPolicy
 }
 
-func newTokenAwarePolicy(simple bool, pw PolicyWrapper) tokenAwarePolicy {
-	if pw == nil {
-		return tokenAwarePolicy{
-			simpleStrategy: simple,
-			wrapper:        defaultWrapper{},
-		}
-	} else {
-		return tokenAwarePolicy{
-			simpleStrategy: simple,
-			wrapper:        pw,
-		}
+func newTokenAwarePolicy(simple bool, pw WrapperPolicy) tokenAwarePolicy {
+	return tokenAwarePolicy{
+		simpleStrategy: simple,
+		wrapperPolicy:  pw,
 	}
 }
 
-func (p *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
-	if p.simpleStrategy {
-		return p.wrapper.WrapPlan(p.simpleStrategyReplicas(qi))
+func (t *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
+	// Fallback to policy implemented in wrapperPolicy.
+	if qi.token == nil {
+		return t.wrapperPolicy.PlanIter(qi)
+	}
+
+	if t.simpleStrategy {
+		return t.wrapperPolicy.WrapPlan(t.simpleStrategyReplicas(qi))
 	} else {
-		return p.wrapper.WrapPlan(p.networkTopologyStrategyReplicas(qi))
+		return t.wrapperPolicy.WrapPlan(t.networkTopologyStrategyReplicas(qi))
 	}
 }
 
-func (p *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
-	return qi.topology.ringRange(qi.token, qi.rf, func(n *Node, replicas []*Node) bool {
+func (t *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
+	return qi.topology.ringRange(*qi.token, qi.rf, func(n *Node, replicas []*Node) bool {
 		for _, v := range replicas {
 			if n.addr == v.addr {
 				return false
@@ -139,7 +129,7 @@ func (p *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
 	})
 }
 
-func (p *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node {
+func (t *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node {
 	resLen := 0
 	// repeats store the amount of nodes from the same rack that we can take in given DC.
 	repeats := make(map[string]int, len(qi.dcRF))
@@ -175,20 +165,5 @@ func (p *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node
 		}
 		return false
 	}
-	return qi.topology.ringRange(qi.token, resLen, wanted)
-}
-
-// defaultWrapper is used only when no plan wrapper is defined for token aware policy.
-type defaultWrapper struct{}
-
-func (d defaultWrapper) WrapPlan(plan []*Node) func() *Node {
-	counter := 0
-	return func() *Node {
-		if counter == len(plan) {
-			return nil
-		}
-
-		defer func() { counter++ }()
-		return plan[counter]
-	}
+	return qi.topology.ringRange(*qi.token, resLen, wanted)
 }
