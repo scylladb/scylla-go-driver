@@ -418,8 +418,7 @@ func (c *Conn) QueryAsync(s Statement, pagingState frame.Bytes, fn func(QueryRes
 }
 
 func (c *Conn) Prepare(s Statement) (Statement, error) {
-	req := &Prepare{Query: s.Content}
-	res, err := c.sendRequest(req, false, false)
+	res, err := c.sendRequest(&Prepare{Query: s.Content}, false, false)
 	if err != nil {
 		return Statement{}, err
 	}
@@ -434,8 +433,7 @@ func (c *Conn) Prepare(s Statement) (Statement, error) {
 }
 
 func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error) {
-	req := newQueryForExecute(s, pagingState)
-	res, err := c.sendRequest(req, s.Compression, s.Tracing)
+	res, err := c.sendRequest(newQueryForExecute(s, pagingState), s.Compression, s.Tracing)
 	if err != nil {
 		return QueryResult{}, err
 	}
