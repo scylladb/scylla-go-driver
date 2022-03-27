@@ -28,7 +28,7 @@ func (n *Node) setStatus(v bool) {
 	n.status.Store(v)
 }
 
-func (n *Node) RandomConnection() *Conn {
+func (n *Node) LeastBusyConn() *Conn {
 	return n.pool.LeastBusyConn()
 }
 
