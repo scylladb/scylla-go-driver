@@ -7,10 +7,7 @@ import (
 type QueryInfo struct {
 	token    *Token
 	topology *topology
-
-	// TODO: change those two so that necessary data is retrieved from keyspace.
-	dcRF map[string]int
-	rf   int
+	ksName   string
 }
 
 // HostSelectionPolicy prepares plan (slice of Nodes) and returns iterator that goes over it.
@@ -26,7 +23,6 @@ type WrapperPolicy interface {
 }
 
 // In both round-robin policies counter has to be taken modulo length of node slice.
-
 type roundRobinPolicy struct {
 	counter atomic.Int64
 }
@@ -93,16 +89,11 @@ func (d *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 }
 
 type tokenAwarePolicy struct {
-	// TODO: information about strategy can also be retrieved from keyspace.
-	simpleStrategy bool
-	wrapperPolicy  WrapperPolicy
+	wrapperPolicy WrapperPolicy
 }
 
-func newTokenAwarePolicy(simple bool, pw WrapperPolicy) tokenAwarePolicy {
-	return tokenAwarePolicy{
-		simpleStrategy: simple,
-		wrapperPolicy:  pw,
-	}
+func newTokenAwarePolicy(pw WrapperPolicy) tokenAwarePolicy {
+	return tokenAwarePolicy{wrapperPolicy: pw}
 }
 
 func (t *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
@@ -111,7 +102,7 @@ func (t *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 		return t.wrapperPolicy.PlanIter(qi)
 	}
 
-	if t.simpleStrategy {
+	if qi.getStrategyType() == simple {
 		return t.wrapperPolicy.WrapPlan(t.simpleStrategyReplicas(qi))
 	} else {
 		return t.wrapperPolicy.WrapPlan(t.networkTopologyStrategyReplicas(qi))
@@ -119,7 +110,7 @@ func (t *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 }
 
 func (t *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
-	return qi.topology.ringRange(*qi.token, qi.rf, func(n *Node, replicas []*Node) bool {
+	return qi.topology.ringRange(*qi.token, int(qi.getRepFactor()), func(n *Node, replicas []*Node) bool {
 		for _, v := range replicas {
 			if n.addr == v.addr {
 				return false
@@ -130,16 +121,16 @@ func (t *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
 }
 
 func (t *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node {
-	resLen := 0
+	resLen := repFactor(0)
 	// repeats store the amount of nodes from the same rack that we can take in given DC.
-	repeats := make(map[string]int, len(qi.dcRF))
-	for k, v := range qi.dcRF {
+	repeats := make(map[string]int, len(qi.getDataCenterRepFactors()))
+	for k, v := range qi.getDataCenterRepFactors() {
 		resLen += v
-		repeats[k] = v - qi.topology.racksInDC[k]
+		repeats[k] = int(v) - qi.topology.racksInDC[k]
 	}
 
 	wanted := func(n *Node, replicas []*Node) bool {
-		rf := qi.dcRF[n.datacenter]
+		rf := qi.getDataCenterRepFactors()[n.datacenter]
 		fromDC := 0
 		fromRack := 0
 		for _, v := range replicas {
@@ -154,7 +145,7 @@ func (t *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node
 			}
 		}
 
-		if fromDC < rf {
+		if fromDC < int(rf) {
 			if fromRack == 0 {
 				return true
 			}
@@ -165,5 +156,17 @@ func (t *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node
 		}
 		return false
 	}
-	return qi.topology.ringRange(*qi.token, resLen, wanted)
+	return qi.topology.ringRange(*qi.token, int(resLen), wanted)
+}
+
+func (qi *QueryInfo) getStrategyType() stratType {
+	return qi.topology.keyspaces[qi.ksName].strategy.stratType
+}
+
+func (qi *QueryInfo) getRepFactor() repFactor {
+	return qi.topology.keyspaces[qi.ksName].strategy.rf
+}
+
+func (qi *QueryInfo) getDataCenterRepFactors() DcRFsMap {
+	return qi.topology.keyspaces[qi.ksName].strategy.dcRF
 }

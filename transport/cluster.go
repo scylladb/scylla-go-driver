@@ -16,8 +16,12 @@ import (
 type (
 	PeerMap      = map[string]*Node
 	RacksInDCMap = map[string]int
+	DcRFsMap     = map[string]repFactor
+	KeyspacesMap = map[string]keyspace
 
 	requestChan chan struct{}
+
+	repFactor uint32
 )
 
 type Cluster struct {
@@ -36,6 +40,34 @@ type topology struct {
 	racksInDC RacksInDCMap
 	allNodes  []*Node
 	ring      btree.BTree
+	keyspaces KeyspacesMap
+}
+
+type keyspace struct {
+	strategy strategy
+	// TODO: Add and use attributes below
+	// tables		      map[string]table
+	// user_defined_types map[string](string, cqltype)
+}
+
+type stratType int
+
+const (
+	simple stratType = iota
+	networkTopology
+	local
+	other
+)
+
+type strategy struct {
+	stratType
+	// used in simple strategy
+	rf repFactor
+	// used in networkTopology strategy
+	dcRF DcRFsMap
+	// used in other strategy
+	name string
+	data map[string]string
 }
 
 // ringRange return slice of nodes (desirably of length cnt) holding data described by token.
@@ -128,6 +160,10 @@ func (c *Cluster) refreshTopology() error {
 	seenRacks := make(map[string]bool) // Key is rack name appended to its dc name.
 	all := make([]*Node, 0, len(old))
 	ring := *btree.New(2)
+	keyspaces, err := c.parseKeyspace()
+	if err != nil {
+		return fmt.Errorf("query keyspaces: %w", err)
+	}
 
 	for _, r := range rows {
 		n, err := cqlRowIntoNode(r)
@@ -175,6 +211,7 @@ func (c *Cluster) refreshTopology() error {
 		racksInDC: racksInDC,
 		allNodes:  all,
 		ring:      ring,
+		keyspaces: keyspaces,
 	})
 	// Discards request that came to us while refreshing.
 	select {
@@ -182,6 +219,26 @@ func (c *Cluster) refreshTopology() error {
 	default:
 	}
 	return nil
+}
+
+func (c *Cluster) parseKeyspace() (KeyspacesMap, error) {
+	rows, err := c.control.Query(keyspaceQuery, nil)
+	if err != nil {
+		return nil, err
+	}
+	res := make(KeyspacesMap, len(rows.Rows))
+	for _, r := range rows.Rows {
+		name, err := r[ksName].AsText()
+		if err != nil {
+			return nil, fmt.Errorf("keyspace name column: %w", err)
+		}
+		stType, err := cqlRowIntoStrategy(r)
+		if err != nil {
+			return nil, err
+		}
+		res[name] = keyspace{strategy: *stType}
+	}
+	return res, nil
 }
 
 var (
@@ -192,6 +249,11 @@ var (
 
 	localQuery = Statement{
 		Content:     "SELECT rpc_address, data_center, rack, tokens FROM system.local",
+		Consistency: frame.ONE,
+	}
+
+	keyspaceQuery = Statement{
+		Content:     "SELECT keyspace_name, replication FROM system_schema.keyspaces",
 		Consistency: frame.ONE,
 	}
 )
@@ -218,6 +280,12 @@ const (
 	nodeTokens = 3
 )
 
+// Indexes of columns returned from keyspace query.
+const (
+	ksName      = 0
+	replication = 1
+)
+
 func cqlRowIntoNode(r frame.Row) (*Node, error) {
 	addr, err := r[nodeAddr].AsIP()
 	if err != nil {
@@ -238,13 +306,66 @@ func cqlRowIntoNode(r frame.Row) (*Node, error) {
 	}, nil
 }
 
+func cqlRowIntoStrategy(r frame.Row) (*strategy, error) {
+	stType, err := r[replication].AsStringMap()
+	if err != nil {
+		return nil, fmt.Errorf("strategy and rf column: %w", err)
+	}
+
+	s, ok := stType["class"]
+	if !ok {
+		return nil, fmt.Errorf("strategy map should have a 'class' field")
+	}
+	delete(stType, "class")
+
+	switch {
+	case s == "org.apache.cassandra.locator.SimpleStrategy" || s == "SimpleStrategy":
+		rfs, ok := stType["replication_factor"]
+		if !ok {
+			return nil, fmt.Errorf("replication_factor field not found")
+		}
+		rf, err := strconv.ParseUint(rfs, 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("could not parse replication factor as unsigned int")
+		}
+		return &strategy{
+			stratType: simple,
+			rf:        repFactor(rf),
+		}, nil
+	case s == "org.apache.cassandra.locator.NetworkTopologyStrategy" || s == "NetworkTopologyStrategy":
+		dcRFs := make(DcRFsMap, len(stType))
+		for k, v := range stType {
+			rf, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("could not parse replication factor as int")
+			}
+			dcRFs[k] = repFactor(rf)
+		}
+		return &strategy{
+			stratType: networkTopology,
+			dcRF:      dcRFs,
+		}, nil
+	case s == "org.apache.cassandra.locator.LocalStrategy" || s == "LocalStrategy":
+		return &strategy{
+			stratType: local,
+			rf:        1,
+		}, nil
+	default:
+		return &strategy{
+			stratType: other,
+			name:      s,
+			data:      stType,
+		}, nil
+	}
+}
+
 func insertNodeTokens(n *Node, r frame.Row, ring btree.BTree) error {
 	if tokens, err := r[nodeTokens].AsTextSet(); err != nil {
 		return err
 	} else {
 		for _, t := range tokens {
 			if v, err := strconv.ParseInt(t, 10, 64); err != nil {
-				return fmt.Errorf("couldn't parse token string: %v", err)
+				return fmt.Errorf("couldn't parse token string: %w", err)
 			} else {
 				ring.ReplaceOrInsert(RingEntry{
 					node:  n,
@@ -266,6 +387,10 @@ func (c *Cluster) RacksInDC() RacksInDCMap {
 
 func (c *Cluster) AllNodes() []*Node {
 	return c.topology.Load().(*topology).allNodes
+}
+
+func (c *Cluster) Keyspaces() KeyspacesMap {
+	return c.topology.Load().(*topology).keyspaces
 }
 
 func (c *Cluster) setTopology(t *topology) {

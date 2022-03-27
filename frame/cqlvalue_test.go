@@ -745,3 +745,97 @@ func TestCqlValueTextSet(t *testing.T) { // nolint:dupl // Tests are different.
 		})
 	}
 }
+
+func cqlStringMap(m map[string]string, keyTypeID, valueTypeID OptionID) CqlValue {
+	var b Buffer
+	b.WriteInt(int32(len(m)))
+	for k, v := range m {
+		b.WriteLongString(k)
+		b.WriteLongString(v)
+	}
+
+	return CqlValue{
+		Type: &Option{
+			ID:  MapID,
+			Map: &MapOption{Key: Option{ID: keyTypeID}, Value: Option{ID: valueTypeID}}},
+		Value: b.Bytes(),
+	}
+}
+
+func TestCqlValueStringMap(t *testing.T) {
+	t.Parallel()
+
+	sampleMap := map[string]string{
+		"rust":  "cohle",
+		"hello": "world",
+		"dead":  "beef",
+		"":      "a",
+		"b":     "",
+	}
+
+	testCases := []struct {
+		name     string
+		content  CqlValue
+		expected map[string]string
+		valid    bool
+	}{
+		{
+			name:     "map<text,text>",
+			content:  cqlStringMap(sampleMap, VarcharID, VarcharID),
+			expected: sampleMap,
+			valid:    true,
+		},
+		{
+			name:     "map<ascii,text>",
+			content:  cqlStringMap(sampleMap, ASCIIID, VarcharID),
+			expected: sampleMap,
+			valid:    true,
+		},
+		{
+			name:     "map<text,ascii>",
+			content:  cqlStringMap(sampleMap, ASCIIID, VarcharID),
+			expected: sampleMap,
+			valid:    true,
+		},
+		{
+			name:     "map<ascii,ascii>",
+			content:  cqlStringMap(sampleMap, ASCIIID, ASCIIID),
+			expected: sampleMap,
+			valid:    true,
+		},
+		{
+			name:     "empty map",
+			content:  cqlStringMap(map[string]string{}, VarcharID, VarcharID),
+			expected: map[string]string{},
+			valid:    true,
+		},
+		{
+			name:    "nonstring value",
+			content: cqlStringMap(map[string]string{}, VarcharID, IntID),
+			valid:   false,
+		},
+		{
+			name:    "non-map",
+			content: CqlValue{Type: &Option{ID: IntID}},
+			valid:   false,
+		},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			res, err := tc.content.AsStringMap()
+			if err != nil {
+				if tc.valid {
+					t.Fatal(err)
+				}
+				return
+			}
+			if diff := cmp.Diff(res, tc.expected); diff != "" {
+				t.Fatalf(diff)
+			}
+		})
+	}
+}

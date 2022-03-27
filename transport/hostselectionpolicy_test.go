@@ -25,6 +25,7 @@ func mockTopologyRoundRobin() *topology {
 }
 
 func TestRoundRobinPolicy(t *testing.T) {
+	t.Parallel()
 	topology := mockTopologyRoundRobin()
 	testCases := []struct {
 		name     string
@@ -69,6 +70,7 @@ func TestRoundRobinPolicy(t *testing.T) {
 		tc := testCases[i]
 		it := policy.PlanIter(tc.qi)
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			for _, addr := range tc.expected {
 				if res := it().addr; res != addr {
 					t.Fatalf("TestRoundRobinPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
@@ -82,6 +84,7 @@ func TestRoundRobinPolicy(t *testing.T) {
 }
 
 func TestDCAwareRoundRobinPolicy(t *testing.T) {
+	t.Parallel()
 	topology := mockTopologyRoundRobin()
 	testCases := []struct {
 		name     string
@@ -116,6 +119,7 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) {
 		tc := testCases[i]
 		it := policy.PlanIter(tc.qi)
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			for _, addr := range tc.expected {
 				if res := it().addr; res != addr {
 					t.Fatalf("TestDCAwareRoundRobinPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
@@ -132,6 +136,10 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) {
 // Ring field is populated as follows:
 // ring tokens:            50 100 150 200 250 300 400 500
 // corresponding node ids: 2  1   2   3   1   2   3   1
+// keyspaces:
+// names:       "rf2"  "rf3"
+// strategies:  simple simple
+// rep factors: 2      3
 func mockTopologyTokenAwareSimpleStrategy() *topology {
 	dummyNodes := []*Node{
 		{addr: "1", datacenter: "waw"},
@@ -149,9 +157,15 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[2], token: Token{value: 400}})
 	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: Token{value: 500}})
 
+	ks := map[string]keyspace{
+		"rf2": {strategy: strategy{stratType: simple, rf: 2}},
+		"rf3": {strategy: strategy{stratType: simple, rf: 3}},
+	}
+
 	return &topology{
-		allNodes: dummyNodes,
-		ring:     ring,
+		allNodes:  dummyNodes,
+		ring:      ring,
+		keyspaces: ks,
 	}
 }
 
@@ -165,22 +179,22 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) {
 	}{
 		{
 			name:     "replication factor = 2",
-			qi:       QueryInfo{token: &Token{value: 160}, topology: topology, rf: 2},
+			qi:       QueryInfo{token: &Token{value: 160}, topology: topology, ksName: "rf2"},
 			expected: []string{"3", "1"},
 		},
 		{
 			name:     "replication factor = 3",
-			qi:       QueryInfo{token: &Token{value: 60}, topology: topology, rf: 3},
+			qi:       QueryInfo{token: &Token{value: 60}, topology: topology, ksName: "rf3"},
 			expected: []string{"1", "2", "3"},
 		},
 		{
 			name:     "token value equal to the one in the ring",
-			qi:       QueryInfo{token: &Token{value: 500}, topology: topology, rf: 3},
+			qi:       QueryInfo{token: &Token{value: 500}, topology: topology, ksName: "rf3"},
 			expected: []string{"1", "2", "3"},
 		},
 	}
 
-	policy := newTokenAwarePolicy(true, dummyWrapper{})
+	policy := newTokenAwarePolicy(dummyWrapper{})
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
@@ -212,6 +226,11 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) {
 // datacenter:       her
 // nodes in rack r3: 5 6
 // nodes in rack r4: 7 8
+//
+// keyspace:
+// name: "waw/her"
+// strategy: network topology
+// replication factors: waw: 2 her: 3
 func mockTopologyTokenAwareNetworkStrategy() *topology {
 	dummyNodes := []*Node{
 		{addr: "1", datacenter: "waw", rack: "r1"},
@@ -236,10 +255,15 @@ func mockTopologyTokenAwareNetworkStrategy() *topology {
 	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[6], token: Token{value: 500}})
 	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[2], token: Token{value: 510}})
 
+	ks := map[string]keyspace{
+		"waw/her": {strategy: strategy{stratType: networkTopology, dcRF: map[string]repFactor{"waw": 2, "her": 3}}},
+	}
+
 	return &topology{
 		racksInDC: dcs,
 		allNodes:  dummyNodes,
 		ring:      ring,
+		keyspaces: ks,
 	}
 }
 
@@ -256,13 +280,13 @@ func TestTokenAwareNetworkStrategyPolicy(t *testing.T) {
 			qi: QueryInfo{
 				token:    &Token{value: 0},
 				topology: topology,
-				dcRF:     map[string]int{"waw": 2, "her": 3},
+				ksName:   "waw/her",
 			},
 			expected: []string{"1", "5", "6", "4", "8"},
 		},
 	}
 
-	policy := newTokenAwarePolicy(false, dummyWrapper{})
+	policy := newTokenAwarePolicy(dummyWrapper{})
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]

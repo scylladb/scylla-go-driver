@@ -107,6 +107,8 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	}
 
 	wg.Wait()
+
+	h.exec("DROP KEYSPACE mykeyspace")
 }
 
 var benchmarkConnQueryResult QueryResult
@@ -133,6 +135,7 @@ func BenchmarkConnQueryIntegration(b *testing.B) {
 		}
 	}
 	benchmarkConnQueryResult = r
+	h.exec("DROP KEYSPACE mykeyspace")
 }
 
 func TestCloseHangingIntegration(t *testing.T) {
@@ -158,6 +161,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 			}
 			// Shut the connection down in the middle of querying
 			if id == n/2 {
+				h.exec("DROP KEYSPACE mykeyspace")
 				h.conn.Close()
 			}
 		}(i)

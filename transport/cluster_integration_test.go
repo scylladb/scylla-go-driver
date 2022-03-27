@@ -74,6 +74,11 @@ func TestClusterIntegration(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	// There should be at least system keyspaces present.
+	if len(c.Keyspaces()) == 0 {
+		t.Fatalf("Keyspaces failed to load")
+	}
+
 	c.handleEvent(response{
 		Response: &TopologyChange{
 			Change:  frame.NewNode,
