@@ -235,6 +235,36 @@ func (c CqlValue) AsStringSlice() ([]string, error) {
 	return res, nil
 }
 
+func (c CqlValue) AsStringMap() (map[string]string, error) {
+	if c.Type.ID != MapID {
+		return nil, fmt.Errorf("%v is not a map", c)
+	}
+	if c.Type.Map.Key.ID != VarcharID && c.Type.Map.Key.ID != ASCIIID {
+		return nil, fmt.Errorf("map keys can't be interpreted as strings")
+	}
+	if c.Type.Map.Value.ID != VarcharID && c.Type.Map.Value.ID != ASCIIID {
+		return nil, fmt.Errorf("map values can't be interpreted as strings")
+	}
+
+	raw := c.Value
+	n := int(binary.BigEndian.Uint32(raw))
+	raw = raw[4:]
+
+	res := make(map[string]string, n)
+	for i := 0; i < n; i++ {
+		keyN := binary.BigEndian.Uint32(raw)
+		key := string(raw[4 : keyN+4])
+		raw = raw[keyN+4:]
+
+		valueN := binary.BigEndian.Uint32(raw)
+		value := string(raw[4 : valueN+4])
+		raw = raw[valueN+4:]
+
+		res[key] = value
+	}
+	return res, nil
+}
+
 func CqlFromASCII(s string) (CqlValue, error) {
 	for _, v := range s {
 		if v > unicode.MaxASCII {
