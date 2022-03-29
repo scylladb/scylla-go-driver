@@ -3,6 +3,7 @@
 package transport
 
 import (
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -48,6 +49,11 @@ func (h *connTestHelper) applyFixture() {
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
 }
 
+func (h *connTestHelper) setupMassiveUsersTable() {
+	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.massive_users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+}
+
 func (h *connTestHelper) exec(cql string) {
 	h.t.Helper()
 	s := Statement{
@@ -70,49 +76,49 @@ func cqlText(s string) frame.CqlValue {
 
 func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
-	h.applyFixture()
+	h.setupMassiveUsersTable()
 	defer h.close()
 
-	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
-	expected := []frame.Row{
-		{
-			frame.CqlFromInt32(1),
-			cqlText("rick"),
-			cqlText("sanchez"),
-		},
-		{
-			frame.CqlFromInt32(4),
-			cqlText("rust"),
-			cqlText("cohle"),
-		},
+	const n = maxStreamID
+
+	makeInsert := func(id int) Statement {
+		return Statement{
+			Content:     "INSERT INTO mykeyspace.massive_users(user_id, fname, lname) VALUES (" + strconv.Itoa(id) + ", 'rick', 'sanchez')",
+			Consistency: frame.ONE,
+		}
 	}
 
-	const n = 1500
+	makeQuery := func(id int) Statement {
+		return Statement{Content: "SELECT * FROM mykeyspace.massive_users WHERE user_id =" + strconv.Itoa(id), Consistency: frame.ONE}
+	}
 
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 
-		go func() {
+		go func(id int) {
 			defer wg.Done()
 
-			res, err := h.conn.Query(query, nil)
+			if _, err := h.conn.Query(makeInsert(id), nil); err != nil {
+				t.Fatal(err)
+			}
+
+			res, err := h.conn.Query(makeQuery(id), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			if len(res.Rows) != 2 {
+			if len(res.Rows) != 1 {
 				t.Fatal("invalid number of rows")
 			}
 
-			for j, row := range res.Rows {
-				if diff := cmp.Diff(expected[j], row); diff != "" {
+			for _, row := range res.Rows {
+				if diff := cmp.Diff(frame.Row{frame.CqlFromInt32(int32(id)), cqlText("rick"), cqlText("sanchez")}, row); diff != "" {
 					t.Fatal(diff)
 				}
 			}
-		}()
+		}(i)
 	}
-
 	wg.Wait()
 }
 
