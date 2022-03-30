@@ -113,7 +113,7 @@ type ErrorCode = Int
 type HeaderFlags = Byte
 
 const (
-	Compression   HeaderFlags = 0x01
+	Compress      HeaderFlags = 0x01
 	Tracing       HeaderFlags = 0x02
 	CustomPayload HeaderFlags = 0x04
 	Warning       HeaderFlags = 0x08
@@ -263,6 +263,13 @@ var allSchemaChangeTargets = map[SchemaChangeTarget]struct{}{
 
 // https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L296-L308
 type StartupOptions StringMap
+
+type Compression string
+
+const (
+	Lz4    Compression = "lz4"
+	Snappy Compression = "snappy"
+)
 
 // Mandatory values and keys that can be given in Startup body
 // value in the map means option name and key means its possible values.

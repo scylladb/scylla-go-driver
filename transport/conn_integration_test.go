@@ -3,7 +3,9 @@
 package transport
 
 import (
+	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
 	"sync"
 	"testing"
@@ -172,4 +174,87 @@ func TestCloseHangingIntegration(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func (h *connTestHelper) applyCompressionFixture(toSend []byte) {
+	h.execCompression("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.execCompression("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.execCompression("TRUNCATE TABLE mykeyspace.users")
+	h.execCompression(fmt.Sprintf("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, '%s', 'sanchez')", toSend))
+	h.execCompression("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+	if err := h.conn.UseKeyspace("mykeyspace"); err != nil {
+		log.Fatalf("use keyspace %v", err)
+	}
+}
+
+func (h *connTestHelper) execCompression(cql string) {
+	h.t.Helper()
+	s := Statement{
+		Content:     cql,
+		Consistency: frame.ONE,
+		Compression: true,
+	}
+	if _, err := h.conn.Query(s, nil); err != nil {
+		h.t.Fatal(err)
+	}
+}
+
+func TestCompressionIntegration(t *testing.T) {
+	toSend := make([]byte, (1 << 20)) // 1MB
+	for i := 0; i < (1 << 20); i++ {
+		toSend[i] = 'a' + byte(rand.Intn(26))
+	}
+	t.Run("snappy", func(t *testing.T) {
+		testCompression(t, frame.Snappy, []byte("rick"))
+		testCompression(t, frame.Snappy, toSend)
+	})
+	t.Run("lz4", func(t *testing.T) {
+		testCompression(t, frame.Lz4, []byte("rick"))
+		testCompression(t, frame.Lz4, toSend)
+	})
+}
+
+func testCompression(t *testing.T, c frame.Compression, toSend []byte) {
+	t.Helper()
+
+	cfg := DefaultConnConfig("")
+	cfg.Compression = c
+	conn, err := OpenConn(TestHost, nil, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	h := &connTestHelper{t: t, conn: conn}
+	h.applyCompressionFixture(toSend)
+
+	defer h.close()
+
+	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE, Compression: true}
+	expected := []frame.Row{
+		{
+			frame.CqlFromInt32(1),
+			cqlText(string(toSend)),
+			cqlText("sanchez"),
+		},
+		{
+			frame.CqlFromInt32(4),
+			cqlText("rust"),
+			cqlText("cohle"),
+		},
+	}
+
+	res, err := h.conn.Query(query, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(res.Rows) != 2 {
+		t.Fatal("invalid number of rows")
+	}
+
+	for j, row := range res.Rows {
+		if diff := cmp.Diff(expected[j], row); diff != "" {
+			t.Fatal(diff)
+		}
+	}
 }

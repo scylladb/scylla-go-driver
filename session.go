@@ -56,6 +56,13 @@ var (
 	errNoConnection = fmt.Errorf("no working connection")
 )
 
+type Compression = frame.Compression
+
+var (
+	Snappy Compression = frame.Snappy
+	Lz4    Compression = frame.Lz4
+)
+
 type SessionConfig struct {
 	Hosts  []string
 	Events []EventType

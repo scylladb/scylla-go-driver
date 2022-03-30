@@ -47,6 +47,7 @@ type stats struct {
 type connWriter struct {
 	conn       *bufio.Writer
 	buf        frame.Buffer
+	compr      *compr
 	requestCh  chan request
 	stats      *stats
 	connString func() string
@@ -113,11 +114,17 @@ func (c *connWriter) send(r request) error {
 	binary.BigEndian.PutUint32(b[5:9], l)
 
 	// Send
-	if _, err := frame.CopyBuffer(&c.buf, c.conn); err != nil {
-		return err
+	var err error
+	if r.Compress {
+		if c.compr != nil {
+			_, err = c.compr.compress(c.conn, c.buf.BytesBuffer())
+		} else {
+			return errComprUnspecified
+		}
+	} else {
+		_, err = frame.CopyBuffer(&c.buf, c.conn)
 	}
-
-	return nil
+	return err
 }
 
 type connReader struct {
@@ -125,6 +132,7 @@ type connReader struct {
 	buf         frame.Buffer
 	bufw        io.Writer
 	stats       *stats
+	compr       *compr
 	handleEvent func(r response)
 	connString  func() string
 	connClose   func()
@@ -193,15 +201,6 @@ func (c *connReader) loop() {
 	}
 }
 
-func (c *connReader) drainHandlers() {
-	c.mu.Lock()
-	c.closed = true
-	for _, h := range c.h {
-		h <- response{Err: fmt.Errorf("%s closed", c.connString())}
-	}
-	c.mu.Unlock()
-}
-
 func (c *connReader) recv() response {
 	c.buf.Reset()
 
@@ -221,10 +220,18 @@ func (c *connReader) recv() response {
 
 	// Read body
 	c.conn.N = int64(r.Header.Length)
-	if _, err := io.Copy(c.bufw, &c.conn); err != nil {
-		r.Err = fmt.Errorf("read body: %w", err)
-		return r
+	if r.Header.Flags&frame.Compress != 0 {
+		if _, err := c.compr.decompress(c.bufw, &c.conn); err != nil {
+			r.Err = fmt.Errorf("read body: %w", err)
+			return r
+		}
+	} else {
+		if _, err := io.Copy(c.bufw, &c.conn); err != nil {
+			r.Err = fmt.Errorf("read body: %w", err)
+			return r
+		}
 	}
+
 	r.Response = c.parse(r.Header.OpCode)
 	if r.Response == nil {
 		r.Err = fmt.Errorf("response type not supported")
@@ -236,6 +243,15 @@ func (c *connReader) recv() response {
 	}
 
 	return r
+}
+
+func (c *connReader) drainHandlers() {
+	c.mu.Lock()
+	c.closed = true
+	for _, h := range c.h {
+		h <- response{Err: fmt.Errorf("%s closed", c.connString())}
+	}
+	c.mu.Unlock()
 }
 
 func (c *connReader) parse(op frame.OpCode) frame.Response {
@@ -284,6 +300,9 @@ type ConnConfig struct {
 	DefaultConsistency frame.Consistency
 	DefaultPort        string
 
+	Compression     frame.Compression
+	ComprBufferSize int
+
 	ConnObserver ConnObserver
 }
 
@@ -297,6 +316,7 @@ func DefaultConnConfig(keyspace string) ConnConfig {
 		DefaultConsistency: frame.LOCALQUORUM,
 		DefaultPort:        "9042",
 		ConnObserver:       LoggingConnObserver{},
+		ComprBufferSize:    comprBufferSize,
 	}
 }
 
@@ -305,10 +325,11 @@ const (
 	targetWaiting        = requestChanSize
 	maxCoalescedRequests = 100
 	ioBufferSize         = 8192
+	comprBufferSize      = 64 * 1024 // 64 Kb
 )
 
 // OpenShardConn opens connection mapped to a specific shard on Scylla node.
-func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { // nolint:unused // This will be used.
+func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) {
 	it := ShardPortIterator(si)
 	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
 	for i := 0; i < maxTries; i++ {
@@ -391,17 +412,24 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 		stats: s,
 	}
 
+	if cfg.Compression != "" {
+		if compr, err := newCompr(false, cfg.Compression, cfg.ComprBufferSize); err != nil {
+			return c, err
+		} else {
+			c.r.compr = compr
+		}
+		if compr, err := newCompr(true, cfg.Compression, cfg.ComprBufferSize); err != nil {
+			return c, err
+		} else {
+			c.w.compr = compr
+		}
+	}
+
 	go c.w.loop()
 	go c.r.loop()
 
 	if err := c.init(); err != nil {
 		return c, err
-	}
-
-	if cfg.Keyspace != "" {
-		if err := c.UseKeyspace(cfg.Keyspace); err != nil {
-			return c, fmt.Errorf("use keyspace %w", err)
-		}
 	}
 
 	return c, nil
@@ -432,7 +460,7 @@ func validateKeyspace(keyspace string) error {
 	return nil
 }
 
-var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
+const cqlVersion = "3.0.0"
 
 func (c *Conn) init() error {
 	if s, err := c.Supported(); err != nil {
@@ -440,10 +468,19 @@ func (c *Conn) init() error {
 	} else {
 		c.event.Shard = s.ScyllaSupported().Shard
 	}
-	if err := c.Startup(startupOptions); err != nil {
+	opts := frame.StartupOptions{"CQL_VERSION": cqlVersion}
+	if c.cfg.Compression != "" {
+		opts["COMPRESSION"] = string(c.cfg.Compression)
+	}
+	if err := c.Startup(opts); err != nil {
 		return fmt.Errorf("startup: %w", err)
 	}
 
+	if c.cfg.Keyspace != "" {
+		if err := c.UseKeyspace(c.cfg.Keyspace); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
