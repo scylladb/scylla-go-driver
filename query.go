@@ -138,6 +138,14 @@ func (q *Query) PageSize() int32 {
 	return q.stmt.PageSize
 }
 
+func (q *Query) SetCompression(v bool) {
+	q.stmt.Compression = v
+}
+
+func (q *Query) Compression() bool {
+	return q.stmt.Compression
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter() Iter {

@@ -20,6 +20,10 @@ type Buffer struct {
 	readErr error
 }
 
+func (b *Buffer) BytesBuffer() *bytes.Buffer {
+	return &b.buf
+}
+
 func (b *Buffer) Bytes() []byte {
 	return b.buf.Bytes()
 }
