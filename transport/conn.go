@@ -444,7 +444,7 @@ func (c *Conn) UseKeyspace(ks string) error {
 }
 
 func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) {
-	req := makeQueryForStatement(s, pagingState)
+	req := makeQuery(s, pagingState)
 	res, err := c.sendRequest(&req, s.Compression, s.Tracing)
 	if err != nil {
 		return QueryResult{}, err
@@ -460,7 +460,8 @@ func (c *Conn) QueryAsync(s Statement, pagingState frame.Bytes, fn func(QueryRes
 }
 
 func (c *Conn) Prepare(s Statement) (Statement, error) {
-	res, err := c.sendRequest(&Prepare{Query: s.Content}, false, false)
+	req := Prepare{Query: s.Content}
+	res, err := c.sendRequest(&req, false, false)
 	if err != nil {
 		return Statement{}, err
 	}
@@ -475,7 +476,8 @@ func (c *Conn) Prepare(s Statement) (Statement, error) {
 }
 
 func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error) {
-	res, err := c.sendRequest(newQueryForExecute(s, pagingState), s.Compression, s.Tracing)
+	req := makeExecute(s, pagingState)
+	res, err := c.sendRequest(&req, s.Compression, s.Tracing)
 	if err != nil {
 		return QueryResult{}, err
 	}
