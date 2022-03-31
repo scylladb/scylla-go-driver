@@ -64,6 +64,12 @@ func (s *Session) Query(req Query) (Result, error) {
 	return Result(res), err
 }
 
+func (s *Session) QueryAsync(req Query, callback func(Result, error)) {
+	go func() {
+		callback(s.Query(req))
+	}()
+}
+
 func (s *Session) Prepare(content string) (Query, error) {
 	conn := s.leastBusyConn()
 	if conn == nil {
