@@ -466,7 +466,7 @@ func (c *Conn) Prepare(s Statement) (Statement, error) {
 		return s, nil
 	}
 
-	return Statement{}, fmt.Errorf("prepare failed")
+	return Statement{}, responseAsError(res)
 }
 
 func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error) {
