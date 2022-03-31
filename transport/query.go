@@ -7,8 +7,8 @@ import (
 )
 
 type Statement struct {
-	Content           string
 	ID                frame.Bytes
+	Content           string
 	Values            []frame.Value
 	PageSize          frame.Int
 	Consistency       frame.Consistency
