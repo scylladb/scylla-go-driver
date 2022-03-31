@@ -16,7 +16,7 @@ func runDriver() (*Session, error) {
 		Events:     nil,
 		ConnConfig: transport.ConnConfig{TCPNoDelay: false, Timeout: 1, DefaultConsistency: 1},
 	}
-	return NewSession(config)
+	return NewSession(&config)
 }
 
 func TestSessionIntegration(t *testing.T) {
