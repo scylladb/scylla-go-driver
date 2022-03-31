@@ -453,12 +453,6 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 	return makeQueryResult(res)
 }
 
-func (c *Conn) QueryAsync(s Statement, pagingState frame.Bytes, fn func(QueryResult, error)) {
-	go func() {
-		fn(c.Query(s, pagingState))
-	}()
-}
-
 func (c *Conn) Prepare(s Statement) (Statement, error) {
 	req := Prepare{Query: s.Content}
 	res, err := c.sendRequest(&req, false, false)
