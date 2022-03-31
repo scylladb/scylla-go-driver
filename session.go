@@ -19,11 +19,11 @@ type SessionConfig struct {
 }
 
 type Session struct {
-	cfg     SessionConfig
+	cfg     *SessionConfig
 	cluster *transport.Cluster
 }
 
-func NewSession(cfg SessionConfig) (*Session, error) {
+func NewSession(cfg *SessionConfig) (*Session, error) {
 	cluster, err := transport.NewCluster(cfg.ConnConfig, cfg.Events, cfg.Hosts...)
 	if err != nil {
 		return nil, err
