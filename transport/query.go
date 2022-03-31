@@ -17,13 +17,7 @@ type Statement struct {
 	Compression       bool
 }
 
-func NewStatement(content string) Statement {
-	return Statement{
-		Content: content,
-	}
-}
-
-func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
+func makeQuery(s Statement, pagingState frame.Bytes) Query {
 	return Query{
 		Query:       s.Content,
 		Consistency: s.Consistency,
@@ -36,8 +30,8 @@ func makeQueryForStatement(s Statement, pagingState frame.Bytes) Query {
 	}
 }
 
-func newQueryForExecute(s Statement, pagingState frame.Bytes) frame.Request {
-	return &Execute{
+func makeExecute(s Statement, pagingState frame.Bytes) Execute {
+	return Execute{
 		ID:          s.ID,
 		Consistency: s.Consistency,
 		Options: frame.QueryOptions{

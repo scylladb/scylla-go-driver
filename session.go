@@ -9,6 +9,7 @@ import (
 
 // TODO: Add retry policy.
 // TODO: Add Query Paging.
+// TODO: Merge with host selection policy.
 
 type SessionConfig struct {
 	Hosts    []string
