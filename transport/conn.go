@@ -49,6 +49,7 @@ type connWriter struct {
 	requestCh chan request
 	metrics   *connMetrics
 	connClose func()
+	info      string
 }
 
 func (c *connWriter) submit(r request) {
@@ -74,15 +75,15 @@ func (c *connWriter) loop() {
 				return
 			}
 			if err := c.send(r); err != nil {
-				log.Printf("fatal send error, closing connection due to %s", err)
-				r.ResponseHandler <- response{Err: fmt.Errorf("send: %w", err)}
+				log.Printf("%s fatal send error, closing connection due to %s", c.info, err)
+				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.info, err)}
 				c.connClose()
 				return
 			}
 			c.metrics.InFlight.Inc()
 		}
 		if err := c.conn.Flush(); err != nil {
-			log.Printf("fatal flush error, closing connection due to %s", err)
+			log.Printf("%s fatal flush error, closing connection due to %s", c.info, err)
 			c.connClose()
 			return
 		}
@@ -121,6 +122,7 @@ type connReader struct {
 	metrics     *connMetrics
 	handleEvent func(r response)
 	connClose   func()
+	info        string
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
@@ -133,12 +135,12 @@ func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return 0, fmt.Errorf("connection closed")
+		return 0, fmt.Errorf("%s closed", c.info)
 	}
 
 	streamID, err := c.s.Alloc()
 	if err != nil {
-		return 0, fmt.Errorf("stream ID alloc: %w", err)
+		return 0, fmt.Errorf("%s stream ID alloc: %w", c.info, err)
 	}
 
 	c.h[streamID] = h
@@ -169,13 +171,13 @@ func (c *connReader) loop() {
 			if c.handleEvent != nil {
 				c.handleEvent(resp)
 			} else {
-				log.Printf("received event: %#+v", resp)
+				log.Printf("%s received event: %#+v", c.info, resp)
 			}
 			continue
 		}
 
 		if resp.Err != nil {
-			log.Printf("fatal receive error, closing connection due to %s", resp.Err)
+			log.Printf("%s fatal receive error, closing connection due to %s", c.info, resp.Err)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -186,7 +188,7 @@ func (c *connReader) loop() {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			log.Printf("received unknown stream ID %d, closing connection", resp.StreamID)
+			log.Printf("%s received unknown stream ID %d, closing connection", c.info, resp.StreamID)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -198,7 +200,7 @@ func (c *connReader) drainHandlers() {
 	c.mu.Lock()
 	c.closed = true
 	for _, h := range c.h {
-		h <- response{Err: fmt.Errorf("connection closed")}
+		h <- response{Err: fmt.Errorf("%s closed", c.info)}
 	}
 	c.mu.Unlock()
 }
@@ -271,7 +273,6 @@ type ConnConfig struct {
 	TCPNoDelay         bool
 	Timeout            time.Duration
 	DefaultConsistency frame.Consistency
-	Keyspace           string
 }
 
 const (
@@ -296,7 +297,7 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) { /
 		return conn, nil
 	}
 
-	return nil, fmt.Errorf("failed to open connection on shard port: all local ports are busy")
+	return nil, fmt.Errorf("failed to open connection on shard %d: all local ports are busy", si.Shard)
 }
 
 // OpenLocalPortConn opens connection on a given local port.
@@ -368,6 +369,9 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 			return c, fmt.Errorf("use keyspace %w", err)
 		}
 	}
+
+	c.w.info = c.String()
+	c.r.info = c.String()
 
 	log.Printf("%s connected", c)
 
