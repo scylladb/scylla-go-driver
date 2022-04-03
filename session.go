@@ -3,8 +3,8 @@ package scylla
 import (
 	"fmt"
 
-	"scylla-go-driver/frame"
-	"scylla-go-driver/transport"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/transport"
 )
 
 // TODO: Add retry policy.

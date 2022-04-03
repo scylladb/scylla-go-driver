@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"scylla-go-driver/frame"
-	. "scylla-go-driver/frame/response"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 )
 
 const awaitingChanges = 100 * time.Millisecond

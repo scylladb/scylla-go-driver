@@ -3,7 +3,7 @@ package response
 import (
 	"fmt"
 
-	"scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
 // Error response message type used in non specified errors which don't have a body.

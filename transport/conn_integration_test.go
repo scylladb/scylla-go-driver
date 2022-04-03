@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/frame"
 
 	"github.com/google/go-cmp/cmp"
 )

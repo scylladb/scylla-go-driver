@@ -1,4 +1,4 @@
-module scylla-go-driver
+module github.com/mmatczuk/scylla-go-driver
 
 go 1.18
 

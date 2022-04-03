@@ -5,7 +5,7 @@ package scylla
 import (
 	"testing"
 
-	"scylla-go-driver/transport"
+	"github.com/mmatczuk/scylla-go-driver/transport"
 )
 
 const TestHost = "192.168.100.100"

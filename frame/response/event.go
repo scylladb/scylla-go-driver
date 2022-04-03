@@ -2,7 +2,8 @@ package response
 
 import (
 	"log"
-	"scylla-go-driver/frame"
+
+	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
 // Event spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L754

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	. "scylla-go-driver/frame/response"
+	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 
 	"go.uber.org/atomic"
 )
