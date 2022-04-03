@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"scylla-go-driver/frame"
-	. "scylla-go-driver/frame/response"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 
 	"github.com/google/btree"
 	"go.uber.org/atomic"

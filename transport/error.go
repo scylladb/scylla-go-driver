@@ -3,8 +3,8 @@ package transport
 import (
 	"fmt"
 
-	"scylla-go-driver/frame"
-	. "scylla-go-driver/frame/response"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 )
 
 func responseAsError(res frame.Response) error {
