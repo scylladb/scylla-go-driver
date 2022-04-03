@@ -1,9 +1,9 @@
 package transport
 
 import (
-	"scylla-go-driver/frame"
-	. "scylla-go-driver/frame/request"
-	. "scylla-go-driver/frame/response"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	. "github.com/mmatczuk/scylla-go-driver/frame/request"
+	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 )
 
 type Statement struct {

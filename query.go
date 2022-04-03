@@ -1,8 +1,8 @@
 package scylla
 
 import (
-	"scylla-go-driver/frame"
-	"scylla-go-driver/transport"
+	"github.com/mmatczuk/scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/transport"
 )
 
 type Query struct {

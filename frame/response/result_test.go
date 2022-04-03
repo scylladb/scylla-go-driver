@@ -3,7 +3,7 @@ package response
 import (
 	"github.com/google/go-cmp/cmp"
 
-	"scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/frame"
 
 	"testing"
 )

@@ -1,7 +1,7 @@
 package request
 
 import (
-	"scylla-go-driver/frame"
+	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
 const (
