@@ -34,7 +34,7 @@ func BenchmarkQueryIntegration(b *testing.B) {
 		session *Session
 	)
 
-	session, err = runDriver()
+	session, err = newTestSession()
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func BenchmarkAsyncQueryIntegration(b *testing.B) {
 		}
 	)
 
-	session, err = runDriver()
+	session, err = newTestSession()
 	if err != nil {
 		b.Fatal(err)
 	}
