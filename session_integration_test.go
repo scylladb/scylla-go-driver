@@ -4,23 +4,24 @@ package scylla
 
 import (
 	"testing"
-
-	"github.com/mmatczuk/scylla-go-driver/transport"
 )
 
 const TestHost = "192.168.100.100"
 
-func runDriver() (*Session, error) {
-	config := SessionConfig{Hosts: []string{TestHost + ":9042"},
-		Keyspace:   "",
-		Events:     nil,
-		ConnConfig: transport.ConnConfig{TCPNoDelay: false, Timeout: 1, DefaultConsistency: 1},
+func newTestSession() (*Session, error) {
+	config := SessionConfig{
+		Hosts:              []string{TestHost + ":9042"},
+		Keyspace:           "",
+		Events:             nil,
+		TCPNoDelay:         false,
+		DefaultConsistency: 1,
 	}
+
 	return NewSession(&config)
 }
 
 func TestSessionIntegration(t *testing.T) {
-	session, err := runDriver()
+	session, err := newTestSession()
 
 	if err != nil {
 		t.Fatal("couldn't start session")
@@ -60,7 +61,7 @@ const (
 )
 
 func TestSessionPrepareIntegration(t *testing.T) {
-	session, err := runDriver()
+	session, err := newTestSession()
 	if err != nil {
 		t.Fatal("couldn't start session")
 	}
