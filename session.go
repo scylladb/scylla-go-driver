@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
 )
 
@@ -53,6 +54,7 @@ var (
 		"SERIAL      Consistency = 0x0008\n" +
 		"LOCALSERIAL Consistency = 0x0009\n" +
 		"LOCALONE    Consistency = 0x000A")
+	errNoConnection = fmt.Errorf("no working connection")
 )
 
 type SessionConfig struct {
@@ -135,6 +137,7 @@ func NewSession(config *SessionConfig) (*Session, error) {
 	return s, nil
 }
 
+// FIXME: to be replaced by host selection policy.
 func (s *Session) leastBusyConn() *transport.Conn {
 	for _, node := range s.cluster.Peers() {
 		conn := node.LeastBusyConn()
@@ -146,26 +149,13 @@ func (s *Session) leastBusyConn() *transport.Conn {
 	return nil
 }
 
-func (s *Session) NewQuery(content string) Query {
-	return Query{stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency}}
-}
-
-var errNoConnection = fmt.Errorf("no working connection")
-
-func (s *Session) Query(req Query) (Result, error) {
-	conn := s.leastBusyConn()
-	if conn == nil {
-		return Result{}, errNoConnection
+func (s *Session) Query(content string) Query {
+	return Query{session: s,
+		stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
+		exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
+			return conn.Query(stmt, pagingState)
+		},
 	}
-
-	res, err := conn.Query(req.stmt, nil)
-	return Result(res), err
-}
-
-func (s *Session) QueryAsync(req Query, callback func(Result, error)) {
-	go func() {
-		callback(s.Query(req))
-	}()
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
@@ -174,18 +164,13 @@ func (s *Session) Prepare(content string) (Query, error) {
 		return Query{}, errNoConnection
 	}
 
-	p := s.NewQuery(content)
-	res, err := conn.Prepare(p.stmt)
+	stmt := transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency}
+	res, err := conn.Prepare(stmt)
 
-	return Query{stmt: res}, err
-}
-
-func (s *Session) Execute(req Query) (Result, error) {
-	conn := s.leastBusyConn()
-	if conn == nil {
-		return Result{}, errNoConnection
-	}
-
-	res, err := conn.Execute(req.stmt, nil)
-	return Result(res), err
+	return Query{session: s,
+		stmt: res,
+		exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
+			return conn.Execute(stmt, pagingState)
+		},
+	}, err
 }

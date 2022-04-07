@@ -6,10 +6,22 @@ import (
 )
 
 type Query struct {
-	stmt transport.Statement
+	session *Session
+	stmt    transport.Statement
+	exec    func(*transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
 }
 
-func (q *Query) BindInt64(pos int, v int64) {
+func (q *Query) Exec() (Result, error) {
+	conn := q.session.leastBusyConn()
+	if conn == nil {
+		return Result{}, errNoConnection
+	}
+
+	res, err := q.exec(conn, q.stmt, nil)
+	return Result(res), err
+}
+
+func (q *Query) BindInt64(pos int, v int64) *Query {
 	q.stmt.Values[pos] = frame.Value{
 		N: 8,
 		Bytes: []byte{
@@ -23,6 +35,8 @@ func (q *Query) BindInt64(pos int, v int64) {
 			byte(v),
 		},
 	}
+
+	return q
 }
 
 type Result transport.QueryResult
