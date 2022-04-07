@@ -21,6 +21,21 @@ func (q *Query) Exec() (Result, error) {
 	return Result(res), err
 }
 
+func (q *Query) AsyncExec(callback func(Result, error)) {
+	// Copy the statement to avoid (bound) values overwrite.
+	stmt := q.stmt.Copy()
+
+	go func() {
+		conn := q.session.leastBusyConn()
+		if conn == nil {
+			callback(Result{}, errNoConnection)
+		}
+
+		res, err := q.exec(conn, stmt, nil)
+		callback(Result(res), err)
+	}()
+}
+
 func (q *Query) BindInt64(pos int, v int64) *Query {
 	q.stmt.Values[pos] = frame.Value{
 		N: 8,

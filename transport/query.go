@@ -17,6 +17,23 @@ type Statement struct {
 	Compression       bool
 }
 
+func (s *Statement) Copy() Statement {
+	newStmt := Statement{
+		ID:                s.ID,
+		Content:           s.Content,
+		PageSize:          s.PageSize,
+		Consistency:       s.Consistency,
+		SerialConsistency: s.SerialConsistency,
+		Tracing:           s.Tracing,
+		Compression:       s.Compression,
+	}
+
+	newStmt.Values = make([]frame.Value, len(s.Values))
+	copy(newStmt.Values, s.Values)
+
+	return newStmt
+}
+
 func makeQuery(s Statement, pagingState frame.Bytes) Query {
 	return Query{
 		Query:       s.Content,
