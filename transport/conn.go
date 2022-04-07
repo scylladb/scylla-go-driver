@@ -244,6 +244,12 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 		return ParseSupported(&c.buf)
 	case frame.OpEvent:
 		return ParseEvent(&c.buf)
+	case frame.OpAuthenticate:
+		return ParseAuthenticate(&c.buf)
+	case frame.OpAuthSuccess:
+		return ParseAuthSuccess(&c.buf)
+	case frame.OpAuthChallenge:
+		return ParseAuthChallenge(&c.buf)
 	default:
 		log.Fatalf("not supported")
 		return nil
@@ -251,6 +257,7 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 }
 
 type Conn struct {
+	cfg       ConnConfig
 	conn      net.Conn
 	shard     uint16
 	w         connWriter
@@ -261,6 +268,8 @@ type Conn struct {
 }
 
 type ConnConfig struct {
+	Username           string
+	Password           string
 	Keyspace           string
 	TCPNoDelay         bool
 	Timeout            time.Duration
@@ -334,6 +343,7 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 
 	c := new(Conn)
 	*c = Conn{
+		cfg:  cfg,
 		conn: conn,
 		w: connWriter{
 			conn:       bufio.NewWriterSize(conn, ioBufferSize),
@@ -427,10 +437,44 @@ func (c *Conn) Startup(options frame.StartupOptions) error {
 	if err != nil {
 		return err
 	}
-	if _, ok := res.(*Ready); ok {
+	switch v := res.(type) {
+	case *Ready:
 		return nil
+	case *Authenticate:
+		return c.AuthResponse(v)
+	default:
+		return responseAsError(res)
 	}
-	return responseAsError(res)
+}
+
+// 'AllowAllAuthenticator' and 'org.apache.cassandra.auth.AllowAllAuthenticator' do not require authentication.
+var approvedAuthenticators = map[string]struct{}{
+	"PasswordAuthenticator":                           {},
+	"org.apache.cassandra.auth.PasswordAuthenticator": {},
+	"com.scylladb.auth.TransitionalAuthenticator":     {},
+}
+
+func (c *Conn) AuthResponse(a *Authenticate) error {
+	if _, ok := approvedAuthenticators[a.Name]; !ok {
+		return fmt.Errorf("authenticator %q not supported", a.Name)
+	}
+	req := AuthResponse{
+		Username: c.cfg.Username,
+		Password: c.cfg.Password,
+	}
+	res, err := c.sendRequest(&req, false, false)
+	if err != nil {
+		return fmt.Errorf("can't send auth response: %w", err)
+	}
+	switch v := res.(type) {
+	case *AuthSuccess:
+		log.Printf("%s successfully authenticated", c)
+		return nil
+	case *AuthChallenge:
+		return fmt.Errorf("authentication challenge is not yet supported: %#+v", v)
+	default:
+		return responseAsError(v)
+	}
 }
 
 func (c *Conn) UseKeyspace(ks string) error {
