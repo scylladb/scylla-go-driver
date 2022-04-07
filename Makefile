@@ -17,7 +17,7 @@ build:
 
 .PHONY: test
 test:
-	go test ./...
+	go test -run ^Test ./...
 
 .PHONY: test-no-cache
 test-no-cache:
