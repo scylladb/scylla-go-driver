@@ -11,8 +11,6 @@ const TestHost = "192.168.100.100"
 func newTestSession() (*Session, error) {
 	config := SessionConfig{
 		Hosts:              []string{TestHost + ":9042"},
-		Keyspace:           "",
-		Events:             nil,
 		TCPNoDelay:         false,
 		DefaultConsistency: 1,
 	}
@@ -20,7 +18,7 @@ func newTestSession() (*Session, error) {
 	return NewSession(&config)
 }
 
-func TestSessionIntegration(t *testing.T) {
+func TestSessionIntegration(t *testing.T) { // nolint:paralleltest // Integration test are not run in parallel!
 	session, err := newTestSession()
 
 	if err != nil {
@@ -35,21 +33,32 @@ func TestSessionIntegration(t *testing.T) {
 	}
 
 	for _, stmt := range stmts {
-		q := session.NewQuery(stmt)
-		session.Query(q)
+		q := session.Query(stmt)
+		if _, err = q.Exec(); err != nil {
+			t.Fatal(err)
+		}
 	}
 
-	q := session.NewQuery("SELECT * FROM mykeyspace.users")
+	q := session.Query("SELECT * FROM mykeyspace.users")
 
-	res, err := session.Query(q)
+	res, err := q.Exec()
 	if err != nil {
 		t.Fatalf("couldn't query: %v", err)
 	}
 
 	for _, row := range res.Rows {
-		pk, _ := row[0].AsInt32()
-		name, _ := row[1].AsText()
-		surname, _ := row[2].AsText()
+		pk, err := row[0].AsInt32()
+		if err != nil {
+			t.Fatal(err)
+		}
+		name, err := row[1].AsText()
+		if err != nil {
+			t.Fatal(err)
+		}
+		surname, err := row[2].AsText()
+		if err != nil {
+			t.Fatal(err)
+		}
 
 		t.Log(pk, name, surname)
 	}
@@ -60,7 +69,7 @@ const (
 	selectStmt = "SELECT v1, v2 FROM mykeyspace.triples WHERE pk = ?"
 )
 
-func TestSessionPrepareIntegration(t *testing.T) {
+func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Integration tests are not run in parallel!
 	session, err := newTestSession()
 	if err != nil {
 		t.Fatal("couldn't start session")
@@ -73,8 +82,10 @@ func TestSessionPrepareIntegration(t *testing.T) {
 	}
 
 	for _, stmt := range initStmts {
-		q := session.NewQuery(stmt)
-		session.Query(q)
+		q := session.Query(stmt)
+		if _, err = q.Exec(); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	insertQuery, err := session.Prepare(insertStmt)
@@ -88,17 +99,14 @@ func TestSessionPrepareIntegration(t *testing.T) {
 	}
 
 	for i := int64(0); i < 100; i++ {
-		insertQuery.BindInt64(0, i)
-		insertQuery.BindInt64(1, 2*i)
-		insertQuery.BindInt64(2, 3*i)
-
-		res, err := session.Execute(insertQuery)
+		insertQuery.BindInt64(0, i).BindInt64(1, 2*i).BindInt64(2, 3*i)
+		res, err := insertQuery.Exec()
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		selectQuery.BindInt64(0, i)
-		res, err = session.Execute(selectQuery)
+		res, err = selectQuery.Exec()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -107,8 +115,14 @@ func TestSessionPrepareIntegration(t *testing.T) {
 			t.Fatalf("expected 1 row, got %d", len(res.Rows))
 		}
 
-		v1, _ := res.Rows[0][0].AsInt64()
-		v2, _ := res.Rows[0][1].AsInt64()
+		v1, err := res.Rows[0][0].AsInt64()
+		if err != nil {
+			t.Fatal(err)
+		}
+		v2, err := res.Rows[0][1].AsInt64()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if v1 != 2*i || v2 != 3*i {
 			t.Fatalf("expected (%d, %d), got (%d, %d)", 2*i, 3*i, v1, v2)
 		}
