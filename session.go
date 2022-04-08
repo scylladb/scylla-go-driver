@@ -57,74 +57,60 @@ var (
 	errNoConnection = fmt.Errorf("no working connection")
 )
 
+func DefaultSessionConfig(hosts ...string) SessionConfig {
+	return SessionConfig{
+		Hosts: hosts,
+		ConnConfig: transport.ConnConfig{
+			Timeout:            500 * time.Millisecond,
+			TCPNoDelay:         true,
+			DefaultConsistency: LOCALQUORUM,
+		},
+	}
+}
+
 type SessionConfig struct {
-	Hosts              []string
-	Keyspace           string
-	Events             []EventType
-	TCPNoDelay         bool
-	ConnectionTimeout  time.Duration
-	DefaultConsistency Consistency
+	Hosts    []string
+	Keyspace string
+	Events   []EventType
+	transport.ConnConfig
 }
 
-func (s *SessionConfig) copy() *SessionConfig {
-	var cfgCopy SessionConfig
-
-	cfgCopy.Hosts = make([]string, len(s.Hosts))
-	copy(cfgCopy.Hosts, s.Hosts)
-
-	cfgCopy.Keyspace = s.Keyspace
-
-	cfgCopy.Events = make([]string, len(s.Events))
-	copy(cfgCopy.Events, s.Events)
-
-	cfgCopy.TCPNoDelay = s.TCPNoDelay
-	cfgCopy.ConnectionTimeout = s.ConnectionTimeout
-	cfgCopy.DefaultConsistency = s.DefaultConsistency
-
-	return &cfgCopy
+func (cfg SessionConfig) Clone() SessionConfig {
+	v := cfg
+	copy(v.Hosts, cfg.Hosts)
+	copy(v.Events, cfg.Events)
+	return v
 }
 
-func (s *SessionConfig) validate() error {
-	if len(s.Hosts) == 0 {
+func (cfg *SessionConfig) Validate() error {
+	if len(cfg.Hosts) == 0 {
 		return ErrNoHosts
 	}
-
-	for _, e := range s.Events {
+	for _, e := range cfg.Events {
 		if e != TopologyChange && e != StatusChange && e != SchemaChange {
 			return ErrEventType
 		}
 	}
-
-	if s.DefaultConsistency > LOCALONE {
+	if cfg.DefaultConsistency > LOCALONE {
 		return ErrConsistency
-	}
-
-	// Use default timeout if not set.
-	if s.ConnectionTimeout == 0 {
-		s.ConnectionTimeout = time.Second
 	}
 
 	return nil
 }
 
 type Session struct {
-	cfg     *SessionConfig
+	cfg     SessionConfig
 	cluster *transport.Cluster
 }
 
-func NewSession(config *SessionConfig) (*Session, error) {
-	cfg := config.copy()
-	if err := cfg.validate(); err != nil {
+func NewSession(cfg SessionConfig) (*Session, error) {
+	cfg = cfg.Clone()
+
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
-	connCfg := transport.ConnConfig{
-		TCPNoDelay:         cfg.TCPNoDelay,
-		Timeout:            cfg.ConnectionTimeout,
-		DefaultConsistency: cfg.DefaultConsistency,
-	}
-
-	cluster, err := transport.NewCluster(connCfg, cfg.Events, cfg.Hosts...)
+	cluster, err := transport.NewCluster(cfg.ConnConfig, cfg.Events, cfg.Hosts...)
 	if err != nil {
 		return nil, err
 	}
