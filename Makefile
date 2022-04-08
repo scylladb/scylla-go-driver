@@ -1,6 +1,19 @@
-OS := $(shell uname)
+export OS    := $(shell uname)
+export GOBIN := $(PWD)/bin
+export PATH  := $(GOBIN):$(PATH)
 
-COMPOSE := docker-compose
+.PHONY: install-dependencies
+install-dependencies:
+	@rm -Rf bin
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+.PHONY: fmt
+fmt:
+	@golangci-lint run -c .golangci-fmt.yml --fix --skip-dirs gen
+
+.PHONY: check
+check:
+	@$(GOBIN)/golangci-lint run ./...
 
 .PHONY: build
 build:
@@ -13,6 +26,8 @@ test:
 .PHONY: test-no-cache
 test-no-cache:
 	go test -count=1 ./...
+
+COMPOSE := docker-compose
 
 integration-test: RUN=Integration
 integration-test:

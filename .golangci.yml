@@ -32,6 +32,7 @@ linters:
     - contextcheck
     - cyclop
     - durationcheck
+    - errorlint
     - exhaustive
     - exhaustivestruct
     - forbidigo
