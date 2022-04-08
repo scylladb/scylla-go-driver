@@ -7,13 +7,16 @@ import (
 	"time"
 
 	"github.com/mmatczuk/scylla-go-driver"
+	"github.com/pkg/profile"
 )
 
 const insertStmt = "INSERT INTO benchks.benchtab (pk, v1, v2) VALUES(?, ?, ?)"
 const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
 
 func main() {
-	//debug.SetGCPercent(500)
+	p := profile.Start(profile.CPUProfile, profile.ProfilePath("/pprof/"), profile.NoShutdownHook)
+	defer p.Stop()
+
 	config := readConfig()
 
 	session, err := scylla.NewSession(scylla.DefaultSessionConfig(config.nodeAddresses...))
@@ -22,11 +25,11 @@ func main() {
 	}
 
 	if !config.dontPrepare {
-		prepareKeyspaceAndTable(session)
+		initKeyspaceAndTable(session)
 	}
 
 	if config.workload == Selects && !config.dontPrepare {
-		prepareSelectsBenchmark(session, config)
+		initSelectsBenchmark(session, config)
 	}
 
 	var wg sync.WaitGroup
@@ -92,7 +95,7 @@ func main() {
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
 }
 
-func prepareKeyspaceAndTable(session *scylla.Session) {
+func initKeyspaceAndTable(session *scylla.Session) {
 	q := session.Query("DROP KEYSPACE IF EXISTS benchks")
 	if _, err := q.Exec(); err != nil {
 		log.Fatal(err)
@@ -109,8 +112,8 @@ func prepareKeyspaceAndTable(session *scylla.Session) {
 	}
 }
 
-func prepareSelectsBenchmark(session *scylla.Session, config Config) {
-	log.Println("Preparing a selects benchmark (inserting values)...")
+func initSelectsBenchmark(session *scylla.Session, config Config) {
+	log.Println("inserting values...")
 
 	var wg sync.WaitGroup
 	nextBatchStart := int64(0)
