@@ -170,8 +170,6 @@ func (c *connReader) loop() {
 		if resp.StreamID == eventStreamID {
 			if c.handleEvent != nil {
 				c.handleEvent(resp)
-			} else {
-				log.Printf("%s received event: %#+v", c.connString(), resp)
 			}
 			continue
 		}
@@ -253,7 +251,7 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 	case frame.OpEvent:
 		return ParseEvent(&c.buf)
 	default:
-		log.Fatalf("not supported %d", op)
+		log.Fatalf("not supported")
 		return nil
 	}
 }
@@ -481,7 +479,8 @@ func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error
 
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
 	c.r.handleEvent = h
-	res, err := c.sendRequest(&Register{EventTypes: e}, false, false)
+	req := Register{EventTypes: e}
+	res, err := c.sendRequest(&req, false, false)
 	if err != nil {
 		return err
 	}
