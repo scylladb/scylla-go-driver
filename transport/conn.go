@@ -116,7 +116,7 @@ func (c *connWriter) send(r request) error {
 }
 
 type connReader struct {
-	conn        *bufio.Reader
+	conn        io.LimitedReader
 	buf         frame.Buffer
 	bufw        io.Writer
 	metrics     *connMetrics
@@ -209,7 +209,8 @@ func (c *connReader) recv() response {
 	var r response
 
 	// Read header
-	if _, err := io.CopyN(c.bufw, c.conn, frame.HeaderSize); err != nil {
+	c.conn.N = frame.HeaderSize
+	if _, err := io.Copy(c.bufw, &c.conn); err != nil {
 		r.Err = fmt.Errorf("read header: %w", err)
 		return r
 	}
@@ -220,7 +221,8 @@ func (c *connReader) recv() response {
 	}
 
 	// Read body
-	if _, err := io.CopyN(c.bufw, c.conn, int64(r.Header.Length)); err != nil {
+	c.conn.N = int64(r.Header.Length)
+	if _, err := io.Copy(c.bufw, &c.conn); err != nil {
 		r.Err = fmt.Errorf("read body: %w", err)
 		return r
 	}
@@ -348,7 +350,9 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 			connClose:  c.Close,
 		},
 		r: connReader{
-			conn:       bufio.NewReaderSize(conn, ioBufferSize),
+			conn: io.LimitedReader{
+				R: bufio.NewReaderSize(conn, ioBufferSize),
+			},
 			metrics:    m,
 			h:          make(map[frame.StreamID]responseHandler),
 			connString: c.String,
