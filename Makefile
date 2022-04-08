@@ -61,6 +61,7 @@ else ifeq ($(OS),Darwin)
 	@docker run --name "benchtab" \
 		--network scylla_go_driver_public \
 		-v "$(PWD)/benchtab.dev:/usr/bin/benchtab:ro" \
+		-v "$(PWD)/experiments/pprof:/pprof" \
 		-it --read-only --rm --cpuset-cpus 2,3 ubuntu benchtab -nodes "192.168.100.100:9042"
 else
 	$(error Unsupported OS $(OS))

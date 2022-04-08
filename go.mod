@@ -8,3 +8,5 @@ require (
 	go.uber.org/atomic v1.9.0
 	go.uber.org/goleak v1.1.12
 )
+
+require github.com/pkg/profile v1.6.0 // indirect
