@@ -44,12 +44,12 @@ type connMetrics struct {
 }
 
 type connWriter struct {
-	conn      *bufio.Writer
-	buf       frame.Buffer
-	requestCh chan request
-	metrics   *connMetrics
-	connClose func()
-	info      string
+	conn       *bufio.Writer
+	buf        frame.Buffer
+	requestCh  chan request
+	metrics    *connMetrics
+	connString func() string
+	connClose  func()
 }
 
 func (c *connWriter) submit(r request) {
@@ -75,15 +75,15 @@ func (c *connWriter) loop() {
 				return
 			}
 			if err := c.send(r); err != nil {
-				log.Printf("%s fatal send error, closing connection due to %s", c.info, err)
-				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.info, err)}
+				log.Printf("%s fatal send error, closing connection due to %s", c.connString(), err)
+				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.connString(), err)}
 				c.connClose()
 				return
 			}
 			c.metrics.InFlight.Inc()
 		}
 		if err := c.conn.Flush(); err != nil {
-			log.Printf("%s fatal flush error, closing connection due to %s", c.info, err)
+			log.Printf("%s fatal flush error, closing connection due to %s", c.connString(), err)
 			c.connClose()
 			return
 		}
@@ -121,8 +121,8 @@ type connReader struct {
 	bufw        io.Writer
 	metrics     *connMetrics
 	handleEvent func(r response)
+	connString  func() string
 	connClose   func()
-	info        string
 
 	h      map[frame.StreamID]responseHandler
 	s      streamIDAllocator
@@ -135,12 +135,12 @@ func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return 0, fmt.Errorf("%s closed", c.info)
+		return 0, fmt.Errorf("%s closed", c.connString())
 	}
 
 	streamID, err := c.s.Alloc()
 	if err != nil {
-		return 0, fmt.Errorf("%s stream ID alloc: %w", c.info, err)
+		return 0, fmt.Errorf("%s stream ID alloc: %w", c.connString(), err)
 	}
 
 	c.h[streamID] = h
@@ -171,13 +171,13 @@ func (c *connReader) loop() {
 			if c.handleEvent != nil {
 				c.handleEvent(resp)
 			} else {
-				log.Printf("%s received event: %#+v", c.info, resp)
+				log.Printf("%s received event: %#+v", c.connString(), resp)
 			}
 			continue
 		}
 
 		if resp.Err != nil {
-			log.Printf("%s fatal receive error, closing connection due to %s", c.info, resp.Err)
+			log.Printf("%s fatal receive error, closing connection due to %s", c.connString(), resp.Err)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -188,7 +188,7 @@ func (c *connReader) loop() {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			log.Printf("%s received unknown stream ID %d, closing connection", c.info, resp.StreamID)
+			log.Printf("%s received unknown stream ID %d, closing connection", c.connString(), resp.StreamID)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -200,7 +200,7 @@ func (c *connReader) drainHandlers() {
 	c.mu.Lock()
 	c.closed = true
 	for _, h := range c.h {
-		h <- response{Err: fmt.Errorf("%s closed", c.info)}
+		h <- response{Err: fmt.Errorf("%s closed", c.connString())}
 	}
 	c.mu.Unlock()
 }
@@ -343,16 +343,18 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 	*c = Conn{
 		conn: conn,
 		w: connWriter{
-			conn:      bufio.NewWriterSize(conn, ioBufferSize),
-			requestCh: make(chan request, requestChanSize),
-			metrics:   m,
-			connClose: c.Close,
+			conn:       bufio.NewWriterSize(conn, ioBufferSize),
+			requestCh:  make(chan request, requestChanSize),
+			metrics:    m,
+			connString: c.String,
+			connClose:  c.Close,
 		},
 		r: connReader{
-			conn:      bufio.NewReaderSize(conn, ioBufferSize),
-			metrics:   m,
-			h:         make(map[frame.StreamID]responseHandler),
-			connClose: c.Close,
+			conn:       bufio.NewReaderSize(conn, ioBufferSize),
+			metrics:    m,
+			h:          make(map[frame.StreamID]responseHandler),
+			connString: c.String,
+			connClose:  c.Close,
 		},
 		metrics: m,
 	}
@@ -369,9 +371,6 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 			return c, fmt.Errorf("use keyspace %w", err)
 		}
 	}
-
-	c.w.info = c.String()
-	c.r.info = c.String()
 
 	log.Printf("%s connected", c)
 
