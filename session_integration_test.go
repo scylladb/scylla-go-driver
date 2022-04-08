@@ -8,22 +8,21 @@ import (
 
 const TestHost = "192.168.100.100"
 
-func newTestSession() (*Session, error) {
-	config := SessionConfig{
-		Hosts:              []string{TestHost + ":9042"},
-		TCPNoDelay:         false,
-		DefaultConsistency: 1,
-	}
+func newTestSession(t *testing.T) *Session {
+	t.Helper()
 
-	return NewSession(&config)
+	// TODO: mmt the port should not be mandatory
+	var cfg = DefaultSessionConfig(TestHost + ":9042")
+	cfg.DefaultConsistency = 1
+	s, err := NewSession(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
 }
 
-func TestSessionIntegration(t *testing.T) { // nolint:paralleltest // Integration test are not run in parallel!
-	session, err := newTestSession()
-
-	if err != nil {
-		t.Fatal("couldn't start session")
-	}
+func TestSessionIntegration(t *testing.T) {
+	session := newTestSession(t)
 
 	stmts := []string{
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
@@ -34,7 +33,7 @@ func TestSessionIntegration(t *testing.T) { // nolint:paralleltest // Integratio
 
 	for _, stmt := range stmts {
 		q := session.Query(stmt)
-		if _, err = q.Exec(); err != nil {
+		if _, err := q.Exec(); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -70,10 +69,7 @@ const (
 )
 
 func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Integration tests are not run in parallel!
-	session, err := newTestSession()
-	if err != nil {
-		t.Fatal("couldn't start session")
-	}
+	session := newTestSession(t)
 
 	initStmts := []string{
 		"DROP KEYSPACE IF EXISTS mykeyspace",
@@ -83,7 +79,7 @@ func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Int
 
 	for _, stmt := range initStmts {
 		q := session.Query(stmt)
-		if _, err = q.Exec(); err != nil {
+		if _, err := q.Exec(); err != nil {
 			t.Fatal(err)
 		}
 	}

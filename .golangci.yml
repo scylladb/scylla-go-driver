@@ -70,4 +70,5 @@ issues:
     - should not use dot imports
     - stdmethods
     - ST1000
+    - cfg is heavy
 
