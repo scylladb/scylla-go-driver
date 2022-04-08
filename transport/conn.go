@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net"
-	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -58,8 +57,6 @@ func (c *connWriter) submit(r request) {
 }
 
 func (c *connWriter) loop() {
-	runtime.LockOSThread()
-
 	for {
 		size := len(c.requestCh)
 		if size > maxCoalescedRequests {
@@ -162,8 +159,6 @@ func (c *connReader) handler(streamID frame.StreamID) responseHandler {
 }
 
 func (c *connReader) loop() {
-	runtime.LockOSThread()
-
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
