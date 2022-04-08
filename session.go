@@ -139,14 +139,7 @@ func NewSession(config *SessionConfig) (*Session, error) {
 
 // FIXME: to be replaced by host selection policy.
 func (s *Session) leastBusyConn() *transport.Conn {
-	for _, node := range s.cluster.Peers() {
-		conn := node.LeastBusyConn()
-		if conn != nil {
-			return conn
-		}
-	}
-
-	return nil
+	return s.cluster.Topology().PeerHACK().LeastBusyConn()
 }
 
 func (s *Session) Query(content string) Query {
