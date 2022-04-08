@@ -7,10 +7,6 @@ install-dependencies:
 	@rm -Rf bin
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 
-.PHONY: fmt
-fmt:
-	@golangci-lint run -c .golangci-fmt.yml --fix --skip-dirs gen
-
 .PHONY: check
 check:
 	@$(GOBIN)/golangci-lint run ./...
@@ -29,12 +25,25 @@ test-no-cache:
 
 COMPOSE := docker-compose
 
-integration-test: RUN=Integration
+.PHONY: integration-test
 integration-test:
+	@$(MAKE) pkg-integration-test PKG=./transport
+	@$(MAKE) pkg-integration-test PKG=./
+
+# Prevent invoking make with a package specific test without a constraining a package.
+ifneq "$(filter pkg-%,$(MAKECMDGOALS))" ""
+ifeq "$(PKG)" ""
+$(error Please specify package name with PKG e.g. PKG=./transport)
+endif
+endif
+
+.PHONY: pkg-integration-test
+pkg-integration-test: RUN=Integration
+pkg-integration-test:
 ifeq ($(OS),Linux)
-	go test -v -tags integration -run $(RUN) -race -short ./transport $(ARGS)
+	go test -v -tags integration -run $(RUN) -short $(PKG) $(ARGS)
 else ifeq ($(OS),Darwin)
-	@CGO_ENABLED=0 GOOS=linux go test -v -tags integration -c -o ./integration-test.dev ./transport
+	@CGO_ENABLED=0 GOOS=linux go test -v -tags integration -c -o ./integration-test.dev $(PKG)
 	@docker run --name "integration-test" \
 		--network scylla_go_driver_public \
 		-v "$(PWD)/integration-test.dev:/usr/bin/integration-test:ro" \
