@@ -37,19 +37,20 @@ func (q *Query) AsyncExec(callback func(Result, error)) {
 }
 
 func (q *Query) BindInt64(pos int, v int64) *Query {
-	q.stmt.Values[pos] = frame.Value{
-		N: 8,
-		Bytes: []byte{
-			byte(v >> 56),
-			byte(v >> 48),
-			byte(v >> 40),
-			byte(v >> 32),
-			byte(v >> 24),
-			byte(v >> 16),
-			byte(v >> 8),
-			byte(v),
-		},
+	p := &q.stmt.Values[pos]
+	if p.N == 0 {
+		p.N = 8
+		p.Bytes = make([]byte, 8)
 	}
+
+	p.Bytes[0] = byte(v >> 56)
+	p.Bytes[1] = byte(v >> 48)
+	p.Bytes[2] = byte(v >> 40)
+	p.Bytes[3] = byte(v >> 32)
+	p.Bytes[4] = byte(v >> 24)
+	p.Bytes[5] = byte(v >> 16)
+	p.Bytes[6] = byte(v >> 8)
+	p.Bytes[7] = byte(v)
 
 	return q
 }
