@@ -54,16 +54,18 @@ var (
 		"SERIAL      Consistency = 0x0008\n" +
 		"LOCALSERIAL Consistency = 0x0009\n" +
 		"LOCALONE    Consistency = 0x000A")
-	errNoConnection = fmt.Errorf("no working connection")
+	errNoConnection   = fmt.Errorf("no working connection")
+	errNoPreallocated = fmt.Errorf("preallocated handlers size must be greater than 0")
 )
 
 func DefaultSessionConfig(hosts ...string) SessionConfig {
 	return SessionConfig{
 		Hosts: hosts,
 		ConnConfig: transport.ConnConfig{
-			Timeout:            500 * time.Millisecond,
-			TCPNoDelay:         true,
-			DefaultConsistency: LOCALQUORUM,
+			Timeout:              500 * time.Millisecond,
+			TCPNoDelay:           true,
+			DefaultConsistency:   LOCALQUORUM,
+			PreallocatedHandlers: 16000,
 		},
 	}
 }
@@ -93,6 +95,9 @@ func (cfg *SessionConfig) Validate() error {
 	}
 	if cfg.DefaultConsistency > LOCALONE {
 		return ErrConsistency
+	}
+	if cfg.PreallocatedHandlers == 0 {
+		return errNoPreallocated
 	}
 
 	return nil

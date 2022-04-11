@@ -25,8 +25,6 @@ type response struct {
 	Err error
 }
 
-type responseHandler chan response
-
 type request struct {
 	frame.Request
 	StreamID        frame.StreamID
@@ -121,34 +119,39 @@ type connReader struct {
 	connString  func() string
 	connClose   func()
 
-	h      map[frame.StreamID]responseHandler
-	s      streamIDAllocator
-	closed bool
-	mu     sync.Mutex // mu guards h, s and closed
+	h        map[frame.StreamID]responseHandler
+	s        streamIDAllocator
+	closed   bool
+	handlers responseHandlerAllocator
+	mu       sync.Mutex // mu guards h, s, closed and handlers
 }
 
-func (c *connReader) setHandler(h responseHandler) (frame.StreamID, error) {
+func (c *connReader) makeHandler() (frame.StreamID, responseHandler, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if c.closed {
-		return 0, fmt.Errorf("%s closed", c.connString())
+		return 0, nil, fmt.Errorf("%s closed", c.connString())
 	}
 
 	streamID, err := c.s.Alloc()
 	if err != nil {
-		return 0, fmt.Errorf("%s stream ID alloc: %w", c.connString(), err)
+		return 0, nil, fmt.Errorf("%s stream ID alloc: %w", c.connString(), err)
 	}
 
+	h := c.handlers.alloc()
 	c.h[streamID] = h
-	return streamID, err
+
+	return streamID, h, err
 }
 
-func (c *connReader) freeHandler(streamID frame.StreamID) {
+func (c *connReader) freeHandler(streamID frame.StreamID, h responseHandler) {
 	c.mu.Lock()
-	c.s.Free(streamID)
+	defer c.mu.Unlock()
+
 	delete(c.h, streamID)
-	c.mu.Unlock()
+	c.s.Free(streamID)
+	c.handlers.yield(h)
 }
 
 func (c *connReader) handler(streamID frame.StreamID) responseHandler {
@@ -264,10 +267,11 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	Keyspace           string
-	TCPNoDelay         bool
-	Timeout            time.Duration
-	DefaultConsistency frame.Consistency
+	Keyspace             string
+	TCPNoDelay           bool
+	Timeout              time.Duration
+	DefaultConsistency   frame.Consistency
+	PreallocatedHandlers uint
 }
 
 const (
@@ -352,6 +356,7 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 			h:          make(map[frame.StreamID]responseHandler),
 			connString: c.String,
 			connClose:  c.Close,
+			handlers:   makeResponseHandlerAllocator(cfg.PreallocatedHandlers),
 		},
 		metrics: m,
 	}
@@ -490,11 +495,7 @@ func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) er
 }
 
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	// Each handler may encounter 2 responses, one from connWriter.loop()
-	// and one from drainHandlers().
-	h := make(responseHandler, 2)
-
-	streamID, err := c.r.setHandler(h)
+	streamID, h, err := c.r.makeHandler()
 	if err != nil {
 		return nil, fmt.Errorf("set handler: %w", err)
 	}
@@ -513,7 +514,7 @@ func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Res
 	c.w.submit(r)
 
 	resp := <-h
-	c.r.freeHandler(streamID)
+	c.r.freeHandler(streamID, h)
 
 	return resp.Response, resp.Err
 }
