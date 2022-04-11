@@ -436,7 +436,7 @@ func (c *Conn) Startup(options frame.StartupOptions) error {
 }
 
 func (c *Conn) UseKeyspace(ks string) error {
-	_, err := c.Query(newStatementFromCQL(fmt.Sprintf("USE %q", ks)), nil)
+	_, err := c.Query(makeStatement(fmt.Sprintf("USE %q", ks)), nil)
 	return err
 }
 
