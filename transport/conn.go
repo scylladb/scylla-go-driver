@@ -447,7 +447,7 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 		return QueryResult{}, err
 	}
 
-	return makeQueryResult(res)
+	return makeQueryResult(s.Metadata, res)
 }
 
 func (c *Conn) Prepare(s Statement) (Statement, error) {
@@ -462,6 +462,7 @@ func (c *Conn) Prepare(s Statement) (Statement, error) {
 		s.Values = make([]frame.Value, len(v.Metadata.Columns))
 		s.PkIndexes = v.Metadata.PkIndexes
 		s.PkCnt = v.Metadata.PkCnt
+		s.Metadata = &v.ResultMetadata
 		return s, nil
 	}
 
@@ -475,7 +476,7 @@ func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error
 		return QueryResult{}, err
 	}
 
-	return makeQueryResult(res)
+	return makeQueryResult(s.Metadata, res)
 }
 
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
