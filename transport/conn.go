@@ -444,7 +444,7 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 		return QueryResult{}, err
 	}
 
-	return makeQueryResult(s.Metadata, res)
+	return MakeQueryResult(s.Metadata, res)
 }
 
 func (c *Conn) Prepare(s Statement) (Statement, error) {
@@ -473,7 +473,7 @@ func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error
 		return QueryResult{}, err
 	}
 
-	return makeQueryResult(s.Metadata, res)
+	return MakeQueryResult(s.Metadata, res)
 }
 
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
