@@ -270,7 +270,6 @@ const (
 	requestChanSize      = maxStreamID / 2
 	maxCoalescedRequests = 100
 	ioBufferSize         = 8192
-	ResponseHandlerSize  = 2
 )
 
 // OpenShardConn opens connection mapped to a specific shard on Scylla node.
@@ -444,7 +443,7 @@ func (c *Conn) Query(s Statement, pagingState frame.Bytes) (QueryResult, error) 
 		return QueryResult{}, err
 	}
 
-	return MakeQueryResult(s.Metadata, res)
+	return MakeQueryResult(res, s.Metadata)
 }
 
 func (c *Conn) Prepare(s Statement) (Statement, error) {
@@ -473,7 +472,7 @@ func (c *Conn) Execute(s Statement, pagingState frame.Bytes) (QueryResult, error
 		return QueryResult{}, err
 	}
 
-	return MakeQueryResult(s.Metadata, res)
+	return MakeQueryResult(res, s.Metadata)
 }
 
 func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) error {
@@ -489,10 +488,21 @@ func (c *Conn) RegisterEventHandler(h func(r response), e ...frame.EventType) er
 	return responseAsError(res)
 }
 
+func MakeResponseHandler() ResponseHandler {
+	// Each handler may encounter 2 responses, one from connWriter.loop() and one from drainHandlers().
+	const responseHandlerSize = 2
+	h := make(ResponseHandler, responseHandlerSize)
+	return h
+}
+
+func MakeResponseHandlerWithError(err error) ResponseHandler {
+	h := make(ResponseHandler, 1)
+	h <- response{Err: err}
+	return h
+}
+
 func (c *Conn) sendRequest(req frame.Request, compress, tracing bool) (frame.Response, error) {
-	// Each handler may encounter 2 responses, one from connWriter.loop()
-	// and one from drainHandlers().
-	h := make(ResponseHandler, ResponseHandlerSize)
+	h := MakeResponseHandler()
 
 	streamID, err := c.r.setHandler(h)
 	if err != nil {
