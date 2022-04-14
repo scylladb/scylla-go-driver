@@ -39,8 +39,20 @@ func (b *Buffer) readInto(p []byte) {
 	}
 }
 
+const maxSliceSize int = 128_000_000
+
 // readCopy reads next n bytes from the buffer, and returns a copy.
 func (b *Buffer) readCopy(n int) Bytes {
+	// Here n can be corrupted, so we have to check for that before allocating
+	// potentially enormously big slice.
+	if b.readErr != nil {
+		return nil
+	}
+	if n > maxSliceSize {
+		b.readErr = fmt.Errorf("too big slice size: %v", n)
+		return nil
+	}
+
 	p := make(Bytes, n)
 	b.readInto(p)
 	return p

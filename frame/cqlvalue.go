@@ -162,7 +162,7 @@ func (c CqlValue) AsIP() (net.IP, error) {
 		return nil, fmt.Errorf("invalid ip length")
 	}
 
-	return net.IP(c.Value), nil
+	return c.Value, nil
 }
 
 func (c CqlValue) AsFloat32() (float32, error) {
