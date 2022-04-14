@@ -158,7 +158,7 @@ func TestBufferWriteStringMultiMap(t *testing.T) {
 	}
 }
 
-func TestBuffer_WriteUUID(t *testing.T) {
+func TestBufferWriteUUID(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string

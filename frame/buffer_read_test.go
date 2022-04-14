@@ -159,7 +159,7 @@ func TestBufferReadStringMultiMap(t *testing.T) {
 	}
 }
 
-func TestBuffer_ReadUUID(t *testing.T) {
+func TestBufferReadUUID(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {
 		name     string
