@@ -5,7 +5,6 @@ run:
     - _gen\.go$
     - _string\.go$
     - mock_.*\.go$
-    - experiments/cmd/benchtab
   silent: true
 
 linters-settings:
