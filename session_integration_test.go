@@ -11,11 +11,26 @@ import (
 
 const TestHost = "192.168.100.100"
 
+func initKeyspace(t testing.TB) {
+	t.Helper()
+	s, err := NewSession(DefaultSessionConfig("", TestHost+":9042"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	q := s.Query("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	if _, err = q.Exec(); err != nil {
+		t.Fatal(err)
+	}
+	s.Close()
+}
+
 func newTestSession(t testing.TB) *Session {
 	t.Helper()
+	initKeyspace(t)
 
 	// TODO: mmt the port should not be mandatory
-	var cfg = DefaultSessionConfig("", TestHost+":9042")
+	var cfg = DefaultSessionConfig("mykeyspace", TestHost+":9042")
 	cfg.DefaultConsistency = 1
 	s, err := NewSession(cfg)
 	if err != nil {
