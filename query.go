@@ -29,7 +29,7 @@ func (q *Query) Exec() (Result, error) {
 func (q *Query) pickConn() (*transport.Conn, error) {
 	token, tokenAware := q.token()
 	info := q.info(token, tokenAware)
-	it := q.session.hsp.PlanIter(info)
+	it := q.session.policy.PlanIter(info)
 
 	var conn *transport.Conn
 	if tokenAware {

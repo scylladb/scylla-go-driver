@@ -138,7 +138,7 @@ func (cfg SessionConfig) pickHostSelectionPolicy() transport.HostSelectionPolicy
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
-	hsp     transport.HostSelectionPolicy
+	policy  transport.HostSelectionPolicy
 }
 
 func NewSession(cfg SessionConfig) (*Session, error) {
@@ -156,7 +156,7 @@ func NewSession(cfg SessionConfig) (*Session, error) {
 	s := &Session{
 		cfg:     cfg,
 		cluster: cluster,
-		hsp:     cfg.pickHostSelectionPolicy(),
+		policy:  cfg.pickHostSelectionPolicy(),
 	}
 
 	return s, nil
@@ -175,7 +175,7 @@ func (s *Session) Query(content string) Query {
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
-	it := s.hsp.PlanIter(s.cluster.NewQueryInfo())
+	it := s.policy.PlanIter(s.cluster.NewQueryInfo())
 	conn := it().LeastBusyConn()
 	if conn == nil {
 		return Query{}, errNoConnection
