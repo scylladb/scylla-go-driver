@@ -30,7 +30,7 @@ type Cluster struct {
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
-	knownHosts        []string
+	knownHosts        map[string]bool
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
@@ -129,10 +129,15 @@ func (t *topology) replicas(token Token, size int, filter func(*Node, []*Node) b
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
+	kh := make(map[string]bool, len(hosts))
+	for _, h := range hosts {
+		kh[h] = true
+	}
+
 	c := &Cluster{
 		cfg:               cfg,
 		handledEvents:     e,
-		knownHosts:        hosts,
+		knownHosts:        kh,
 		refreshChan:       make(requestChan, 1),
 		reopenControlChan: make(requestChan, 1),
 		closeChan:         make(requestChan, 1),
@@ -155,7 +160,7 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 func (c *Cluster) NewControl() (*Conn, error) {
 	log.Printf("cluster: open control connection")
 	var errs []string
-	for _, addr := range c.knownHosts {
+	for addr := range c.knownHosts {
 		conn, err := OpenConn(addr, nil, c.cfg)
 		if err == nil {
 			if err := conn.RegisterEventHandler(c.handleEvent, c.handledEvents...); err == nil {
@@ -213,7 +218,8 @@ func (c *Cluster) refreshTopology() error {
 				n.pool = pool
 			}
 		}
-
+		// Every encountered node becomes known host for future use.
+		c.knownHosts[n.addr] = true
 		t.peers[n.addr] = n
 		t.nodes = append(t.nodes, n)
 		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = true
