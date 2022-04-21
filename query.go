@@ -28,7 +28,10 @@ func (q *Query) Exec() (Result, error) {
 
 func (q *Query) pickConn() (*transport.Conn, error) {
 	token, tokenAware := q.token()
-	info := q.info(token, tokenAware)
+	info, err := q.info(token, tokenAware)
+	if err != nil {
+		return nil, err
+	}
 	it := q.session.policy.PlanIter(info)
 
 	var conn *transport.Conn
@@ -98,15 +101,14 @@ func (q *Query) token() (transport.Token, bool) {
 	return transport.MurmurToken(q.buf.Bytes()), true
 }
 
-func (q *Query) info(token transport.Token, tokenAware bool) transport.QueryInfo {
+func (q *Query) info(token transport.Token, tokenAware bool) (transport.QueryInfo, error) {
 	if tokenAware {
 		// TODO: Will the driver support using different keyspaces than default?
-		if info, err := q.session.cluster.NewTokenAwareQueryInfo(token, ""); err == nil {
-			return info
-		}
+		info, err := q.session.cluster.NewTokenAwareQueryInfo(token, "")
+		return info, err
 	}
 
-	return q.session.cluster.NewQueryInfo()
+	return q.session.cluster.NewQueryInfo(), nil
 }
 
 func (q *Query) BindInt64(pos int, v int64) *Query {
