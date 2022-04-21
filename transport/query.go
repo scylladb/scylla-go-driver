@@ -20,6 +20,8 @@ type Statement struct {
 	Metadata          *frame.ResultMetadata
 }
 
+// Clone makes new Values to avoid data overwrite in binding.
+// ID and PkIndexes stay the same, as they are immutable.
 func (s Statement) Clone() Statement {
 	c := s
 	if len(s.Values) != 0 {
