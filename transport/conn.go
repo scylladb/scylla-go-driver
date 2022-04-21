@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unicode"
@@ -339,7 +340,7 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 		Timeout:   cfg.Timeout,
 		LocalAddr: localAddr,
 	}
-	conn, err := d.Dial("tcp", addr)
+	conn, err := d.Dial("tcp", withDefaultPort(addr))
 	if err != nil {
 		return nil, fmt.Errorf("dial TCP address %s: %w", addr, err)
 	}
@@ -671,4 +672,23 @@ func (c *Conn) Close() {
 
 func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
+}
+
+const defaultCQLPort = "9042"
+
+// withDefaultPort appends default port only if addr does not contain any port.
+func withDefaultPort(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return net.JoinHostPort(trimIPv6Brackets(addr), defaultCQLPort)
+	}
+	if port != "" {
+		return addr
+	}
+	return net.JoinHostPort(host, defaultCQLPort)
+}
+
+func trimIPv6Brackets(host string) string {
+	host = strings.TrimPrefix(host, "[")
+	return strings.TrimSuffix(host, "]")
 }

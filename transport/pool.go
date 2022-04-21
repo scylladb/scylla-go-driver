@@ -5,7 +5,6 @@ import (
 	"log"
 	"math"
 	"net"
-	"strings"
 	"time"
 
 	. "github.com/mmatczuk/scylla-go-driver/frame/response"
@@ -129,12 +128,14 @@ type PoolRefiller struct {
 	active int
 }
 
+// Here addr will consist only of IP, because init is called on addresses
+// gathered from system.peers or system.local tables.
 func (r *PoolRefiller) init(addr string) error {
 	if err := r.cfg.validate(); err != nil {
 		return fmt.Errorf("config validate :%w", err)
 	}
 
-	conn, err := OpenConn(withDefaultPort(addr), nil, r.cfg)
+	conn, err := OpenConn(addr, nil, r.cfg)
 	if err != nil {
 		if conn != nil {
 			conn.Close()
@@ -150,7 +151,7 @@ func (r *PoolRefiller) init(addr string) error {
 	ss := s.ScyllaSupported()
 
 	if v, ok := s.Options[ScyllaShardAwarePort]; ok {
-		r.addr = withPort(addr, v[0])
+		r.addr = net.JoinHostPort(addr, v[0])
 	} else {
 		return fmt.Errorf("missing shard aware port information %v", s.Options)
 	}
@@ -239,30 +240,4 @@ func (r *PoolRefiller) fill() {
 
 func (r *PoolRefiller) needsFilling() bool {
 	return r.active < r.pool.nrShards
-}
-
-const defaultCQLPort = "9042"
-
-func withDefaultPort(addr string) string {
-	host, port, err := net.SplitHostPort(addr)
-	if err != nil {
-		return net.JoinHostPort(trimIPv6Brackets(addr), defaultCQLPort)
-	}
-	if port != "" {
-		return addr
-	}
-	return net.JoinHostPort(host, defaultCQLPort)
-}
-
-func withPort(addr, port string) string {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return net.JoinHostPort(trimIPv6Brackets(addr), port)
-	}
-	return net.JoinHostPort(host, port)
-}
-
-func trimIPv6Brackets(host string) string {
-	host = strings.TrimPrefix(host, "[")
-	return strings.TrimSuffix(host, "]")
 }
