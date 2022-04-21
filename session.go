@@ -35,12 +35,6 @@ const (
 	LOCALONE    Consistency = 0x000A
 )
 
-const (
-	RoundRobin = iota
-	TokenAware
-	DCAware
-)
-
 var (
 	ErrNoHosts   = fmt.Errorf("error in session config: no hosts given")
 	ErrEventType = fmt.Errorf("error in session config: invalid event\npossible events:\n" +
@@ -59,17 +53,15 @@ var (
 		"SERIAL      Consistency = 0x0008\n" +
 		"LOCALSERIAL Consistency = 0x0009\n" +
 		"LOCALONE    Consistency = 0x000A")
-	errNoConnection        = fmt.Errorf("no working connection")
-	errHostSelectionPolicy = fmt.Errorf("error in session config: invalid host selection policy\npossible policies are:" +
-		"RoundRobin\n" +
-		"TokenAware\n" +
-		"DCAware")
+	errNoConnection = fmt.Errorf("no working connection")
 )
 
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
+	rr := transport.NewRoundRobinPolicy()
+	policy := transport.NewTokenAwarePolicy(&rr)
 	return SessionConfig{
 		Hosts:  hosts,
-		Policy: TokenAware,
+		Policy: &policy,
 		ConnConfig: transport.ConnConfig{
 			Keyspace:           keyspace,
 			Timeout:            500 * time.Millisecond,
@@ -80,10 +72,9 @@ func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 }
 
 type SessionConfig struct {
-	Hosts   []string
-	Events  []EventType
-	Policy  int
-	LocalDC string
+	Hosts  []string
+	Events []EventType
+	Policy transport.HostSelectionPolicy
 	transport.ConnConfig
 }
 
@@ -111,28 +102,7 @@ func (cfg *SessionConfig) Validate() error {
 	if cfg.DefaultConsistency > LOCALONE {
 		return ErrConsistency
 	}
-	if cfg.Policy != RoundRobin && cfg.Policy != TokenAware && cfg.Policy != DCAware {
-		return errHostSelectionPolicy
-	}
 	return nil
-}
-
-func (cfg SessionConfig) pickHostSelectionPolicy() transport.HostSelectionPolicy {
-	switch cfg.Policy {
-	case RoundRobin:
-		p := transport.NewRoundRobinPolicy()
-		return &p
-	case TokenAware:
-		rr := transport.NewRoundRobinPolicy()
-		p := transport.NewTokenAwarePolicy(&rr)
-		return &p
-	case DCAware:
-		p := transport.NewDCAwareRoundRobin(cfg.LocalDC)
-		return &p
-	default:
-		p := transport.NewRoundRobinPolicy()
-		return &p
-	}
 }
 
 type Session struct {
@@ -156,7 +126,7 @@ func NewSession(cfg SessionConfig) (*Session, error) {
 	s := &Session{
 		cfg:     cfg,
 		cluster: cluster,
-		policy:  cfg.pickHostSelectionPolicy(),
+		policy:  cfg.Policy,
 	}
 
 	return s, nil
@@ -193,6 +163,22 @@ func (s *Session) Prepare(content string) (Query, error) {
 			conn.AsyncExecute(stmt, pagingState, handler)
 		},
 	}, err
+}
+
+func (s *Session) NewRoundRobinPolicy() transport.HostSelectionPolicy {
+	p := transport.NewRoundRobinPolicy()
+	return &p
+}
+
+func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
+	rr := transport.NewRoundRobinPolicy()
+	p := transport.NewTokenAwarePolicy(&rr)
+	return &p
+}
+
+func (s *Session) NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
+	p := transport.NewDCAwareRoundRobin(localDC)
+	return &p
 }
 
 func (s *Session) Close() {
