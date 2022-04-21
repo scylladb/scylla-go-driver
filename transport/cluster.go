@@ -3,6 +3,7 @@ package transport
 import (
 	"fmt"
 	"log"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -254,12 +255,12 @@ func newTopology() *topology {
 
 var (
 	peerQuery = Statement{
-		Content:     "SELECT peer, data_center, rack, tokens FROM system.peers",
+		Content:     "SELECT data_center, rack, tokens, rpc_address, preferred_ip, peer FROM system.peers",
 		Consistency: frame.ONE,
 	}
 
 	localQuery = Statement{
-		Content:     "SELECT rpc_address, data_center, rack, tokens FROM system.local",
+		Content:     "SELECT data_center, rack, tokens, rpc_address, broadcast_address FROM system.local",
 		Consistency: frame.ONE,
 	}
 
@@ -285,14 +286,10 @@ func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 
 func parseNodeFromRow(r frame.Row) (*Node, error) {
 	const (
-		addrIndex = 0
-		dcIndex   = 1
-		rackIndex = 2
+		dcIndex   = 0
+		rackIndex = 1
+		addrIndex = 3
 	)
-	addr, err := r[addrIndex].AsIP()
-	if err != nil {
-		return nil, fmt.Errorf("addr column: %w", err)
-	}
 	dc, err := r[dcIndex].AsText()
 	if err != nil {
 		return nil, fmt.Errorf("datacenter column: %w", err)
@@ -300,6 +297,18 @@ func parseNodeFromRow(r frame.Row) (*Node, error) {
 	rack, err := r[rackIndex].AsText()
 	if err != nil {
 		return nil, fmt.Errorf("rack column: %w", err)
+	}
+	// Possible IP addresses starts from addrIndex in both system.local and system.peers queries.
+	// They are grouped with decreasing priority.
+	var addr net.IP
+	for i := addrIndex; i < len(r); i++ {
+		addr, err = r[i].AsIP()
+		if err != nil && !addr.IsUnspecified() {
+			break
+		}
+	}
+	if addr == nil || addr.IsUnspecified() {
+		return nil, fmt.Errorf("all addr columns conatin invalid IP")
 	}
 	return &Node{
 		addr:       addr.String(),
@@ -391,7 +400,7 @@ func parseNetworkStrategy(name strategyClass, stg map[string]string) (strategy, 
 
 // parseTokensFromRow also inserts tokens into ring.
 func parseTokensFromRow(n *Node, r frame.Row, ring *btree.BTree[RingEntry]) error {
-	const tokensIndex = 3
+	const tokensIndex = 2
 	if tokens, err := r[tokensIndex].AsStringSlice(); err != nil {
 		return err
 	} else {
