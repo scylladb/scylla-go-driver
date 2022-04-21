@@ -275,6 +275,7 @@ type ConnConfig struct {
 	TCPNoDelay         bool
 	Timeout            time.Duration
 	DefaultConsistency frame.Consistency
+	DefaultPort        string
 }
 
 func DefaultConnConfig() ConnConfig {
@@ -340,7 +341,7 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 		Timeout:   cfg.Timeout,
 		LocalAddr: localAddr,
 	}
-	conn, err := d.Dial("tcp", withDefaultPort(addr))
+	conn, err := d.Dial("tcp", withPort(addr, cfg.DefaultPort))
 	if err != nil {
 		return nil, fmt.Errorf("dial TCP address %s: %w", addr, err)
 	}
@@ -674,18 +675,16 @@ func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
 }
 
-const defaultCQLPort = "9042"
-
-// withDefaultPort appends default port only if addr does not contain any port.
-func withDefaultPort(addr string) string {
-	host, port, err := net.SplitHostPort(addr)
+// withPort appends new port only if addr does not contain any.
+func withPort(addr, newPort string) string {
+	host, oldPort, err := net.SplitHostPort(addr)
 	if err != nil {
-		return net.JoinHostPort(trimIPv6Brackets(addr), defaultCQLPort)
+		return net.JoinHostPort(trimIPv6Brackets(addr), newPort)
 	}
-	if port != "" {
+	if oldPort != "" {
 		return addr
 	}
-	return net.JoinHostPort(host, defaultCQLPort)
+	return net.JoinHostPort(host, newPort)
 }
 
 func trimIPv6Brackets(host string) string {

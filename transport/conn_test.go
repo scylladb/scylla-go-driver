@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestDefaultPortParsing(t *testing.T) {
+func TestPortParsing(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -43,7 +43,7 @@ func TestDefaultPortParsing(t *testing.T) {
 		tc := testCases[i]
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			if res := withDefaultPort(tc.address); res != tc.expected {
+			if res := withPort(tc.address, "9042"); res != tc.expected {
 				t.Fatal("Failure while extracting address")
 			}
 		})

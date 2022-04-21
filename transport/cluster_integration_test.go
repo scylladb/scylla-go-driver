@@ -33,7 +33,10 @@ func compareNodes(c *Cluster, addr string, expected *Node) error {
 }
 
 func TestClusterIntegration(t *testing.T) {
-	cfg := ConnConfig{Timeout: 250 * time.Millisecond}
+	cfg := ConnConfig{
+		Timeout:     250 * time.Millisecond,
+		DefaultPort: "9042",
+	}
 	addr := frame.Inet{
 		IP:   []byte{192, 168, 100, 100},
 		Port: 9042,

@@ -19,7 +19,10 @@ func TestOpenShardConnIntegration(t *testing.T) {
 
 	for i := uint16(0); i < si.NrShards; i++ {
 		si.Shard = i
-		c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
+		c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{
+			Timeout:     500 * time.Millisecond,
+			DefaultPort: "9042",
+		})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -36,7 +39,10 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn(TestHost, nil, ConnConfig{Timeout: 500 * time.Millisecond})
+	conn, err := OpenConn(TestHost, nil, ConnConfig{
+		Timeout:     500 * time.Millisecond,
+		DefaultPort: "9042",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
