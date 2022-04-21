@@ -14,18 +14,20 @@ import (
 
 func TestOpenShardConnIntegration(t *testing.T) {
 	si := ShardInfo{
-		Shard:    1,
-		NrShards: 2, // Scylla node from docker-compose has only 2 shards
+		NrShards: 4,
 	}
 
-	c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
-	if err != nil {
-		t.Fatal(err)
+	for i := uint16(0); i < si.NrShards; i++ {
+		si.Shard = i
+		c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.shard != si.Shard {
+			t.Fatalf("wrong shard: got %v, wanted %v", c.shard, si.Shard)
+		}
+		c.Close()
 	}
-	if c.shard != si.Shard {
-		t.Fatal("wrong shard", c)
-	}
-	c.Close()
 }
 
 type connTestHelper struct {
