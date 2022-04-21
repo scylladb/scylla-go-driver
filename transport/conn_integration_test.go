@@ -18,7 +18,7 @@ func TestOpenShardConnIntegration(t *testing.T) {
 		NrShards: 2, // Scylla node from docker-compose has only 2 shards
 	}
 
-	c, err := OpenShardConn(TestHost+":19042", si, TestingConnConfig())
+	c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{Timeout: 500 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +34,7 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn(TestHost+":9042", nil, TestingConnConfig())
+	conn, err := OpenConn(TestHost, nil, ConnConfig{Timeout: 500 * time.Millisecond})
 	if err != nil {
 		t.Fatal(err)
 	}
