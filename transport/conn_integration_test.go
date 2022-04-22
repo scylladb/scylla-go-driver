@@ -6,18 +6,11 @@ import (
 	"strconv"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
 
 	"github.com/google/go-cmp/cmp"
 )
-
-var dummyConnConfig = ConnConfig{
-	Username: "cassandra",
-	Password: "cassandra",
-	Timeout:  250 * time.Millisecond,
-}
 
 func TestOpenShardConnIntegration(t *testing.T) {
 	si := ShardInfo{
@@ -25,7 +18,7 @@ func TestOpenShardConnIntegration(t *testing.T) {
 		NrShards: 2, // Scylla node from docker-compose has only 2 shards
 	}
 
-	c, err := OpenShardConn(TestHost+":19042", si, dummyConnConfig)
+	c, err := OpenShardConn(TestHost+":19042", si, TestingConnConfig())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +34,7 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn(TestHost+":9042", nil, dummyConnConfig)
+	conn, err := OpenConn(TestHost+":9042", nil, TestingConnConfig())
 	if err != nil {
 		t.Fatal(err)
 	}

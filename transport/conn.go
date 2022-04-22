@@ -284,6 +284,14 @@ func DefaultConnConfig() ConnConfig {
 	}
 }
 
+func TestingConnConfig() ConnConfig {
+	cfg := DefaultConnConfig()
+	cfg.Username = "cassandra"
+	cfg.Password = "cassandra"
+	cfg.DefaultConsistency = 1
+	return cfg
+}
+
 const (
 	requestChanSize      = maxStreamID / 2
 	targetWaiting        = requestChanSize

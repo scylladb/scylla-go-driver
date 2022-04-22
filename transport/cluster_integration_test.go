@@ -39,7 +39,7 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	// There is no one listening at the first address, it just checks cluster proper behavior.
-	c, err := NewCluster(dummyConnConfig, []string{frame.StatusChange}, "123.123.123.123:1234", TestHost+":9042")
+	c, err := NewCluster(TestingConnConfig(), []string{frame.StatusChange}, "123.123.123.123:1234", TestHost+":9042")
 	if err != nil {
 		t.Fatal(err)
 	}
