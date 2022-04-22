@@ -38,7 +38,7 @@ func main() {
 	}
 
 	var wg sync.WaitGroup
-	nextBatchStart := int64(0)
+	nextBatchStart := -config.batchSize
 
 	log.Println("Starting the benchmark")
 	startTime := time.Now()
