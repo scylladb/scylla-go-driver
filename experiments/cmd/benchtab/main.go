@@ -16,15 +16,20 @@ func main() {
 	config := readConfig()
 	log.Printf("Config %#+v", config)
 
+	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
+	cfg.Username = "cassandra"
+	cfg.Password = "cassandra"
+
 	if !config.dontPrepare {
-		initSession, err := scylla.NewSession(scylla.DefaultSessionConfig("", config.nodeAddresses...))
+		initSession, err := scylla.NewSession(cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
 		initKeyspaceAndTable(initSession)
 	}
 
-	session, err := scylla.NewSession(scylla.DefaultSessionConfig("benchks", config.nodeAddresses...))
+	cfg.Keyspace = "benchks"
+	session, err := scylla.NewSession(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
