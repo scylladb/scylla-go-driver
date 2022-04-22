@@ -2,7 +2,6 @@ package scylla
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
@@ -56,26 +55,25 @@ var (
 	errNoConnection = fmt.Errorf("no working connection")
 )
 
-func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
-	rr := transport.NewRoundRobinPolicy()
-	policy := transport.NewTokenAwarePolicy(&rr)
-	return SessionConfig{
-		Hosts:  hosts,
-		Policy: &policy,
-		ConnConfig: transport.ConnConfig{
-			Keyspace:           keyspace,
-			Timeout:            500 * time.Millisecond,
-			TCPNoDelay:         true,
-			DefaultConsistency: LOCALQUORUM,
-		},
-	}
-}
-
 type SessionConfig struct {
 	Hosts  []string
 	Events []EventType
 	Policy transport.HostSelectionPolicy
 	transport.ConnConfig
+}
+
+func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
+	rr := transport.NewRoundRobinPolicy()
+	policy := transport.NewTokenAwarePolicy(&rr)
+
+	cfg := SessionConfig{
+		Hosts:      hosts,
+		Policy:     &policy,
+		ConnConfig: transport.DefaultConnConfig(),
+	}
+	cfg.Keyspace = keyspace
+
+	return cfg
 }
 
 func (cfg SessionConfig) Clone() SessionConfig {

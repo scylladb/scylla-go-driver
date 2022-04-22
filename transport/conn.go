@@ -276,6 +276,14 @@ type ConnConfig struct {
 	DefaultConsistency frame.Consistency
 }
 
+func DefaultConnConfig() ConnConfig {
+	return ConnConfig{
+		Timeout:            500 * time.Millisecond,
+		TCPNoDelay:         true,
+		DefaultConsistency: frame.LOCALQUORUM,
+	}
+}
+
 const (
 	requestChanSize      = maxStreamID / 2
 	targetWaiting        = requestChanSize
