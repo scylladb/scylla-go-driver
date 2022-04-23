@@ -31,7 +31,7 @@ type Cluster struct {
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
-	knownHosts        map[string]bool
+	knownHosts        map[string]struct{}
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
@@ -130,9 +130,9 @@ func (t *topology) replicas(token Token, size int, filter func(*Node, []*Node) b
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
-	kh := make(map[string]bool, len(hosts))
+	kh := make(map[string]struct{}, len(hosts))
 	for _, h := range hosts {
-		kh[h] = true
+		kh[h] = struct{}{}
 	}
 
 	c := &Cluster{
@@ -200,7 +200,7 @@ func (c *Cluster) refreshTopology() error {
 		dc   string
 		rack string
 	}
-	u := make(map[uniqueRack]bool)
+	u := make(map[uniqueRack]struct{})
 
 	for _, r := range rows {
 		n, err := parseNodeFromRow(r)
@@ -220,10 +220,10 @@ func (c *Cluster) refreshTopology() error {
 			}
 		}
 		// Every encountered node becomes known host for future use.
-		c.knownHosts[n.addr] = true
+		c.knownHosts[n.addr] = struct{}{}
 		t.peers[n.addr] = n
 		t.nodes = append(t.nodes, n)
-		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = true
+		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = struct{}{}
 		if err := parseTokensFromRow(n, r, t.ring); err != nil {
 			return err
 		}

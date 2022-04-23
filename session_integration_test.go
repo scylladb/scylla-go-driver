@@ -6,23 +6,17 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/mmatczuk/scylla-go-driver/transport"
 	"go.uber.org/goleak"
 )
 
 const TestHost = "192.168.100.100"
 
-func testingSessionConfig() SessionConfig {
-	cfg := DefaultSessionConfig("", TestHost+":9042")
-	cfg.ConnConfig = transport.TestingConnConfig()
-	cfg.Keyspace = "mykeyspace"
-	return cfg
-}
+var testingSessionConfig = DefaultSessionConfig("mykeyspace", TestHost)
 
 func initKeyspace(t testing.TB) {
 	t.Helper()
 
-	cfg := testingSessionConfig()
+	cfg := testingSessionConfig
 	cfg.Keyspace = ""
 	s, err := NewSession(cfg)
 	if err != nil {
@@ -40,7 +34,7 @@ func newTestSession(t testing.TB) *Session {
 	t.Helper()
 
 	initKeyspace(t)
-	s, err := NewSession(testingSessionConfig())
+	s, err := NewSession(testingSessionConfig)
 	if err != nil {
 		t.Fatal(err)
 	}

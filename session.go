@@ -69,9 +69,8 @@ func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	cfg := SessionConfig{
 		Hosts:      hosts,
 		Policy:     &policy,
-		ConnConfig: transport.DefaultConnConfig(),
+		ConnConfig: transport.DefaultConnConfig(keyspace),
 	}
-	cfg.Keyspace = keyspace
 
 	return cfg
 }

@@ -26,11 +26,11 @@ type ConnPool struct {
 	connClosedCh chan int // notification channel for when connection is closed
 }
 
-func NewConnPool(addr string, cfg ConnConfig) (*ConnPool, error) {
+func NewConnPool(host string, cfg ConnConfig) (*ConnPool, error) {
 	r := PoolRefiller{
 		cfg: cfg,
 	}
-	if err := r.init(addr); err != nil {
+	if err := r.init(host); err != nil {
 		return nil, err
 	}
 
@@ -128,14 +128,12 @@ type PoolRefiller struct {
 	active int
 }
 
-// Here addr will consist only of IP, because init is called on addresses
-// gathered from system.peers or system.local tables.
-func (r *PoolRefiller) init(addr string) error {
+func (r *PoolRefiller) init(host string) error {
 	if err := r.cfg.validate(); err != nil {
 		return fmt.Errorf("config validate :%w", err)
 	}
 
-	conn, err := OpenConn(addr, nil, r.cfg)
+	conn, err := OpenConn(host, nil, r.cfg)
 	if err != nil {
 		if conn != nil {
 			conn.Close()
@@ -151,7 +149,7 @@ func (r *PoolRefiller) init(addr string) error {
 	ss := s.ScyllaSupported()
 
 	if v, ok := s.Options[ScyllaShardAwarePort]; ok {
-		r.addr = net.JoinHostPort(addr, v[0])
+		r.addr = net.JoinHostPort(host, v[0])
 	} else {
 		return fmt.Errorf("missing shard aware port information %v", s.Options)
 	}
