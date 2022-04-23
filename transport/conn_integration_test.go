@@ -3,6 +3,7 @@
 package transport
 
 import (
+	"log"
 	"strconv"
 	"sync"
 	"testing"
@@ -19,10 +20,7 @@ func TestOpenShardConnIntegration(t *testing.T) {
 
 	for i := uint16(0); i < si.NrShards; i++ {
 		si.Shard = i
-		c, err := OpenShardConn(TestHost+":19042", si, ConnConfig{
-			Timeout:     500 * time.Millisecond,
-			DefaultPort: "9042",
-		})
+		c, err := OpenShardConn(TestHost+":19042", si, DefaultConnConfig(""))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -39,10 +37,7 @@ type connTestHelper struct {
 }
 
 func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn(TestHost, nil, ConnConfig{
-		Timeout:     500 * time.Millisecond,
-		DefaultPort: "9042",
-	})
+	conn, err := OpenConn(TestHost, nil, DefaultConnConfig(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,6 +49,9 @@ func (h *connTestHelper) applyFixture() {
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+	if err := h.conn.UseKeyspace("mykeyspace"); err != nil {
+		log.Fatalf("use keyspace %v", err)
+	}
 }
 
 func (h *connTestHelper) setupMassiveUsersTable() {

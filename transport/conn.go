@@ -278,20 +278,16 @@ type ConnConfig struct {
 	DefaultPort        string
 }
 
-func DefaultConnConfig() ConnConfig {
+func DefaultConnConfig(keyspace string) ConnConfig {
 	return ConnConfig{
-		Timeout:            500 * time.Millisecond,
+		Username:           "cassandra",
+		Password:           "cassandra",
+		Keyspace:           keyspace,
 		TCPNoDelay:         true,
+		Timeout:            500 * time.Millisecond,
 		DefaultConsistency: frame.LOCALQUORUM,
+		DefaultPort:        "9042",
 	}
-}
-
-func TestingConnConfig() ConnConfig {
-	cfg := DefaultConnConfig()
-	cfg.Username = "cassandra"
-	cfg.Password = "cassandra"
-	cfg.DefaultConsistency = 1
-	return cfg
 }
 
 const (

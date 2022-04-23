@@ -11,10 +11,7 @@ import (
 const refillerBackoff = 500 * time.Millisecond
 
 func newTestConnPool(t *testing.T) *ConnPool {
-	p, err := NewConnPool(TestHost, ConnConfig{
-		Timeout:     500 * time.Millisecond,
-		DefaultPort: "9042",
-	})
+	p, err := NewConnPool(TestHost, DefaultConnConfig(""))
 	if err != nil {
 		t.Fatal(err)
 	}
