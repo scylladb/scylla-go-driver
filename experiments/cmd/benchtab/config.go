@@ -64,8 +64,8 @@ func readConfig() Config {
 
 	flag.Parse()
 
-	for _, node_address := range strings.Split(*nodes, ",") {
-		config.nodeAddresses = append(config.nodeAddresses, node_address)
+	for _, nodeAddress := range strings.Split(*nodes, ",") {
+		config.nodeAddresses = append(config.nodeAddresses, nodeAddress)
 	}
 
 	switch *workload {
