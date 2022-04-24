@@ -61,64 +61,76 @@ func benchmark(config *Config, session *scylla.Session) {
 				log.Fatal(err)
 			}
 
-			for {
-				curBatchStart := atomic.AddInt64(&nextBatchStart, config.batchSize)
-				if curBatchStart >= config.tasks {
-					// no more work to do
-					break
-				}
-
-				curBatchEnd := min(curBatchStart+config.batchSize, config.tasks)
-
-				if config.workload == Inserts || config.workload == Mixed {
-					for pk := curBatchStart; pk < curBatchEnd; pk++ {
-						insertQ.BindInt64(0, pk)
-						insertQ.BindInt64(1, 2*pk)
-						insertQ.BindInt64(2, 3*pk)
-						insertQ.AsyncExec()
-					}
-					for pk := curBatchStart; pk < curBatchEnd; pk++ {
-						if _, err := insertQ.Fetch(); err != nil {
-							log.Fatal(err)
-						}
-					}
-				}
-
-				if config.workload == Selects || config.workload == Mixed {
-					for pk := curBatchStart; pk < curBatchEnd; pk++ {
-						selectQ.BindInt64(0, pk)
-						selectQ.AsyncExec()
-					}
-					for pk := curBatchStart; pk < curBatchEnd; pk++ {
-						res, err := selectQ.Fetch()
-						if err != nil {
-							log.Fatal(err)
-						}
-
-						if len(res.Rows) != 1 {
-							log.Fatalf("expected 1 row, got %d", len(res.Rows))
-						}
-
-						v1, err := res.Rows[0][0].AsInt64()
-						if err != nil {
-							log.Fatal(err)
-						}
-						v2, err := res.Rows[0][1].AsInt64()
-						if err != nil {
-							log.Fatal(err)
-						}
-						if v1 != 2*pk || v2 != 3*pk {
-							log.Fatalf("expected (%d, %d), got (%d, %d)", 2*pk, 3*pk, v1, v2)
-						}
-					}
-				}
-			}
+			massQuery(config, insertQ, selectQ, nextBatchStart)
 		}()
 	}
 
 	wg.Wait()
 	benchTime := time.Now().Sub(startTime)
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
+}
+
+func massQuery(config *Config, insertQ, selectQ scylla.Query, nextBatchStart int64) {
+	for {
+		curBatchStart := atomic.AddInt64(&nextBatchStart, config.batchSize)
+		if curBatchStart >= config.tasks {
+			// no more work to do
+			break
+		}
+
+		curBatchEnd := min(curBatchStart+config.batchSize, config.tasks)
+
+		if config.workload == Inserts || config.workload == Mixed {
+			makeInsterts(insertQ, curBatchStart, curBatchEnd)
+		}
+
+		if config.workload == Selects || config.workload == Mixed {
+			makeSelects(selectQ, curBatchStart, curBatchEnd)
+		}
+	}
+}
+
+func makeInsterts(insertQ scylla.Query, curBatchStart, curBatchEnd int64) {
+	for pk := curBatchStart; pk < curBatchEnd; pk++ {
+		insertQ.BindInt64(0, pk)
+		insertQ.BindInt64(1, 2*pk)
+		insertQ.BindInt64(2, 3*pk)
+		insertQ.AsyncExec()
+	}
+	for pk := curBatchStart; pk < curBatchEnd; pk++ {
+		if _, err := insertQ.Fetch(); err != nil {
+			log.Fatal(err)
+		}
+	}
+}
+
+func makeSelects(selectQ scylla.Query, curBatchStart, curBatchEnd int64) {
+	for pk := curBatchStart; pk < curBatchEnd; pk++ {
+		selectQ.BindInt64(0, pk)
+		selectQ.AsyncExec()
+	}
+	for pk := curBatchStart; pk < curBatchEnd; pk++ {
+		res, err := selectQ.Fetch()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if len(res.Rows) != 1 {
+			log.Fatalf("expected 1 row, got %d", len(res.Rows))
+		}
+
+		v1, err := res.Rows[0][0].AsInt64()
+		if err != nil {
+			log.Fatal(err)
+		}
+		v2, err := res.Rows[0][1].AsInt64()
+		if err != nil {
+			log.Fatal(err)
+		}
+		if v1 != 2*pk || v2 != 3*pk {
+			log.Fatalf("expected (%d, %d), got (%d, %d)", 2*pk, 3*pk, v1, v2)
+		}
+	}
 }
 
 func initKeyspaceAndTable(session *scylla.Session) {
