@@ -61,7 +61,7 @@ func benchmark(config *Config, session *scylla.Session) {
 				log.Fatal(err)
 			}
 
-			massQuery(config, insertQ, selectQ, nextBatchStart)
+			massQuery(config, &insertQ, &selectQ, nextBatchStart)
 		}()
 	}
 
@@ -70,7 +70,7 @@ func benchmark(config *Config, session *scylla.Session) {
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
 }
 
-func massQuery(config *Config, insertQ, selectQ scylla.Query, nextBatchStart int64) {
+func massQuery(config *Config, insertQ, selectQ *scylla.Query, nextBatchStart int64) {
 	for {
 		curBatchStart := atomic.AddInt64(&nextBatchStart, config.batchSize)
 		if curBatchStart >= config.tasks {
@@ -90,7 +90,7 @@ func massQuery(config *Config, insertQ, selectQ scylla.Query, nextBatchStart int
 	}
 }
 
-func makeInsterts(insertQ scylla.Query, curBatchStart, curBatchEnd int64) {
+func makeInsterts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
 		insertQ.BindInt64(0, pk)
 		insertQ.BindInt64(1, 2*pk)
@@ -104,7 +104,7 @@ func makeInsterts(insertQ scylla.Query, curBatchStart, curBatchEnd int64) {
 	}
 }
 
-func makeSelects(selectQ scylla.Query, curBatchStart, curBatchEnd int64) {
+func makeSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
 		selectQ.BindInt64(0, pk)
 		selectQ.AsyncExec()
