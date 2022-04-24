@@ -37,6 +37,10 @@ func main() {
 		initSelectsBenchmark(session, config)
 	}
 
+	benchmark(&config, session)
+}
+
+func benchmark(config *Config, session *scylla.Session) {
 	var wg sync.WaitGroup
 	nextBatchStart := -config.batchSize
 
@@ -114,7 +118,6 @@ func main() {
 
 	wg.Wait()
 	benchTime := time.Now().Sub(startTime)
-
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
 }
 
