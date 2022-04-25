@@ -18,20 +18,19 @@ type WrapperPolicy interface {
 	WrapPlan([]*Node) func() *Node
 }
 
-// In both round-robin policies counter has to be taken modulo length of node slice.
-type roundRobinPolicy struct {
-	counter atomic.Int64
+type RoundRobinPolicy struct {
+	counter atomic.Int64 // Counter has to be taken modulo length of node slice.
 }
 
-func NewRoundRobinPolicy() roundRobinPolicy {
-	return roundRobinPolicy{counter: *atomic.NewInt64(0)}
+func NewRoundRobinPolicy() *RoundRobinPolicy {
+	return &RoundRobinPolicy{counter: *atomic.NewInt64(0)}
 }
 
-func (p *roundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
+func (p *RoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
 	return p.WrapPlan(qi.topology.nodes)
 }
 
-func (p *roundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
+func (p *RoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 	i := int(p.counter.Inc() - 1)
 	start := i
 	return func() *Node {
@@ -43,23 +42,23 @@ func (p *roundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 	}
 }
 
-type dcAwareRoundRobinPolicy struct {
-	counter atomic.Int64
+type DCAwareRoundRobinPolicy struct {
+	counter atomic.Int64 // Counter has to be taken modulo length of node slice.
 	localDC string
 }
 
-func NewDCAwareRoundRobin(dc string) dcAwareRoundRobinPolicy {
-	return dcAwareRoundRobinPolicy{
+func NewDCAwareRoundRobin(dc string) *DCAwareRoundRobinPolicy {
+	return &DCAwareRoundRobinPolicy{
 		counter: *atomic.NewInt64(0),
 		localDC: dc,
 	}
 }
 
-func (p *dcAwareRoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
+func (p *DCAwareRoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
 	return p.WrapPlan(qi.topology.nodes)
 }
 
-func (p *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
+func (p *DCAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 	i := p.counter.Inc() - 1
 	l := make([]*Node, 0)
 	r := make([]*Node, 0)
@@ -70,8 +69,8 @@ func (p *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 			r = append(r, n)
 		}
 	}
-	lit := (&roundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(l)
-	rit := (&roundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(r)
+	lit := (&RoundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(l)
+	rit := (&RoundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(r)
 	return func() *Node {
 		if n := lit(); n != nil {
 			return n
@@ -81,15 +80,15 @@ func (p *dcAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
 	}
 }
 
-type tokenAwarePolicy struct {
+type TokenAwarePolicy struct {
 	wrapperPolicy WrapperPolicy
 }
 
-func NewTokenAwarePolicy(wp WrapperPolicy) tokenAwarePolicy {
-	return tokenAwarePolicy{wrapperPolicy: wp}
+func NewTokenAwarePolicy(wp WrapperPolicy) *TokenAwarePolicy {
+	return &TokenAwarePolicy{wrapperPolicy: wp}
 }
 
-func (p *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
+func (p *TokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 	// Fallback to policy implemented in wrapperPolicy.
 	if !qi.tokenAwareness {
 		return p.wrapperPolicy.PlanIter(qi)
@@ -97,9 +96,9 @@ func (p *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 
 	switch qi.strategy.class {
 	case simpleStrategy, localStrategy:
-		return p.wrapperPolicy.WrapPlan(p.simpleStrategyReplicas(qi))
+		return p.wrapperPolicy.WrapPlan(p.SimpleStrategyReplicas(qi))
 	case networkTopologyStrategy:
-		return p.wrapperPolicy.WrapPlan(p.networkTopologyStrategyReplicas(qi))
+		return p.wrapperPolicy.WrapPlan(p.NetworkTopologyStrategyReplicas(qi))
 	default:
 		log.Printf("host selection policy: query with 'other' strategy class")
 		// TODO: add support for other strategies. For now fallback to wrapper.
@@ -107,7 +106,7 @@ func (p *tokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 	}
 }
 
-func (p *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
+func (p *TokenAwarePolicy) SimpleStrategyReplicas(qi QueryInfo) []*Node {
 	return qi.topology.replicas(qi.token, int(qi.strategy.rf), func(n *Node, res []*Node) bool {
 		for _, v := range res {
 			if n.addr == v.addr {
@@ -118,7 +117,7 @@ func (p *tokenAwarePolicy) simpleStrategyReplicas(qi QueryInfo) []*Node {
 	})
 }
 
-func (p *tokenAwarePolicy) networkTopologyStrategyReplicas(qi QueryInfo) []*Node {
+func (p *TokenAwarePolicy) NetworkTopologyStrategyReplicas(qi QueryInfo) []*Node {
 	resLen := 0
 	// repeats store the amount of nodes from the same rack that we can take in given DC.
 	repeats := make(map[string]int, len(qi.strategy.dcRF))
