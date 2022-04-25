@@ -63,16 +63,11 @@ type SessionConfig struct {
 }
 
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
-	rr := transport.NewRoundRobinPolicy()
-	policy := transport.NewTokenAwarePolicy(&rr)
-
-	cfg := SessionConfig{
+	return SessionConfig{
 		Hosts:      hosts,
-		Policy:     &policy,
+		Policy:     transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy()),
 		ConnConfig: transport.DefaultConnConfig(keyspace),
 	}
-
-	return cfg
 }
 
 func (cfg SessionConfig) Clone() SessionConfig {
@@ -163,19 +158,15 @@ func (s *Session) Prepare(content string) (Query, error) {
 }
 
 func (s *Session) NewRoundRobinPolicy() transport.HostSelectionPolicy {
-	p := transport.NewRoundRobinPolicy()
-	return &p
+	return transport.NewRoundRobinPolicy()
 }
 
 func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
-	rr := transport.NewRoundRobinPolicy()
-	p := transport.NewTokenAwarePolicy(&rr)
-	return &p
+	return transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy())
 }
 
 func (s *Session) NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
-	p := transport.NewDCAwareRoundRobin(localDC)
-	return &p
+	return transport.NewDCAwareRoundRobin(localDC)
 }
 
 func (s *Session) Close() {
