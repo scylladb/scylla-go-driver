@@ -4,6 +4,7 @@ import (
 	"log"
 	"sync"
 	"sync/atomic"
+	"testing"
 	"time"
 
 	"github.com/mmatczuk/scylla-go-driver"
@@ -12,39 +13,41 @@ import (
 const insertStmt = "INSERT INTO benchks.benchtab (pk, v1, v2) VALUES(?, ?, ?)"
 const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
 
-func main() {
+func BenchmarkDriver(b *testing.B) {
 	config := readConfig()
 	log.Printf("Config %#+v", config)
 
-	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
-	cfg.Username = "cassandra"
-	cfg.Password = "cassandra"
+	for i := 0; i < b.N; i++ {
+		cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
+		cfg.Username = "cassandra"
+		cfg.Password = "cassandra"
 
-	if !config.dontPrepare {
-		initSession, err := scylla.NewSession(cfg)
+		if !config.dontPrepare {
+			initSession, err := scylla.NewSession(cfg)
+			if err != nil {
+				log.Fatal(err)
+			}
+			initKeyspaceAndTable(initSession)
+		}
+
+		cfg.Keyspace = "benchks"
+		session, err := scylla.NewSession(cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
-		initKeyspaceAndTable(initSession)
-	}
+		if config.workload == Selects && !config.dontPrepare {
+			initSelectsBenchmark(session, config)
+		}
 
-	cfg.Keyspace = "benchks"
-	session, err := scylla.NewSession(cfg)
-	if err != nil {
-		log.Fatal(err)
+		benchmark(&config, session, i)
 	}
-	if config.workload == Selects && !config.dontPrepare {
-		initSelectsBenchmark(session, config)
-	}
-
-	benchmark(&config, session)
 }
 
-func benchmark(config *Config, session *scylla.Session) {
+func benchmark(config *Config, session *scylla.Session, n int) {
 	var wg sync.WaitGroup
 	nextBatchStart := -config.batchSize
 
-	log.Println("Starting the benchmark")
+	log.Println("Starting benchmark nr ", n)
 	startTime := time.Now()
 
 	for i := int64(0); i < config.workers; i++ {
