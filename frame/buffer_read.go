@@ -39,7 +39,7 @@ func (b *Buffer) readInto(p []byte) {
 	}
 }
 
-const maxSliceSize int = 128_000_000
+const maxBytesSize int = 128_000_000
 
 // readCopy reads next n bytes from the buffer, and returns a copy.
 func (b *Buffer) readCopy(n int) Bytes {
@@ -48,8 +48,8 @@ func (b *Buffer) readCopy(n int) Bytes {
 	if b.readErr != nil {
 		return nil
 	}
-	if n > maxSliceSize {
-		b.readErr = fmt.Errorf("too big slice size: %v", n)
+	if n < 0 || maxBytesSize < n {
+		b.readErr = fmt.Errorf("too big Bytes size: %v", n)
 		return nil
 	}
 
@@ -437,6 +437,8 @@ func (b *Buffer) ReadColumnSpec(f ResultFlags) ColumnSpec {
 	}
 }
 
+const maxColumnSpecSliceSize = 1_230_770 // 1230770 is 128MB divided by ColumnSpec size.
+
 func (b *Buffer) ReadResultMetadata() ResultMetadata {
 	r := ResultMetadata{
 		Flags:      b.ReadResultFlags(),
@@ -456,6 +458,10 @@ func (b *Buffer) ReadResultMetadata() ResultMetadata {
 		r.GlobalTable = b.ReadString()
 	}
 
+	if r.ColumnsCnt < 0 || maxColumnSpecSliceSize < r.ColumnsCnt {
+		b.readErr = fmt.Errorf("too big ColumnSpec slice size: %v", r.ColumnsCnt)
+		return ResultMetadata{}
+	}
 	r.Columns = make([]ColumnSpec, r.ColumnsCnt)
 	for i := range r.Columns {
 		r.Columns[i] = b.ReadColumnSpec(r.Flags)
@@ -464,6 +470,8 @@ func (b *Buffer) ReadResultMetadata() ResultMetadata {
 	return r
 }
 
+const maxShortSliceSize = 64_000_000
+
 func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
 	p := PreparedMetadata{
 		Flags:      b.ReadPreparedFlags(),
@@ -471,6 +479,10 @@ func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
 		PkCnt:      b.ReadInt(),
 	}
 
+	if p.PkCnt < 0 || maxShortSliceSize < p.PkCnt {
+		b.readErr = fmt.Errorf("too big Short slice size: %v", p.PkCnt)
+		return PreparedMetadata{}
+	}
 	p.PkIndexes = make([]Short, p.PkCnt)
 	for i := range p.PkIndexes {
 		p.PkIndexes[i] = b.ReadShort()
@@ -481,6 +493,10 @@ func (b *Buffer) ReadPreparedMetadata() PreparedMetadata {
 		p.GlobalTable = b.ReadString()
 	}
 
+	if p.ColumnsCnt < 0 || maxColumnSpecSliceSize < p.ColumnsCnt {
+		b.readErr = fmt.Errorf("too big ColumnSpec slice size: %v", p.ColumnsCnt)
+		return PreparedMetadata{}
+	}
 	p.Columns = make([]ColumnSpec, p.ColumnsCnt)
 	for i := range p.Columns {
 		p.Columns[i] = b.ReadColumnSpec(p.Flags)

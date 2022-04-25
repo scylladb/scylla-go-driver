@@ -23,15 +23,33 @@ type RowsResult struct {
 	RowsContent []frame.Row
 }
 
+const (
+	// 5333334 is equal to 128MB divided by slice size.
+	maxRowSliceSize = 5_333_334
+	maxRowSize      = 5_333_334
+	maxCellsCnt     = 128_000_000 // TODO: Theoretically should be equal to 2_000_000_000 and limits above should not exist.
+)
+
 func ParseRowsResult(b *frame.Buffer) *RowsResult {
 	r := RowsResult{
 		Metadata: b.ReadResultMetadata(),
 		RowsCnt:  b.ReadInt(),
 	}
 
+	if b.Error() != nil ||
+		r.RowsCnt < 0 || maxRowSliceSize < r.RowsCnt ||
+		r.Metadata.ColumnsCnt < 0 || maxRowSize < r.Metadata.ColumnsCnt ||
+		r.RowsCnt*r.Metadata.ColumnsCnt < 0 || maxCellsCnt < r.RowsCnt*r.Metadata.ColumnsCnt {
+		return nil
+	}
 	r.RowsContent = make([]frame.Row, r.RowsCnt)
+	// holder is used to avoid many small allocations.
+	holder := make(frame.Row, r.RowsCnt*r.Metadata.ColumnsCnt)
 	for i := range r.RowsContent {
-		r.RowsContent[i] = make(frame.Row, r.Metadata.ColumnsCnt)
+		if b.Error() != nil {
+			return nil
+		}
+		r.RowsContent[i] = holder[i*int(r.Metadata.ColumnsCnt) : (i+1)*int(r.Metadata.ColumnsCnt)]
 		for j := 0; j < int(r.Metadata.ColumnsCnt); j++ {
 			r.RowsContent[i][j] = frame.CqlValue{
 				Value: b.ReadBytes(),
