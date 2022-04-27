@@ -91,5 +91,5 @@ scylla-bash:
 
 .PHONY: scylla-cqlsh
 scylla-cqlsh:
-	@$(COMPOSE) exec node cqlsh
+	@$(COMPOSE) exec node cqlsh -u cassandra -p cassandra
 
