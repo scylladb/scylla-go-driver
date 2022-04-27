@@ -2,67 +2,152 @@ package response
 
 import (
 	"fmt"
-
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
-// Error response message type used in non specified errors which don't have a body.
-// Error spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1046
-type Error struct {
+// ScyllaError is embedded in all error frames.
+// ScyllaError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1046
+type ScyllaError struct {
 	Code    frame.ErrorCode
 	Message string
 }
 
-func (e *Error) Error() string {
+func (e *ScyllaError) Error() string {
 	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
 }
 
-func (e *Error) String() string {
+func (e *ScyllaError) String() string {
 	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
 }
 
-func ParseError(b *frame.Buffer) *Error {
-	return &Error{
+func ParseScyllaError(b *frame.Buffer) ScyllaError {
+	return ScyllaError{
 		Code:    b.ReadErrorCode(),
 		Message: b.ReadString(),
 	}
 }
 
+func ParseError(b *frame.Buffer) error {
+	err := ParseScyllaError(b)
+	switch err.Code {
+	case frame.ErrCodeServer:
+		return ParseServerError(b, err)
+	case frame.ErrCodeProtocol:
+		return ParseProtocolError(b, err)
+	case frame.ErrCodeCredentials:
+		return ParseCredentialsError(b, err)
+	case frame.ErrCodeOverloaded:
+		return ParseOverloadedError(b, err)
+	case frame.ErrCodeBootstrapping:
+		return ParseIsBootstrappingError(b, err)
+	case frame.ErrCodeTruncate:
+		return ParseTruncateError(b, err)
+	case frame.ErrCodeSyntax:
+		return ParseSyntaxError(b, err)
+	case frame.ErrCodeUnauthorized:
+		return ParseUnauthorizedError(b, err)
+	case frame.ErrCodeInvalid:
+		return ParseInvalidError(b, err)
+	case frame.ErrCodeConfig:
+		return ParseConfigError(b, err)
+	case frame.ErrCodeUnavailable:
+		return ParseUnavailableError(b, err)
+	case frame.ErrCodeWriteTimeout:
+		return ParseWriteTimeoutError(b, err)
+	case frame.ErrCodeReadTimeout:
+		return ParseReadTimeoutError(b, err)
+	case frame.ErrCodeReadFailure:
+		return ParseReadFailureError(b, err)
+	case frame.ErrCodeFunctionFailure:
+		return ParseFuncFailureError(b, err)
+	case frame.ErrCodeWriteFailure:
+		return ParseWriteFailureError(b, err)
+	case frame.ErrCodeAlreadyExists:
+		return ParseAlreadyExistsError(b, err)
+	case frame.ErrCodeUnprepared:
+		return ParseUnpreparedError(b, err)
+	default:
+		return fmt.Errorf("error code not supported: %v", err.Code)
+	}
+}
+
+type ServerError struct {
+	ScyllaError
+}
+
+func ParseServerError(_ *frame.Buffer, err ScyllaError) *ServerError {
+	return &ServerError{ScyllaError: err}
+}
+
+type ProtocolError struct {
+	ScyllaError
+}
+
+func ParseProtocolError(_ *frame.Buffer, err ScyllaError) *ProtocolError {
+	return &ProtocolError{ScyllaError: err}
+}
+
+type CredentialsError struct {
+	ScyllaError
+}
+
+func ParseCredentialsError(_ *frame.Buffer, err ScyllaError) *CredentialsError {
+	return &CredentialsError{ScyllaError: err}
+}
+
 // UnavailableError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1060
 type UnavailableError struct {
-	Error
+	ScyllaError
 	Consistency frame.Consistency
 	Required    frame.Int
 	Alive       frame.Int
 }
 
-func ParseUnavailableError(b *frame.Buffer) *UnavailableError {
+func ParseUnavailableError(b *frame.Buffer, err ScyllaError) *UnavailableError {
 	return &UnavailableError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
+		ScyllaError: err,
 		Consistency: b.ReadConsistency(),
 		Required:    b.ReadInt(),
 		Alive:       b.ReadInt(),
 	}
 }
 
+type OverloadedError struct {
+	ScyllaError
+}
+
+func ParseOverloadedError(_ *frame.Buffer, err ScyllaError) *OverloadedError {
+	return &OverloadedError{ScyllaError: err}
+}
+
+type IsBootstrappingError struct {
+	ScyllaError
+}
+
+func ParseIsBootstrappingError(_ *frame.Buffer, err ScyllaError) *IsBootstrappingError {
+	return &IsBootstrappingError{ScyllaError: err}
+}
+
+type TruncateError struct {
+	ScyllaError
+}
+
+func ParseTruncateError(_ *frame.Buffer, err ScyllaError) *TruncateError {
+	return &TruncateError{ScyllaError: err}
+}
+
 // WriteTimeoutError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1076
 type WriteTimeoutError struct {
-	Error
+	ScyllaError
 	Consistency frame.Consistency
 	Received    frame.Int
 	BlockFor    frame.Int
 	WriteType   frame.WriteType
 }
 
-func ParseWriteTimeoutError(b *frame.Buffer) *WriteTimeoutError {
+func ParseWriteTimeoutError(b *frame.Buffer, err ScyllaError) *WriteTimeoutError {
 	return &WriteTimeoutError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
+		ScyllaError: err,
 		Consistency: b.ReadConsistency(),
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
@@ -72,19 +157,16 @@ func ParseWriteTimeoutError(b *frame.Buffer) *WriteTimeoutError {
 
 // ReadTimeoutError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1108
 type ReadTimeoutError struct {
-	Error
+	ScyllaError
 	Consistency frame.Consistency
 	Received    frame.Int
 	BlockFor    frame.Int
 	DataPresent frame.Byte
 }
 
-func ParseReadTimeoutError(b *frame.Buffer) *ReadTimeoutError {
+func ParseReadTimeoutError(b *frame.Buffer, err ScyllaError) *ReadTimeoutError {
 	return &ReadTimeoutError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
+		ScyllaError: err,
 		Consistency: b.ReadConsistency(),
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
@@ -94,7 +176,7 @@ func ParseReadTimeoutError(b *frame.Buffer) *ReadTimeoutError {
 
 // ReadFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1125
 type ReadFailureError struct {
-	Error
+	ScyllaError
 	Consistency frame.Consistency
 	Received    frame.Int
 	BlockFor    frame.Int
@@ -102,12 +184,9 @@ type ReadFailureError struct {
 	DataPresent frame.Byte
 }
 
-func ParseReadFailureError(b *frame.Buffer) *ReadFailureError {
+func ParseReadFailureError(b *frame.Buffer, err ScyllaError) *ReadFailureError {
 	return &ReadFailureError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
+		ScyllaError: err,
 		Consistency: b.ReadConsistency(),
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
@@ -118,27 +197,24 @@ func ParseReadFailureError(b *frame.Buffer) *ReadFailureError {
 
 // FuncFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1140
 type FuncFailureError struct {
-	Error
+	ScyllaError
 	Keyspace string
 	Function string
 	ArgTypes frame.StringList
 }
 
-func ParseFuncFailureError(b *frame.Buffer) *FuncFailureError {
+func ParseFuncFailureError(b *frame.Buffer, err ScyllaError) *FuncFailureError {
 	return &FuncFailureError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
-		Keyspace: b.ReadString(),
-		Function: b.ReadString(),
-		ArgTypes: b.ReadStringList(),
+		ScyllaError: err,
+		Keyspace:    b.ReadString(),
+		Function:    b.ReadString(),
+		ArgTypes:    b.ReadStringList(),
 	}
 }
 
 // WriteFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1147
 type WriteFailureError struct {
-	Error
+	ScyllaError
 	Consistency frame.Consistency
 	Received    frame.Int
 	BlockFor    frame.Int
@@ -146,12 +222,9 @@ type WriteFailureError struct {
 	WriteType   frame.WriteType
 }
 
-func ParseWriteFailureError(b *frame.Buffer) *WriteFailureError {
+func ParseWriteFailureError(b *frame.Buffer, err ScyllaError) *WriteFailureError {
 	return &WriteFailureError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
+		ScyllaError: err,
 		Consistency: b.ReadConsistency(),
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
@@ -160,36 +233,62 @@ func ParseWriteFailureError(b *frame.Buffer) *WriteFailureError {
 	}
 }
 
+type SyntaxError struct {
+	ScyllaError
+}
+
+func ParseSyntaxError(_ *frame.Buffer, err ScyllaError) *SyntaxError {
+	return &SyntaxError{ScyllaError: err}
+}
+
+type UnauthorizedError struct {
+	ScyllaError
+}
+
+func ParseUnauthorizedError(_ *frame.Buffer, err ScyllaError) *UnauthorizedError {
+	return &UnauthorizedError{ScyllaError: err}
+}
+
+type InvalidError struct {
+	ScyllaError
+}
+
+func ParseInvalidError(_ *frame.Buffer, err ScyllaError) *InvalidError {
+	return &InvalidError{ScyllaError: err}
+}
+
+type ConfigError struct {
+	ScyllaError
+}
+
+func ParseConfigError(_ *frame.Buffer, err ScyllaError) *ConfigError {
+	return &ConfigError{ScyllaError: err}
+}
+
 // AlreadyExistsError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1187
 type AlreadyExistsError struct {
-	Error
+	ScyllaError
 	Keyspace string
 	Table    string
 }
 
-func ParseAlreadyExistsError(b *frame.Buffer) *AlreadyExistsError {
+func ParseAlreadyExistsError(b *frame.Buffer, err ScyllaError) *AlreadyExistsError {
 	return &AlreadyExistsError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
-		Keyspace: b.ReadString(),
-		Table:    b.ReadString(),
+		ScyllaError: err,
+		Keyspace:    b.ReadString(),
+		Table:       b.ReadString(),
 	}
 }
 
 // UnpreparedError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1197
 type UnpreparedError struct {
-	Error
+	ScyllaError
 	UnknownID frame.ShortBytes
 }
 
-func ParseUnpreparedError(b *frame.Buffer) *UnpreparedError {
+func ParseUnpreparedError(b *frame.Buffer, err ScyllaError) *UnpreparedError {
 	return &UnpreparedError{
-		Error: Error{
-			Code:    b.ReadErrorCode(),
-			Message: b.ReadString(),
-		},
-		UnknownID: b.ReadShortBytes(),
+		ScyllaError: err,
+		UnknownID:   b.ReadShortBytes(),
 	}
 }
