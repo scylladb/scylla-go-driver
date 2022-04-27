@@ -276,12 +276,14 @@ func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 		return nil, fmt.Errorf("discover peer topology: %w", err)
 	}
 
-	localRes, err := c.control.Query(localQuery, nil)
-	if err != nil {
-		return nil, fmt.Errorf("discover local topology: %w", err)
-	}
+	//localRes, err := c.control.Query(localQuery, nil)
+	//if err != nil {
+	//	return nil, fmt.Errorf("discover local topology: %w", err)
+	//}
 
-	return append(peerRes.Rows, localRes.Rows[0]), nil
+	//return append(peerRes.Rows, localRes.Rows[0]), nil
+
+	return peerRes.Rows, nil
 }
 
 func parseNodeFromRow(r frame.Row) (*Node, error) {
@@ -303,7 +305,7 @@ func parseNodeFromRow(r frame.Row) (*Node, error) {
 	var addr net.IP
 	for i := addrIndex; i < len(r); i++ {
 		addr, err = r[i].AsIP()
-		if err != nil && !addr.IsUnspecified() {
+		if err == nil && !addr.IsUnspecified() {
 			break
 		}
 	}
