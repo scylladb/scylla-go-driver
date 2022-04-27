@@ -69,10 +69,10 @@ func (c *connWriter) loop() {
 
 		for i := 0; i < size; i++ {
 			r := <-c.requestCh
-			c.metrics.InQueue.Dec()
 			if r == _connCloseRequest {
 				return
 			}
+			c.metrics.InQueue.Dec()
 			if err := c.send(r); err != nil {
 				log.Printf("%s fatal send error, closing connection due to %s", c.connString(), err)
 				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.connString(), err)}
