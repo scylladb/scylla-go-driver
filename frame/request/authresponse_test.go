@@ -40,21 +40,3 @@ func TestAuthResponseWriteTo(t *testing.T) {
 		})
 	}
 }
-
-// We want to make sure that parsing does not crush driver even for random data.
-func FuzzAuthResponse(f *testing.F) {
-	f.Add("", "")
-	f.Add("user", "password")
-
-	f.Fuzz(func(t *testing.T, user, password string) { // nolint:thelper // This is not a helper function.
-		in := AuthResponse{
-			Username: user,
-			Password: password,
-		}
-		var buf frame.Buffer
-		in.WriteTo(&buf)
-		if buf.Error() != nil {
-			t.Error(buf.Error())
-		}
-	})
-}
