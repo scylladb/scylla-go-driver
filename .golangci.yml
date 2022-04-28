@@ -73,3 +73,8 @@ issues:
     - cfg is heavy
     - replacement are not allowed
     - s is heavy \([\d]+ bytes\); consider passing it by pointer
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - thelper
