@@ -10,7 +10,7 @@ func FuzzAuthResponse(f *testing.F) {
 	f.Add("", "")
 	f.Add("user", "password")
 
-	f.Fuzz(func(t *testing.T, user, password string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, user, password string) {
 		in := AuthResponse{
 			Username: user,
 			Password: password,

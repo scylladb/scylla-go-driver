@@ -14,7 +14,7 @@ var (
 // We want to make sure that parsing does not crush driver even for random data.
 // We assign result to global variable to avoid compiler optimization.
 func FuzzStatusChange(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseStatusChange(&buf)
@@ -23,7 +23,7 @@ func FuzzStatusChange(f *testing.F) {
 }
 
 func FuzzTopologyChange(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseTopologyChange(&buf)
@@ -32,7 +32,7 @@ func FuzzTopologyChange(f *testing.F) {
 }
 
 func FuzzSchemaChange(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseSchemaChange(&buf)

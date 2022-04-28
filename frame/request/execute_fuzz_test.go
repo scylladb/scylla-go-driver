@@ -7,7 +7,7 @@ import (
 
 // We want to make sure that parsing does not crush driver even for random data.
 func FuzzExecute(f *testing.F) {
-	f.Fuzz(func(t *testing.T, b1 byte, si1, si2 uint16, i1, i2 int32, li1 int64, s1, s2 string, bs1, bs2, bs3 []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, b1 byte, si1, si2 uint16, i1, i2 int32, li1 int64, s1, s2 string, bs1, bs2, bs3 []byte) {
 		in := Execute{
 			ID:          bs1,
 			Consistency: si1,

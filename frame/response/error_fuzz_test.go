@@ -19,7 +19,7 @@ var (
 // We want to make sure that parsing does not crush driver even for random data.
 // We assign result to global variable to avoid compiler optimization.
 func FuzzUnavailableError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseUnavailableError(&buf)
@@ -28,7 +28,7 @@ func FuzzUnavailableError(f *testing.F) {
 }
 
 func FuzzWriteTimeoutErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseWriteTimeoutError(&buf)
@@ -37,7 +37,7 @@ func FuzzWriteTimeoutErrorError(f *testing.F) {
 }
 
 func FuzzReadTimeoutError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseReadTimeoutError(&buf)
@@ -46,7 +46,7 @@ func FuzzReadTimeoutError(f *testing.F) {
 }
 
 func FuzzReadFailureErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseReadFailureError(&buf)
@@ -55,7 +55,7 @@ func FuzzReadFailureErrorError(f *testing.F) {
 }
 
 func FuzzFuncFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseFuncFailureError(&buf)
@@ -64,7 +64,7 @@ func FuzzFuncFailureError(f *testing.F) {
 }
 
 func FuzzWriteFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseWriteFailureError(&buf)
@@ -73,7 +73,7 @@ func FuzzWriteFailureError(f *testing.F) {
 }
 
 func FuzzParseAlreadyExistsError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseAlreadyExistsError(&buf)
@@ -82,7 +82,7 @@ func FuzzParseAlreadyExistsError(f *testing.F) {
 }
 
 func FuzzUnpreparedError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseUnpreparedError(&buf)
