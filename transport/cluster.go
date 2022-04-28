@@ -203,7 +203,7 @@ func (c *Cluster) refreshTopology() error {
 	u := make(map[uniqueRack]struct{})
 
 	for _, r := range rows {
-		n, err := parseNodeFromRow(r)
+		n, err := c.parseNodeFromRow(r)
 		if err != nil {
 			return err
 		}
@@ -276,17 +276,15 @@ func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 		return nil, fmt.Errorf("discover peer topology: %w", err)
 	}
 
-	//localRes, err := c.control.Query(localQuery, nil)
-	//if err != nil {
-	//	return nil, fmt.Errorf("discover local topology: %w", err)
-	//}
+	localRes, err := c.control.Query(localQuery, nil)
+	if err != nil {
+		return nil, fmt.Errorf("discover local topology: %w", err)
+	}
 
-	//return append(peerRes.Rows, localRes.Rows[0]), nil
-
-	return peerRes.Rows, nil
+	return append(peerRes.Rows, localRes.Rows[0]), nil
 }
 
-func parseNodeFromRow(r frame.Row) (*Node, error) {
+func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 	const (
 		dcIndex   = 0
 		rackIndex = 1
@@ -307,6 +305,12 @@ func parseNodeFromRow(r frame.Row) (*Node, error) {
 		addr, err = r[i].AsIP()
 		if err == nil && !addr.IsUnspecified() {
 			break
+		} else if err == nil && addr.IsUnspecified() {
+			host, _, err := net.SplitHostPort(c.control.conn.RemoteAddr().String())
+			if err == nil {
+				addr = net.ParseIP(host)
+				break
+			}
 		}
 	}
 	if addr == nil || addr.IsUnspecified() {
