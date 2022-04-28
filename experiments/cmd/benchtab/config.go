@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"log"
-	"runtime"
 	"strings"
 )
 
@@ -49,7 +48,7 @@ func readConfig() Config {
 	flag.Int64Var(
 		&config.workers,
 		"workers",
-		int64(runtime.NumCPU()),
+		8192, // int64(runtime.NumCPU()),
 		"Maximum number of workers, default nr of CPUs",
 	)
 
