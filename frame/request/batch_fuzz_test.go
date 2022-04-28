@@ -7,7 +7,7 @@ import (
 
 // We want to make sure that parsing does not crush driver even for random data.
 func FuzzBatch(f *testing.F) {
-	f.Fuzz(func(t *testing.T, b1, b2, b3 byte, si1, si2 uint16, i1, i2 int32, li1 int64, s1, s2, s3 string, bs1, bs2, bs3 []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, b1, b2, b3 byte, si1, si2 uint16, i1, i2 int32, li1 int64, s1, s2, s3 string, bs1, bs2, bs3 []byte) {
 		x := BatchQuery{
 			Kind:     b1,
 			Query:    s1,

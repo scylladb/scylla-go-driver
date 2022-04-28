@@ -19,7 +19,7 @@ func FuzzCqlValueASCII(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data string) {
 		in := CqlValue{
 			Type:  &Option{ID: ASCIIID},
 			Value: []byte(data),
@@ -44,7 +44,7 @@ func FuzzCqlValueBlob(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		in := CqlValue{
 			Type:  &Option{ID: BlobID},
 			Value: data,
@@ -66,7 +66,7 @@ func FuzzCqlValueInt32(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data int32) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data int32) {
 		in := CqlFromInt32(data)
 		x, err := in.AsInt32()
 		if err != nil {
@@ -84,7 +84,7 @@ func FuzzCqlValueInt64(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data int64) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data int64) {
 		in := CqlFromInt64(data)
 		x, err := in.AsInt64()
 		if err != nil {
@@ -102,7 +102,7 @@ func FuzzCqlValueInt16(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data int16) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data int16) {
 		in := CqlFromInt16(data)
 		x, err := in.AsInt16()
 		if err != nil {
@@ -120,7 +120,7 @@ func FuzzCqlValueText(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data string) {
 		in, err := CqlFromText(data)
 		if err != nil {
 			// We skip tests with incorrect CqlValue.
@@ -145,7 +145,7 @@ func FuzzCqlValueIP(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		in, err := CqlFromIP(data)
 		if err != nil {
 			// We skip tests with incorrect CqlValue.
@@ -170,7 +170,7 @@ func FuzzCqlValueFloat32(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data float32) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data float32) {
 		in := CqlFromFloat32(data)
 		x, err := in.AsFloat32()
 		if err != nil {
@@ -188,7 +188,7 @@ func FuzzCqlValueFloat64(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, data float64) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data float64) {
 		in := CqlFromFloat64(data)
 		x, err := in.AsFloat64()
 		if err != nil {
@@ -206,7 +206,7 @@ func FuzzCqlValueStringSlice(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc[0], tc[1], tc[2], tc[3])
 	}
-	f.Fuzz(func(t *testing.T, a, b, c, d string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, a, b, c, d string) {
 		in := []string{a, b, c, d}
 		cv := CqlValue{
 			Type: &Option{
@@ -230,7 +230,7 @@ func FuzzCqlValueStringMap(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc[0], tc[1], tc[2], tc[3], tc[4], tc[5])
 	}
-	f.Fuzz(func(t *testing.T, a, b, c, d, e, f string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, a, b, c, d, e, f string) {
 		in := map[string]string{a: b, c: d, e: f}
 		cv := cqlStringMap(in, VarcharID, VarcharID)
 		out, err := cv.AsStringMap()

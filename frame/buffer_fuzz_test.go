@@ -15,12 +15,12 @@ import (
 // command to use fuzzing: go test -fuzz=XXX -fuzztime 30s
 // where XXX is unambiguous fuzz test name.
 
-func FuzzBufferByte(f *testing.F) { // nolint:dupl // Tests are different.
+func FuzzBufferByte(f *testing.F) {
 	testCases := []Byte{0, 22, 125, 255}
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, in Byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, in Byte) {
 		var buf Buffer
 		buf.WriteByte(in)
 		inBuf := make([]byte, len(buf.Bytes()))
@@ -37,12 +37,12 @@ func FuzzBufferByte(f *testing.F) { // nolint:dupl // Tests are different.
 	})
 }
 
-func FuzzBufferShort(f *testing.F) { // nolint:dupl // Tests are different.
+func FuzzBufferShort(f *testing.F) {
 	testCases := []Short{0, 245, 42995, 65535}
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, in Short) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, in Short) {
 		var buf Buffer
 		buf.WriteShort(in)
 		inBuf := make([]byte, len(buf.Bytes()))
@@ -64,7 +64,7 @@ func FuzzBufferInt(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, in Int) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, in Int) {
 		var buf Buffer
 		buf.WriteInt(in)
 		inBuf := make([]byte, len(buf.Bytes()))
@@ -81,12 +81,12 @@ func FuzzBufferInt(f *testing.F) {
 	})
 }
 
-func FuzzBufferString(f *testing.F) { // nolint:dupl // Tests are different.
+func FuzzBufferString(f *testing.F) {
 	testCases := []string{"a", "golang", "πœę©ß", ""}
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
-	f.Fuzz(func(t *testing.T, in string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, in string) {
 		var buf Buffer
 		buf.WriteString(in)
 		inBuf := make([]byte, len(buf.Bytes()))
@@ -108,7 +108,7 @@ func FuzzBufferStringList(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc[0], tc[1], tc[2])
 	}
-	f.Fuzz(func(t *testing.T, a, b, c string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, a, b, c string) {
 		in := StringList{a, b, c}
 		var buf Buffer
 		buf.WriteStringList(in)
@@ -131,7 +131,7 @@ func FuzzBufferStringMultiMap(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc[0], tc[1], tc[2], tc[3], tc[4])
 	}
-	f.Fuzz(func(t *testing.T, k1, v11, v12, k2, v2 string) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, k1, v11, v12, k2, v2 string) {
 		in := StringMultiMap{k1: {v11, v12}, k2: {v2}}
 		var buf Buffer
 		buf.WriteStringMultiMap(in)
@@ -147,7 +147,7 @@ func FuzzBufferUUID(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc[:])
 	}
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var in UUID
 		var buf Buffer
 		copy(in[:], data)
@@ -177,7 +177,7 @@ func FuzzBufferHeader(f *testing.F) {
 	for _, tc := range testCases {
 		f.Add(tc.Version, tc.Flags, tc.StreamID, tc.OpCode, tc.Length)
 	}
-	f.Fuzz(func(t *testing.T, v, f byte, s int16, o byte, l int32) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, v, f byte, s int16, o byte, l int32) {
 		in := Header{
 			Version:  v,
 			Flags:    f,

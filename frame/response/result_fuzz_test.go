@@ -15,7 +15,7 @@ var (
 // We want to make sure that parsing does not crush driver even for random data.
 // We assign result to global variable to avoid compiler optimization.
 func FuzzRowsResult(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseRowsResult(&buf)
@@ -24,7 +24,7 @@ func FuzzRowsResult(f *testing.F) {
 }
 
 func FuzzSetKeyspaceResult(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseSetKeyspaceResult(&buf)
@@ -33,7 +33,7 @@ func FuzzSetKeyspaceResult(f *testing.F) {
 }
 
 func FuzzPreparedResult(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParsePreparedResult(&buf)
@@ -42,7 +42,7 @@ func FuzzPreparedResult(f *testing.F) {
 }
 
 func FuzzSchemaChangeResultResult(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer
 		buf.Write(data)
 		out := ParseSchemaChangeResult(&buf)
