@@ -2,6 +2,7 @@ package response
 
 import (
 	"fmt"
+
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 

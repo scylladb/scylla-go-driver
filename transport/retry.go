@@ -6,9 +6,9 @@ import (
 )
 
 type RetryInfo struct {
-	error       error             // Failed query error.
-	idempotent  bool              // Is set to true only if we are sure that the query is idempotent.
-	consistency frame.Consistency // Failed query consistency.
+	Error       error             // Failed query error.
+	Idempotent  bool              // Is set to true only if we are sure that the query is idempotent.
+	Consistency frame.Consistency // Failed query consistency.
 }
 
 type RetryDecision byte
@@ -23,6 +23,8 @@ type RetryPolicy interface {
 	NewRetryDecider() RetryDecider
 }
 
+// RetryDecider should be used for just one query that we want to retry.
+// After that it should be discarded or reset.
 type RetryDecider interface {
 	Decide(RetryInfo) RetryDecision
 	Reset()
@@ -49,7 +51,7 @@ func (FallthroughRetryDecider) Reset() {}
 type DefaultRetryPolicy struct{}
 
 func (*DefaultRetryPolicy) NewRetryDecider() RetryDecider {
-	return DefaultRetryDecider{
+	return &DefaultRetryDecider{
 		wasUnavailable:  false,
 		wasReadTimeout:  false,
 		wasWriteTimeout: false,
@@ -67,12 +69,12 @@ type DefaultRetryDecider struct {
 	wasWriteTimeout bool
 }
 
-func (d DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
-	switch v := ri.error.(type) {
+func (d *DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
+	switch v := ri.Error.(type) {
 	// Basic errors - there are some problems on this node.
 	// Retry on a different one if possible.
 	case *IoError, *OverloadedError, *ServerError, *TruncateError:
-		if ri.idempotent {
+		if ri.Idempotent {
 			return RetryNextNode
 		} else {
 			return DontRetry
@@ -107,7 +109,7 @@ func (d DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
 	// Coordinator probably didn't detect the nodes as dead.
 	// By the time we retry they should be detected as dead.
 	case *WriteTimeoutError:
-		if !d.wasWriteTimeout && ri.idempotent && v.WriteType == frame.BatchLog {
+		if !d.wasWriteTimeout && ri.Idempotent && v.WriteType == frame.BatchLog {
 			d.wasWriteTimeout = true
 			return RetrySameNode
 		} else {
@@ -122,7 +124,7 @@ func (d DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
 	}
 }
 
-func (d DefaultRetryDecider) Reset() {
+func (d *DefaultRetryDecider) Reset() {
 	d.wasUnavailable = false
 	d.wasReadTimeout = false
 	d.wasWriteTimeout = false
