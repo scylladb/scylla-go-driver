@@ -178,7 +178,7 @@ func TestReadTimeoutError(t *testing.T) {
 				Consistency: 0x0002,
 				Received:    8,
 				BlockFor:    32,
-				DataPresent: 0,
+				DataPresent: false,
 			},
 		},
 	}
@@ -219,7 +219,7 @@ func TestReadFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 				Received:    4,
 				BlockFor:    5,
 				NumFailures: 6,
-				DataPresent: 123,
+				DataPresent: true,
 			},
 		},
 	}

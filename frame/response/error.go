@@ -161,7 +161,7 @@ type ReadTimeoutError struct {
 	Consistency frame.Consistency
 	Received    frame.Int
 	BlockFor    frame.Int
-	DataPresent frame.Byte
+	DataPresent bool
 }
 
 func ParseReadTimeoutError(b *frame.Buffer, err ScyllaError) *ReadTimeoutError {
@@ -170,7 +170,7 @@ func ParseReadTimeoutError(b *frame.Buffer, err ScyllaError) *ReadTimeoutError {
 		Consistency: b.ReadConsistency(),
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
-		DataPresent: b.ReadByte(),
+		DataPresent: b.ReadByte() != 0,
 	}
 }
 
@@ -181,7 +181,7 @@ type ReadFailureError struct {
 	Received    frame.Int
 	BlockFor    frame.Int
 	NumFailures frame.Int
-	DataPresent frame.Byte
+	DataPresent bool
 }
 
 func ParseReadFailureError(b *frame.Buffer, err ScyllaError) *ReadFailureError {
@@ -191,7 +191,7 @@ func ParseReadFailureError(b *frame.Buffer, err ScyllaError) *ReadFailureError {
 		Received:    b.ReadInt(),
 		BlockFor:    b.ReadInt(),
 		NumFailures: b.ReadInt(),
-		DataPresent: b.ReadByte(),
+		DataPresent: b.ReadByte() != 0,
 	}
 }
 
