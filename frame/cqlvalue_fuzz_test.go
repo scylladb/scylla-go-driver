@@ -1,10 +1,11 @@
 package frame
 
 import (
-	"github.com/google/go-cmp/cmp"
 	"math"
 	"net"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // Fuzzing tests are based on: data == deserialize(serialize(data))

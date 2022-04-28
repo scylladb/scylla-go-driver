@@ -1,8 +1,9 @@
 package response
 
 import (
-	"github.com/mmatczuk/scylla-go-driver/frame"
 	"testing"
+
+	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
 var dummyAS *AuthSuccess
