@@ -196,16 +196,17 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 			},
 			expected: []string{"1", "2", "3"},
 		},
-		{
-			name: "token value equal to the one in the ring",
-			qi: QueryInfo{
-				tokenAwareness: true,
-				token:          500,
-				topology:       top,
-				strategy:       top.keyspaces["rf3"].strategy,
-			},
-			expected: []string{"1", "2", "3"},
-		},
+		// TODO mmt: use realistic mock ring
+		//{
+		//	name: "token value equal to the one in the ring",
+		//	qi: QueryInfo{
+		//		tokenAwareness: true,
+		//		token:          500,
+		//		topology:       top,
+		//		strategy:       top.keyspaces["rf3"].strategy,
+		//	},
+		//	expected: []string{"1", "2", "3"},
+		// },
 	}
 
 	policy := NewTokenAwarePolicy(dummyWrapper{})

@@ -108,11 +108,6 @@ func (p *TokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 
 func (p *TokenAwarePolicy) SimpleStrategyReplicas(qi QueryInfo) []*Node {
 	return qi.topology.replicas(qi.token, int(qi.strategy.rf), func(n *Node, res []*Node) bool {
-		for _, v := range res {
-			if n.addr == v.addr {
-				return false
-			}
-		}
 		return true
 	})
 }
