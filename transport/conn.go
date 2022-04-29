@@ -391,7 +391,7 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 		}
 	}
 
-	log.Printf("%s connected", c)
+	log.Printf("%s ready", c)
 
 	return c, nil
 }
@@ -424,6 +424,8 @@ func validateKeyspace(keyspace string) error {
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
 
 func (c *Conn) init() error {
+	log.Printf("%s connected", c)
+
 	if s, err := c.Supported(); err != nil {
 		return fmt.Errorf("supported: %w", err)
 	} else {
@@ -432,6 +434,7 @@ func (c *Conn) init() error {
 	if err := c.Startup(startupOptions); err != nil {
 		return fmt.Errorf("startup: %w", err)
 	}
+
 	return nil
 }
 

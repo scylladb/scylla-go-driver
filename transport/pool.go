@@ -19,6 +19,7 @@ type PoolMetrics struct {
 }
 
 type ConnPool struct {
+	host         string
 	nrShards     int
 	msbIgnore    uint8
 	conns        []atomic.Value
@@ -37,6 +38,10 @@ func NewConnPool(host string, cfg ConnConfig) (*ConnPool, error) {
 	go r.loop()
 
 	return &r.pool, nil
+}
+
+func (p *ConnPool) String() string {
+	return fmt.Sprintf("pool %s [shards=%d]", p.host, p.nrShards)
 }
 
 func (p *ConnPool) Conn(token Token) *Conn {
@@ -155,6 +160,7 @@ func (r *PoolRefiller) init(host string) error {
 	}
 
 	r.pool = ConnPool{
+		host:         host,
 		nrShards:     int(ss.NrShards),
 		msbIgnore:    ss.MsbIgnore,
 		conns:        make([]atomic.Value, int(ss.NrShards)),
@@ -214,6 +220,7 @@ func (r *PoolRefiller) fill() {
 			continue
 		}
 
+		log.Printf("%s try open shard conn %d", &r.pool, i)
 		si.Shard = uint16(i)
 		conn, err := OpenShardConn(r.addr, si, r.cfg)
 		if err != nil {
