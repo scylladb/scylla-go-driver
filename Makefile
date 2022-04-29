@@ -61,7 +61,7 @@ endif
 run-benchtab: CPUSET=3-4
 run-benchtab:
 ifeq ($(OS),Linux)
-	@taskset -c $(CPUSET) go test -bench=. ./experiments/cmd/benchtab -count 1 -nodes "192.168.100.100:9042"
+	@taskset -c $(CPUSET) go test -bench=. ./experiments/cmd/benchtab -count 1 -nodes "192.168.100.100:9042" | tee $(dest)
 else ifeq ($(OS),Darwin)
 	@CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags "-extldflags '-static'" -o ./benchtab.dev ./experiments/cmd/benchtab
 	@docker run --name "benchtab" \
@@ -72,6 +72,10 @@ else ifeq ($(OS),Darwin)
 else
 	$(error Unsupported OS $(OS))
 endif
+
+.PHONY: compare
+compare:
+	@benchstat $(old) $(new)
 
 .PHONY: scylla-up
 scylla-up:
