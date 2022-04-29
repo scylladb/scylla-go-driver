@@ -48,8 +48,8 @@ func readConfig() Config {
 	flag.Int64Var(
 		&config.workers,
 		"workers",
-		8192, // int64(runtime.NumCPU()),
-		"Maximum number of workers, default nr of CPUs",
+		1024,
+		"Maximum number of workers",
 	)
 
 	flag.BoolVar(
@@ -58,8 +58,6 @@ func readConfig() Config {
 		false,
 		"Don't create tables and insert into them before the benchmark",
 	)
-
-	config.batchSize = config.tasks / config.workers
 
 	flag.Parse()
 
@@ -77,6 +75,8 @@ func readConfig() Config {
 	default:
 		log.Fatal("invalid workload type")
 	}
+
+	config.batchSize = int64(256)
 
 	max := func(a, b int64) int64 {
 		if a > b {
