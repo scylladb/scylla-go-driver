@@ -143,7 +143,7 @@ func (s *Session) Prepare(content string) (Query, error) {
 		return Query{}, errNoConnection
 	}
 
-	stmt := transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency}
+	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
 	res, err := conn.Prepare(stmt)
 
 	return Query{session: s,
