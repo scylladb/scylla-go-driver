@@ -73,6 +73,10 @@ else
 	$(error Unsupported OS $(OS))
 endif
 
+.PHONY: benchtab
+benchtab:
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-extldflags '-static'" -o ./benchtab ./experiments/cmd/benchtab
+
 .PHONY: scylla-up
 scylla-up:
 	@$(COMPOSE) up -d
