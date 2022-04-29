@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mmatczuk/scylla-go-driver"
+	"github.com/pkg/profile"
 )
 
 const insertStmt = "INSERT INTO benchks.benchtab (pk, v1, v2) VALUES(?, ?, ?)"
@@ -15,6 +16,16 @@ const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
 func main() {
 	config := readConfig()
 	log.Printf("Config %#+v", config)
+
+	if config.profileCPU && config.profileMem {
+		log.Fatal("select one profile type")
+	}
+	if config.profileCPU {
+		defer profile.Start(profile.CPUProfile).Stop()
+	}
+	if config.profileMem {
+		defer profile.Start(profile.MemProfile).Stop()
+	}
 
 	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
 	cfg.Username = "cassandra"
@@ -43,7 +54,6 @@ func main() {
 	} else {
 		benchmark(&config, session)
 	}
-
 }
 
 // benchmark is the same as in gocql.
