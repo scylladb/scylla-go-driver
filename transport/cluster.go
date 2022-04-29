@@ -255,12 +255,12 @@ func newTopology() *topology {
 
 var (
 	peerQuery = Statement{
-		Content:     "SELECT data_center, rack, tokens, rpc_address, preferred_ip, peer FROM system.peers",
+		Content:     "SELECT host_id, data_center, rack, tokens, rpc_address, preferred_ip, peer FROM system.peers",
 		Consistency: frame.ONE,
 	}
 
 	localQuery = Statement{
-		Content:     "SELECT data_center, rack, tokens, rpc_address, broadcast_address FROM system.local",
+		Content:     "SELECT host_id, data_center, rack, tokens, rpc_address, broadcast_address FROM system.local",
 		Consistency: frame.ONE,
 	}
 
@@ -268,6 +268,17 @@ var (
 		Content:     "SELECT keyspace_name, replication FROM system_schema.keyspaces",
 		Consistency: frame.ONE,
 	}
+)
+
+const (
+	hostIDIndex = 0
+	dcIndex     = 1
+	rackIndex   = 2
+	tokensIndex = 3
+	addrIndex   = 4
+
+	ksNameIndex      = 0
+	replicationIndex = 1
 )
 
 func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
@@ -285,11 +296,10 @@ func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
 }
 
 func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
-	const (
-		dcIndex   = 0
-		rackIndex = 1
-		addrIndex = 3
-	)
+	hostID, err := r[hostIDIndex].AsUUID()
+	if err != nil {
+		return nil, fmt.Errorf("host ID column: %w", err)
+	}
 	dc, err := r[dcIndex].AsText()
 	if err != nil {
 		return nil, fmt.Errorf("datacenter column: %w", err)
@@ -317,6 +327,7 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 		return nil, fmt.Errorf("all addr columns conatin invalid IP")
 	}
 	return &Node{
+		hostID:     hostID,
 		addr:       addr.String(),
 		datacenter: dc,
 		rack:       rack,
@@ -324,7 +335,6 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 }
 
 func (c *Cluster) updateKeyspace() (ksMap, error) {
-	const ksNameIndex = 0
 	rows, err := c.control.Query(keyspaceQuery, nil)
 	if err != nil {
 		return nil, err
@@ -345,7 +355,6 @@ func (c *Cluster) updateKeyspace() (ksMap, error) {
 }
 
 func parseStrategyFromRow(r frame.Row) (strategy, error) {
-	const replicationIndex = 1
 	stg, err := r[replicationIndex].AsStringMap()
 	if err != nil {
 		return strategy{}, fmt.Errorf("strategy and rf column: %w", err)
@@ -406,7 +415,6 @@ func parseNetworkStrategy(name strategyClass, stg map[string]string) (strategy, 
 
 // parseTokensFromRow also inserts tokens into ring.
 func parseTokensFromRow(n *Node, r frame.Row, ring *btree.BTree[RingEntry]) error {
-	const tokensIndex = 2
 	if tokens, err := r[tokensIndex].AsStringSlice(); err != nil {
 		return err
 	} else {

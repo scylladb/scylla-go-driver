@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"github.com/mmatczuk/scylla-go-driver/frame"
 	"go.uber.org/atomic"
 )
 
@@ -12,6 +13,7 @@ const (
 )
 
 type Node struct {
+	hostID     frame.UUID
 	addr       string
 	datacenter string
 	rack       string
