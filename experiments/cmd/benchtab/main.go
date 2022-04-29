@@ -38,7 +38,12 @@ func main() {
 		initSelectsBenchmark(session, config)
 	}
 
-	benchmark(&config, session) // Choose which version of benchmark to run. REMEMBER to change workers!
+	if config.async {
+		asyncBenchmark(&config, session)
+	} else {
+		benchmark(&config, session)
+	}
+
 }
 
 // benchmark is the same as in gocql.
@@ -128,8 +133,6 @@ func asyncBenchmark(config *Config, session *scylla.Session) {
 			if err != nil {
 				log.Fatal(err)
 			}
-
-			time.Sleep(1 * time.Second)
 
 			massAsyncQuery(config, &insertQ, &selectQ, nextBatchStart)
 		}()

@@ -21,6 +21,7 @@ type Config struct {
 	workers       int64
 	batchSize     int64
 	dontPrepare   bool
+	async         bool
 }
 
 func readConfig() Config {
@@ -57,6 +58,13 @@ func readConfig() Config {
 		"dont-prepare",
 		false,
 		"Don't create tables and insert into them before the benchmark",
+	)
+
+	flag.BoolVar(
+		&config.async,
+		"async",
+		false,
+		"Use async query mode",
 	)
 
 	flag.Parse()
