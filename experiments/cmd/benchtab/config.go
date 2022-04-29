@@ -24,9 +24,9 @@ type Config struct {
 	dontPrepare   bool
 }
 
-func readConfig() Config {
-	config := Config{}
+var config Config
 
+func init() {
 	nodes := flag.String(
 		"nodes",
 		"",
@@ -62,8 +62,6 @@ func readConfig() Config {
 
 	config.batchSize = config.tasks / config.workers
 
-	flag.Parse()
-
 	for _, nodeAddress := range strings.Split(*nodes, ",") {
 		config.nodeAddresses = append(config.nodeAddresses, nodeAddress)
 	}
@@ -90,6 +88,4 @@ func readConfig() Config {
 	if config.tasks/config.batchSize < config.workers {
 		config.batchSize = max(1, config.tasks/config.workers)
 	}
-
-	return config
 }

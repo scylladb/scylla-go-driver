@@ -14,7 +14,6 @@ const insertStmt = "INSERT INTO benchks.benchtab (pk, v1, v2) VALUES(?, ?, ?)"
 const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
 
 func BenchmarkDriver(b *testing.B) {
-	config := readConfig()
 	log.Printf("Config %#+v", config)
 
 	for i := 0; i < b.N; i++ {
@@ -47,7 +46,7 @@ func benchmark(config *Config, session *scylla.Session, n int) {
 	var wg sync.WaitGroup
 	nextBatchStart := -config.batchSize
 
-	log.Println("Starting benchmark nr ", n)
+	log.Println("Starting benchmark nr", n)
 	startTime := time.Now()
 
 	for i := int64(0); i < config.workers; i++ {
