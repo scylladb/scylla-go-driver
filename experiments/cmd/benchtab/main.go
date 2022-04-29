@@ -28,8 +28,8 @@ func main() {
 	}
 
 	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
-	cfg.Username = "cassandra"
-	cfg.Password = "cassandra"
+	cfg.Username = config.user
+	cfg.Password = config.password
 
 	if !config.dontPrepare {
 		initSession, err := scylla.NewSession(cfg)

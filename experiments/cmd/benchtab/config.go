@@ -17,6 +17,8 @@ const (
 type Config struct {
 	nodeAddresses []string
 	workload      Workload
+	user          string
+	password      string
 	tasks         int64
 	workers       int64
 	batchSize     int64
@@ -39,6 +41,20 @@ func readConfig() Config {
 		"workload",
 		"mixed",
 		"Type of work to perform (inserts, selects, mixed)",
+	)
+
+	flag.StringVar(
+		&config.user,
+		"user",
+		"cassandra",
+		"User",
+	)
+
+	flag.StringVar(
+		&config.password,
+		"password",
+		"cassandra",
+		"Password",
 	)
 
 	flag.Int64Var(
