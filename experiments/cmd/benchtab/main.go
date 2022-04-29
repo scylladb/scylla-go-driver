@@ -21,9 +21,11 @@ func main() {
 		log.Fatal("select one profile type")
 	}
 	if config.profileCPU {
+		log.Println("Running with CPU profiling")
 		defer profile.Start(profile.CPUProfile).Stop()
 	}
 	if config.profileMem {
+		log.Println("Running with memory profiling")
 		defer profile.Start(profile.MemProfile).Stop()
 	}
 
