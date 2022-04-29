@@ -2,9 +2,7 @@ run:
   deadline: 5m
   tests: true
   skip-files:
-    - _gen\.go$
-    - _string\.go$
-    - mock_.*\.go$
+    - experiments/cmd/benchtab
   silent: true
 
 linters-settings:
