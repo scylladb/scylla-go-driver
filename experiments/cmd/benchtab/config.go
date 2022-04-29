@@ -22,6 +22,8 @@ type Config struct {
 	batchSize     int64
 	dontPrepare   bool
 	async         bool
+	profileCPU    bool
+	profileMem    bool
 }
 
 func readConfig() Config {
@@ -65,6 +67,20 @@ func readConfig() Config {
 		"async",
 		false,
 		"Use async query mode",
+	)
+
+	flag.BoolVar(
+		&config.profileCPU,
+		"profile-cpu",
+		false,
+		"Use CPU profiling",
+	)
+
+	flag.BoolVar(
+		&config.profileMem,
+		"profile-mem",
+		false,
+		"Use memory profiling",
 	)
 
 	flag.Parse()
