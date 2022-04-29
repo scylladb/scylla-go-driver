@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/btree"
+	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
 // Round-Robin tests can't be run in parallel because
@@ -142,9 +143,9 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) { //nolint:paralleltest // Can't 
 */
 func mockTopologyTokenAwareSimpleStrategy() *topology {
 	dummyNodes := []*Node{
-		{addr: "1", datacenter: "waw"},
-		{addr: "2", datacenter: "waw"},
-		{addr: "3", datacenter: "waw"},
+		{hostID: frame.UUID{1}, addr: "1", datacenter: "waw"},
+		{hostID: frame.UUID{2}, addr: "2", datacenter: "waw"},
+		{hostID: frame.UUID{3}, addr: "3", datacenter: "waw"},
 	}
 	ring := btree.New[RingEntry](BTreeDegree)
 
@@ -165,6 +166,7 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 	return &topology{
 		nodes:     dummyNodes,
 		ring:      ring,
+		trie:      trieRoot(),
 		keyspaces: ks,
 	}
 }
@@ -279,6 +281,7 @@ func mockTopologyTokenAwareNetworkStrategy() *topology {
 		dcRacks:   dcs,
 		nodes:     dummyNodes,
 		ring:      ring,
+		trie:      trieRoot(),
 		keyspaces: ks,
 	}
 }

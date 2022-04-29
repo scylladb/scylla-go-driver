@@ -42,6 +42,7 @@ type topology struct {
 	dcRacks   dcRacksMap
 	nodes     []*Node
 	ring      *btree.BTree[RingEntry]
+	trie      trie
 	keyspaces ksMap
 }
 
@@ -109,23 +110,23 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 // replicas return slice of nodes (desirably of length cnt) holding data described by token.
 // filter function allows applying additional requirements for nodes to be taken.
 func (t *topology) replicas(token Token, size int, filter func(*Node, []*Node) bool) []*Node {
-	res := make([]*Node, 0, size)
-	it := func(i RingEntry) bool {
+	cur := &t.trie
+	f := func(i RingEntry) bool {
 		n := i.node
-		if filter(n, res) {
-			res = append(res, n)
+		if filter(n, cur.Path()) {
+			cur = cur.Next(n)
 		}
-		return len(res) < size
+		return len(cur.Path()) < size
 	}
 
 	re := RingEntry{token: token}
 	// Token ring has cyclic architecture, so we also have to
 	// get back to the beginning after reaching its end.
-	t.ring.AscendGreaterOrEqual(re, it)
-	if len(res) < size {
-		t.ring.AscendLessThan(re, it)
+	t.ring.AscendGreaterOrEqual(re, f)
+	if len(cur.Path()) < size {
+		t.ring.AscendLessThan(re, f)
 	}
-	return res
+	return cur.Path()
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
@@ -250,6 +251,7 @@ func newTopology() *topology {
 		dcRacks: make(dcRacksMap),
 		nodes:   make([]*Node, 0),
 		ring:    btree.New[RingEntry](BTreeDegree),
+		trie:    trieRoot(),
 	}
 }
 
