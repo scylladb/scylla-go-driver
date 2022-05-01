@@ -22,11 +22,11 @@ func main() {
 	}
 	if config.profileCPU {
 		log.Println("Running with CPU profiling")
-		defer profile.Start(profile.CPUProfile).Stop()
+		defer profile.Start(profile.CPUProfile, profile.ProfilePath("./pprof/")).Stop()
 	}
 	if config.profileMem {
 		log.Println("Running with memory profiling")
-		defer profile.Start(profile.MemProfile).Stop()
+		defer profile.Start(profile.MemProfile, profile.ProfilePath("./pprof/")).Stop()
 	}
 
 	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
