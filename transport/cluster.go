@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 
-	"github.com/google/btree"
 	"go.uber.org/atomic"
 )
 
@@ -23,8 +23,6 @@ type (
 
 	requestChan chan struct{}
 )
-
-const BTreeDegree = 8
 
 type Cluster struct {
 	topology          atomic.Value // *topology
@@ -41,7 +39,7 @@ type topology struct {
 	peers     peerMap
 	dcRacks   dcRacksMap
 	nodes     []*Node
-	ring      *btree.BTree[RingEntry]
+	ring      ring
 	keyspaces ksMap
 }
 
@@ -106,26 +104,18 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 	}
 }
 
-// replicas return slice of nodes (desirably of length cnt) holding data described by token.
-// filter function allows applying additional requirements for nodes to be taken.
-func (t *topology) replicas(token Token, size int, filter func(*Node, []*Node) bool) []*Node {
-	res := make([]*Node, 0, size)
-	it := func(i RingEntry) bool {
-		n := i.node
-		if filter(n, res) {
-			res = append(res, n)
+// primaryReplica returns ring index of primary replica that stores data described by token.
+func (t *topology) primaryReplica(token Token) int {
+	start, end := 0, len(t.ring)
+	for start < end {
+		mid := int(uint(start+end) >> 1)
+		if t.ring[mid].token < token {
+			start = mid + 1
+		} else {
+			end = mid
 		}
-		return len(res) < size
 	}
-
-	re := RingEntry{token: token}
-	// Token ring has cyclic architecture, so we also have to
-	// get back to the beginning after reaching its end.
-	t.ring.AscendGreaterOrEqual(re, it)
-	if len(res) < size {
-		t.ring.AscendLessThan(re, it)
-	}
-	return res
+	return start
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
@@ -224,7 +214,7 @@ func (c *Cluster) refreshTopology() error {
 		t.peers[n.addr] = n
 		t.nodes = append(t.nodes, n)
 		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = struct{}{}
-		if err := parseTokensFromRow(n, r, t.ring); err != nil {
+		if t.ring, err = parseTokensFromRow(n, r, t.ring); err != nil {
 			return err
 		}
 	}
@@ -239,6 +229,7 @@ func (c *Cluster) refreshTopology() error {
 		}
 	}
 
+	sort.Sort(t.ring)
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil
@@ -249,7 +240,7 @@ func newTopology() *topology {
 		peers:   make(peerMap),
 		dcRacks: make(dcRacksMap),
 		nodes:   make([]*Node, 0),
-		ring:    btree.New[RingEntry](BTreeDegree),
+		ring:    make(ring, 0),
 	}
 }
 
@@ -414,22 +405,22 @@ func parseNetworkStrategy(name strategyClass, stg map[string]string) (strategy, 
 }
 
 // parseTokensFromRow also inserts tokens into ring.
-func parseTokensFromRow(n *Node, r frame.Row, ring *btree.BTree[RingEntry]) error {
+func parseTokensFromRow(n *Node, r frame.Row, ring ring) (ring, error) {
 	if tokens, err := r[tokensIndex].AsStringSlice(); err != nil {
-		return err
+		return nil, err
 	} else {
 		for _, t := range tokens {
 			if v, err := strconv.ParseInt(t, 10, 64); err != nil {
-				return fmt.Errorf("couldn't parse token string: %w", err)
+				return nil, fmt.Errorf("couldn't parse token string: %w", err)
 			} else {
-				ring.ReplaceOrInsert(RingEntry{
+				ring = append(ring, RingEntry{
 					node:  n,
 					token: Token(v),
 				})
 			}
 		}
 	}
-	return nil
+	return ring, nil
 }
 
 func (c *Cluster) Topology() *topology {
