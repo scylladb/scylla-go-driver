@@ -77,16 +77,18 @@ type QueryInfo struct {
 	token          Token
 	topology       *topology
 	strategy       strategy
+	offset         int
 }
 
-func (c *Cluster) NewQueryInfo() QueryInfo {
+func (c *Cluster) NewQueryInfo(o int) QueryInfo {
 	return QueryInfo{
 		tokenAwareness: false,
 		topology:       c.Topology(),
+		offset:         o,
 	}
 }
 
-func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) {
+func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string, o int) (QueryInfo, error) {
 	top := c.Topology()
 	// When keyspace is not specified, we take default keyspace from ConnConfig.
 	if ks == "" {
@@ -98,6 +100,7 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 			token:          t,
 			topology:       top,
 			strategy:       stg.strategy,
+			offset:         o,
 		}, nil
 	} else {
 		return QueryInfo{}, fmt.Errorf("couldn't find given keyspace in current topology")

@@ -65,7 +65,7 @@ type SessionConfig struct {
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	return SessionConfig{
 		Hosts:      hosts,
-		Policy:     transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy()),
+		Policy:     transport.NewTokenAwarePolicy(""),
 		ConnConfig: transport.DefaultConnConfig(keyspace),
 	}
 }
@@ -137,8 +137,8 @@ func (s *Session) Query(content string) Query {
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
-	it := s.policy.PlanIter(s.cluster.NewQueryInfo())
-	conn := it().LeastBusyConn()
+	n := s.policy.Iter(s.cluster.NewQueryInfo(s.policy.CurrentOffset()), 0)
+	conn := n.LeastBusyConn()
 	if conn == nil {
 		return Query{}, errNoConnection
 	}
@@ -158,15 +158,15 @@ func (s *Session) Prepare(content string) (Query, error) {
 }
 
 func (s *Session) NewRoundRobinPolicy() transport.HostSelectionPolicy {
-	return transport.NewRoundRobinPolicy()
+	return transport.NewRoundRobinPolicy("")
 }
 
 func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
-	return transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy())
+	return transport.NewTokenAwarePolicy("")
 }
 
-func (s *Session) NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
-	return transport.NewDCAwareRoundRobin(localDC)
+func (s *Session) NewDCAwareRoundRobinPolicy(dc string) transport.HostSelectionPolicy {
+	return transport.NewTokenAwarePolicy(dc)
 }
 
 func (s *Session) Close() {
