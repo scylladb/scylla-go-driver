@@ -42,6 +42,8 @@ type RingEntry struct {
 	token Token
 }
 
-func (r RingEntry) Less(i RingEntry) bool {
-	return r.token < i.token
-}
+type ring []RingEntry
+
+func (r ring) Less(i, j int) bool { return r[i].token < r[j].token }
+func (r ring) Len() int           { return len(r) }
+func (r ring) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
