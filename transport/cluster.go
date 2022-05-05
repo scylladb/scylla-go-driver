@@ -16,10 +16,11 @@ import (
 )
 
 type (
-	peerMap    = map[string]*Node
-	dcRacksMap = map[string]int
-	dcRFMap    = map[string]uint32
-	ksMap      = map[string]keyspace
+	peerMap       = map[string]*Node
+	dcRacksMap    = map[string]int
+	dcRFMap       = map[string]uint32
+	ksMap         = map[string]keyspace
+	preparedNodes = map[Token][]RingEntry
 
 	requestChan chan struct{}
 )
@@ -33,14 +34,6 @@ type Cluster struct {
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
-}
-
-type topology struct {
-	peers     peerMap
-	dcRacks   dcRacksMap
-	nodes     []*Node
-	ring      ring
-	keyspaces ksMap
 }
 
 type keyspace struct {
@@ -77,18 +70,16 @@ type QueryInfo struct {
 	token          Token
 	topology       *topology
 	strategy       strategy
-	offset         int
 }
 
-func (c *Cluster) NewQueryInfo(o int) QueryInfo {
+func (c *Cluster) NewQueryInfo() QueryInfo {
 	return QueryInfo{
 		tokenAwareness: false,
 		topology:       c.Topology(),
-		offset:         o,
 	}
 }
 
-func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string, o int) (QueryInfo, error) {
+func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) {
 	top := c.Topology()
 	// When keyspace is not specified, we take default keyspace from ConnConfig.
 	if ks == "" {
@@ -100,25 +91,10 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string, o int) (QueryInfo, 
 			token:          t,
 			topology:       top,
 			strategy:       stg.strategy,
-			offset:         o,
 		}, nil
 	} else {
 		return QueryInfo{}, fmt.Errorf("couldn't find given keyspace in current topology")
 	}
-}
-
-// primaryReplica returns ring index of primary replica that stores data described by token.
-func (t *topology) primaryReplica(token Token) int {
-	start, end := 0, len(t.ring)
-	for start < end {
-		mid := int(uint(start+end) >> 1)
-		if t.ring[mid].token < token {
-			start = mid + 1
-		} else {
-			end = mid
-		}
-	}
-	return start
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
@@ -231,20 +207,9 @@ func (c *Cluster) refreshTopology() error {
 			v.pool.Close()
 		}
 	}
-
-	sort.Sort(t.ring)
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil
-}
-
-func newTopology() *topology {
-	return &topology{
-		peers:   make(peerMap),
-		dcRacks: make(dcRacksMap),
-		nodes:   make([]*Node, 0),
-		ring:    make(ring, 0),
-	}
 }
 
 var (
@@ -431,6 +396,8 @@ func (c *Cluster) Topology() *topology {
 }
 
 func (c *Cluster) setTopology(t *topology) {
+	sort.Sort(t.ring)
+	t.prepareNodes(c.cfg.Keyspace)
 	c.topology.Store(t)
 }
 

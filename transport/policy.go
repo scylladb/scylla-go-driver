@@ -1,136 +1,57 @@
 package transport
 
 import (
-	"go.uber.org/atomic"
 	"log"
+
+	"go.uber.org/atomic"
 )
 
-// HostSelectionPolicy prepares plan (slice of Nodes) and returns iterator that goes over it.
-// After going through the whole plan, iterator returns nil instead of valid *Node.
+// HostSelectionPolicy returns i-th valid *Node.
 type HostSelectionPolicy interface {
-	Iter(QueryInfo, int) *Node
-	CurrentOffset() int
+	Iter(QueryInfo) *Node
 }
 
-type RoundRobinPolicy struct {
-	counter atomic.Int64
-	localDC string
-}
-
-func NewRoundRobinPolicy(dc string) *RoundRobinPolicy {
-	return &RoundRobinPolicy{
-		counter: *atomic.NewInt64(0),
-		localDC: dc,
-	}
-}
-
-func (p *RoundRobinPolicy) CurrentOffset() int {
-	return int(p.counter.Inc()) - 1
-}
-
-func (p *RoundRobinPolicy) Iter(qi QueryInfo, idx int) *Node {
-	if p.localDC == "" {
-		return qi.topology.nodes[(idx+qi.offset)%len(qi.topology.nodes)]
-	}
-
-	var (
-		found, target, l, r int
-		wantLocal           bool
-	)
-	for _, n := range qi.topology.nodes {
-		if n.datacenter == p.localDC {
-			l++
-		} else {
-			r++
-		}
-	}
-
-	if idx <= l {
-		target = (idx + qi.offset) % l
-		wantLocal = true
-	} else {
-		target = (idx - l + qi.offset) % r
-		wantLocal = false
-	}
-	for _, n := range qi.topology.nodes {
-		if (n.datacenter == p.localDC) == wantLocal {
-			if target == found {
-				return n
-			}
-			found++
-		}
-	}
-
-	return nil
-}
-
+// TokenAwarePolicy auto implements Round Robin mechanism to balance load.
 type TokenAwarePolicy struct {
-	RoundRobinPolicy
+	counter atomic.Int64
 }
 
-func NewTokenAwarePolicy(dc string) *TokenAwarePolicy {
-	return &TokenAwarePolicy{RoundRobinPolicy: RoundRobinPolicy{localDC: dc}}
+func NewTokenAwarePolicy() *TokenAwarePolicy {
+	return &TokenAwarePolicy{counter: *atomic.NewInt64(0)}
 }
 
-func (p *TokenAwarePolicy) Iter(qi QueryInfo, idx int) *Node {
+func (p *TokenAwarePolicy) Iter(qi QueryInfo) *Node {
 	// Fallback to policy implemented in wrapperPolicy.
 	if !qi.tokenAwareness {
-		return p.RoundRobinPolicy.Iter(qi, idx)
+		// FIXME: what here?
+		return qi.topology.ring[0].node
 	}
 
 	switch qi.strategy.class {
 	case simpleStrategy, localStrategy:
-		return p.SimpleStrategy(qi, idx)
+		return p.SimpleStrategy(qi)
 	case networkTopologyStrategy:
-		return p.NetworkTopologyStrategy(qi, idx)
+		return p.NetworkTopologyStrategy(qi)
 	default:
 		log.Printf("host selection policy: query with 'other' strategy class")
-		// TODO: add support for other strategies. For now fallback to wrapper.
-		return p.RoundRobinPolicy.Iter(qi, idx)
+		// TODO: add support for other strategies. What to do here?
+		// return p.RoundRobinPolicy.Iter(qi, idx)
+		return qi.topology.ring[0].node
 	}
 }
 
-func (p *TokenAwarePolicy) SimpleStrategy(qi QueryInfo, idx int) *Node {
-	primary := qi.topology.primaryReplica(qi.token)
-	target := (idx + qi.offset) % int(qi.strategy.rf)
-	if p.localDC == "" {
-		return qi.topology.ring[(primary+target)%len(qi.topology.ring)].node
+func (p *TokenAwarePolicy) SimpleStrategy(qi QueryInfo) *Node {
+	primaryIdx := qi.topology.primaryReplicaIdx(qi.token)
+	if qi.topology.isPrepared {
+		replicas := qi.topology.preparedReplicas(qi.topology.ring[primaryIdx].token)
+		rr := int64(p.counter.Inc()) - 1
+		return replicas[rr%int64(qi.strategy.rf)].node
 	}
 
-	var (
-		found, l, r int
-		wantLocal   bool
-	)
-	for i := 0; i < int(qi.strategy.rf); i++ {
-		n := qi.topology.ring[(primary+i)%len(qi.topology.ring)].node
-		if n.datacenter == p.localDC {
-			l++
-		} else {
-			r++
-		}
-	}
-
-	if idx <= l {
-		target = (idx + qi.offset) % l
-		wantLocal = true
-	} else {
-		target = (idx - l + qi.offset) % r
-		wantLocal = false
-	}
-	for i := 0; i < int(qi.strategy.rf); i++ {
-		n := qi.topology.ring[(primary+i)%len(qi.topology.ring)].node
-		if (n.datacenter == p.localDC) == wantLocal {
-			if target == found {
-				return n
-			}
-			found++
-		}
-	}
-
-	return nil
+	return qi.topology.ring[primaryIdx].node
 }
 
-func (p *TokenAwarePolicy) NetworkTopologyStrategy(qi QueryInfo, idx int) *Node {
+func (p *TokenAwarePolicy) NetworkTopologyStrategy(qi QueryInfo) *Node {
 	//resLen := 0
 	//// repeats store the amount of nodes from the same rack that we can take in given DC.
 	//repeats := make(map[string]int, len(qi.strategy.dcRF))

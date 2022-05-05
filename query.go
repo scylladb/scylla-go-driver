@@ -32,7 +32,7 @@ func (q *Query) pickConn() (*transport.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	n := q.session.policy.Iter(info, 0)
+	n := q.session.policy.Iter(info)
 
 	var conn *transport.Conn
 	if tokenAware {
@@ -104,11 +104,11 @@ func (q *Query) token() (transport.Token, bool) {
 func (q *Query) info(token transport.Token, tokenAware bool) (transport.QueryInfo, error) {
 	if tokenAware {
 		// TODO: Will the driver support using different keyspaces than default?
-		info, err := q.session.cluster.NewTokenAwareQueryInfo(token, "", q.session.policy.CurrentOffset())
+		info, err := q.session.cluster.NewTokenAwareQueryInfo(token, "")
 		return info, err
 	}
 
-	return q.session.cluster.NewQueryInfo(q.session.policy.CurrentOffset()), nil
+	return q.session.cluster.NewQueryInfo(), nil
 }
 
 func (q *Query) BindInt64(pos int, v int64) *Query {
