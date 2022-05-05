@@ -37,10 +37,9 @@ type Cluster struct {
 
 type topology struct {
 	peers     peerMap
-	dcRacks   dcRacksMap
 	nodes     []*Node
-	ring      ring
 	keyspaces ksMap
+	ring      Ring
 }
 
 type keyspace struct {
@@ -75,46 +74,32 @@ type strategy struct {
 type QueryInfo struct {
 	tokenAwareness bool
 	token          Token
-	topology       *topology
-	strategy       strategy
+	offset         int
 }
 
-func (c *Cluster) NewQueryInfo() QueryInfo {
+func (c *Cluster) NewQueryInfo(off int) QueryInfo {
 	return QueryInfo{
 		tokenAwareness: false,
 		topology:       c.Topology(),
+		offset:         off,
 	}
 }
 
-func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) {
-	top := c.Topology()
-	// When keyspace is not specified, we take default keyspace from ConnConfig.
-	if ks == "" {
-		ks = c.cfg.Keyspace
-	}
-	if stg, ok := top.keyspaces[ks]; ok {
-		return QueryInfo{
-			tokenAwareness: true,
-			token:          t,
-			topology:       top,
-			strategy:       stg.strategy,
-		}, nil
-	} else {
-		var allKs []string
-		for k := range top.keyspaces {
-			allKs = append(allKs, k)
-		}
-		sort.Strings(allKs)
-		return QueryInfo{}, fmt.Errorf("couldn't find keyspace %q in current topology, known keyspaces are: %s", ks, strings.Join(allKs, ", "))
+func (c *Cluster) NewTokenAwareQueryInfo(t Token, off int) QueryInfo {
+	return QueryInfo{
+		tokenAwareness: true,
+		token:          t,
+		topology:       c.Topology(),
+		offset:         off,
 	}
 }
 
 // primaryReplica returns ring index of primary replica that stores data described by token.
 func (t *topology) primaryReplica(token Token) int {
-	start, end := 0, len(t.ring)
+	start, end := 0, len(t.preparedReplicas)
 	for start < end {
 		mid := int(uint(start+end) >> 1)
-		if t.ring[mid].token < token {
+		if t.preparedReplicas[mid].Token < token {
 			start = mid + 1
 		} else {
 			end = mid
@@ -191,12 +176,6 @@ func (c *Cluster) refreshTopology() error {
 		return fmt.Errorf("query keyspaces: %w", err)
 	}
 
-	type uniqueRack struct {
-		dc   string
-		rack string
-	}
-	u := make(map[uniqueRack]struct{})
-
 	for _, r := range rows {
 		n, err := c.parseNodeFromRow(r)
 		if err != nil {
@@ -218,14 +197,9 @@ func (c *Cluster) refreshTopology() error {
 		c.knownHosts[n.addr] = struct{}{}
 		t.peers[n.addr] = n
 		t.nodes = append(t.nodes, n)
-		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = struct{}{}
 		if t.ring, err = parseTokensFromRow(n, r, t.ring); err != nil {
 			return err
 		}
-	}
-	// Counts unique racks in data centers.
-	for k := range u {
-		t.dcRacks[k.dc]++
 	}
 	// We want to close pools of nodes present in previous and absent in current topology.
 	for k, v := range old {
@@ -245,7 +219,7 @@ func newTopology() *topology {
 		peers:   make(peerMap),
 		dcRacks: make(dcRacksMap),
 		nodes:   make([]*Node, 0),
-		ring:    make(ring, 0),
+		ring:    make(Ring, 0),
 	}
 }
 
@@ -410,7 +384,7 @@ func parseNetworkStrategy(name strategyClass, stg map[string]string) (strategy, 
 }
 
 // parseTokensFromRow also inserts tokens into ring.
-func parseTokensFromRow(n *Node, r frame.Row, ring ring) (ring, error) {
+func parseTokensFromRow(n *Node, r frame.Row, ring Ring) (Ring, error) {
 	if tokens, err := r[tokensIndex].AsStringSlice(); err != nil {
 		return nil, err
 	} else {
