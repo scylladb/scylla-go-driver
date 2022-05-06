@@ -69,7 +69,7 @@ func TestConnPoolConnIntegration(t *testing.T) {
 	}
 
 	load := uint32(math.Floor(maxStreamID/2 + 1))
-	p.Conn(t0).metrics.InQueue.Store(load)
+	p.Conn(t0).stats.inQueue.Store(load)
 
 	if conn := p.Conn(t0); conn == nil {
 		t.Fatal("invalid return of Conn")

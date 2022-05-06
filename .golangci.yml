@@ -76,3 +76,5 @@ issues:
       linters:
         - dupl
         - thelper
+    - path: transport/observer.go
+      text: ev is heavy

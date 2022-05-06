@@ -269,13 +269,16 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	Username           string
-	Password           string
-	Keyspace           string
-	TCPNoDelay         bool
-	Timeout            time.Duration
+	Username   string
+	Password   string
+	Keyspace   string
+	TCPNoDelay bool
+	Timeout    time.Duration
+
 	DefaultConsistency frame.Consistency
 	DefaultPort        string
+
+	ConnObserver ConnObserver
 }
 
 func DefaultConnConfig(keyspace string) ConnConfig {
@@ -287,6 +290,7 @@ func DefaultConnConfig(keyspace string) ConnConfig {
 		Timeout:            500 * time.Millisecond,
 		DefaultConsistency: frame.LOCALQUORUM,
 		DefaultPort:        "9042",
+		ConnObserver:       LoggingConnObserver{},
 	}
 }
 
@@ -358,6 +362,10 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 	*c = Conn{
 		cfg:  cfg,
 		conn: conn,
+		event: ConnEvent{
+			Addr:  conn.RemoteAddr().String(),
+			Shard: UnknownShard,
+		},
 		w: connWriter{
 			conn:       bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh:  make(chan request, requestChanSize),
@@ -390,8 +398,6 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 		}
 	}
 
-	log.Printf("%s ready", c)
-
 	return c, nil
 }
 
@@ -423,16 +429,10 @@ func validateKeyspace(keyspace string) error {
 var startupOptions = frame.StartupOptions{"CQL_VERSION": "3.0.0"}
 
 func (c *Conn) init() error {
-	log.Printf("%s connected", c)
-
 	if s, err := c.Supported(); err != nil {
 		return fmt.Errorf("supported: %w", err)
 	} else {
-		host, _, _ := net.SplitHostPort(c.conn.RemoteAddr().String())
-		c.event = ConnEvent{
-			Host:  host,
-			Shard: s.ScyllaSupported().Shard,
-		}
+		c.event.Shard = s.ScyllaSupported().Shard
 	}
 	if err := c.Startup(startupOptions); err != nil {
 		return fmt.Errorf("startup: %w", err)
@@ -488,7 +488,6 @@ func (c *Conn) AuthResponse(a *Authenticate) error {
 	}
 	switch v := res.(type) {
 	case *AuthSuccess:
-		log.Printf("%s successfully authenticated", c)
 		return nil
 	case *AuthChallenge:
 		return fmt.Errorf("authentication challenge is not yet supported: %#+v", v)
