@@ -260,7 +260,7 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 type Conn struct {
 	cfg       ConnConfig
 	conn      net.Conn
-	shard     uint16
+	event     ConnEvent
 	w         connWriter
 	r         connReader
 	stats     *stats
@@ -428,7 +428,11 @@ func (c *Conn) init() error {
 	if s, err := c.Supported(); err != nil {
 		return fmt.Errorf("supported: %w", err)
 	} else {
-		c.shard = s.ScyllaSupported().Shard
+		host, _, _ := net.SplitHostPort(c.conn.RemoteAddr().String())
+		c.event = ConnEvent{
+			Host:  host,
+			Shard: s.ScyllaSupported().Shard,
+		}
 	}
 	if err := c.Startup(startupOptions); err != nil {
 		return fmt.Errorf("startup: %w", err)
@@ -646,12 +650,12 @@ func (c *Conn) setOnClose(f func(conn *Conn)) {
 	c.onClose = f
 }
 
-func (c *Conn) Metrics() stats {
-	return *c.stats
+func (c *Conn) Event() ConnEvent {
+	return c.event
 }
 
 func (c *Conn) Shard() int {
-	return int(c.shard)
+	return int(c.event.Shard)
 }
 
 // Close closes connection and terminates reader and writer go routines.
@@ -670,7 +674,7 @@ func (c *Conn) Close() {
 }
 
 func (c *Conn) String() string {
-	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.shard)
+	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.event.Shard)
 }
 
 // withPort appends new port only if addr does not contain any.
