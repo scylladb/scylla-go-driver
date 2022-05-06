@@ -25,17 +25,17 @@ type (
 
 type Cluster struct {
 	topology          atomic.Value // *topology
-	policy            atomic.Value // HostSelectionPolicy
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
 	knownHosts        map[string]struct{}
+	refreshHSP        func(t *Topology, stg Strategy)
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
 }
 
-type topology struct {
+type Topology struct {
 	peers     peerMap
 	nodes     []*Node
 	keyspaces ksMap
@@ -43,7 +43,7 @@ type topology struct {
 }
 
 type keyspace struct {
-	strategy strategy
+	strategy Strategy
 	// TODO: Add and use attributes below.
 	// tables		      map[string]table
 	// user_defined_types map[string](string, cqltype)
@@ -61,9 +61,9 @@ const (
 	localStrategy              strategyClass = "LocalStrategy"
 )
 
-type strategy struct {
+type Strategy struct {
 	class strategyClass
-	rf    uint32            // Used in simpleStrategy.
+	rf    int               // Used in simpleStrategy.
 	dcRF  dcRFMap           // Used in networkTopologyStrategy.
 	data  map[string]string // Used in other strategy.
 
@@ -93,7 +93,7 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, off int) QueryInfo {
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
-func NewCluster(cfg ConnConfig, policy HostSelectionPolicy, e []frame.EventType, hosts ...string) (*Cluster, error) {
+func NewCluster(cfg ConnConfig, refreshHSP func(t *Topology, stg Strategy), e []frame.EventType, hosts ...string) (*Cluster, error) {
 	kh := make(map[string]struct{}, len(hosts))
 	for _, h := range hosts {
 		kh[h] = struct{}{}
@@ -103,12 +103,12 @@ func NewCluster(cfg ConnConfig, policy HostSelectionPolicy, e []frame.EventType,
 		cfg:               cfg,
 		handledEvents:     e,
 		knownHosts:        kh,
+		refreshHSP:        refreshHSP,
 		refreshChan:       make(requestChan, 1),
 		reopenControlChan: make(requestChan, 1),
 		closeChan:         make(requestChan, 1),
 	}
-	c.setTopology(&topology{})
-	c.setPolicy(policy)
+	c.setTopology(&Topology{})
 
 	if control, err := c.NewControl(); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -194,17 +194,18 @@ func (c *Cluster) refreshTopology() error {
 	}
 
 	sort.Sort(t.ring)
-	policy := c.Policy()
-	newPolicy := policy.Clone()
-	newPolicy.Update(t)
-	c.setPolicy(newPolicy)
+	if ks, ok := t.keyspaces[c.cfg.Keyspace]; ok {
+		c.refreshHSP(t, ks.strategy)
+	} else {
+		return fmt.Errorf("couldn't find default keyspace strategy")
+	}
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil
 }
 
-func newTopology() *topology {
-	return &topology{
+func newTopology() *Topology {
+	return &Topology{
 		peers: make(peerMap),
 		nodes: make([]*Node, 0),
 		ring:  make(Ring, 0),
@@ -312,14 +313,14 @@ func (c *Cluster) updateKeyspace() (ksMap, error) {
 	return res, nil
 }
 
-func parseStrategyFromRow(r frame.Row) (strategy, error) {
+func parseStrategyFromRow(r frame.Row) (Strategy, error) {
 	stg, err := r[replicationIndex].AsStringMap()
 	if err != nil {
-		return strategy{}, fmt.Errorf("strategy and rf column: %w", err)
+		return Strategy{}, fmt.Errorf("strategy and rf column: %w", err)
 	}
 	className, ok := stg["class"]
 	if !ok {
-		return strategy{}, fmt.Errorf("strategy map should have a 'class' field")
+		return Strategy{}, fmt.Errorf("strategy map should have a 'class' field")
 	}
 	delete(stg, "class")
 	// We set strategy name to its shorter version.
@@ -329,43 +330,43 @@ func parseStrategyFromRow(r frame.Row) (strategy, error) {
 	case networkTopologyStrategyJCN, networkTopologyStrategy:
 		return parseNetworkStrategy(networkTopologyStrategy, stg)
 	case localStrategyJCN, localStrategy:
-		return strategy{
+		return Strategy{
 			class: localStrategy,
 			rf:    1,
 		}, nil
 	default:
-		return strategy{
+		return Strategy{
 			class: strategyClass(className),
 			data:  stg,
 		}, nil
 	}
 }
 
-func parseSimpleStrategy(name strategyClass, stg map[string]string) (strategy, error) {
+func parseSimpleStrategy(name strategyClass, stg map[string]string) (Strategy, error) {
 	rfStr, ok := stg["replication_factor"]
 	if !ok {
-		return strategy{}, fmt.Errorf("replication_factor field not found")
+		return Strategy{}, fmt.Errorf("replication_factor field not found")
 	}
 	rf, err := strconv.ParseUint(rfStr, 10, 32)
 	if err != nil {
-		return strategy{}, fmt.Errorf("could not parse replication factor as unsigned int")
+		return Strategy{}, fmt.Errorf("could not parse replication factor as unsigned int")
 	}
-	return strategy{
+	return Strategy{
 		class: name,
-		rf:    uint32(rf),
+		rf:    int(rf),
 	}, nil
 }
 
-func parseNetworkStrategy(name strategyClass, stg map[string]string) (strategy, error) {
+func parseNetworkStrategy(name strategyClass, stg map[string]string) (Strategy, error) {
 	dcRF := make(dcRFMap, len(stg))
 	for dc, v := range stg {
 		rf, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
-			return strategy{}, fmt.Errorf("could not parse replication factor as int")
+			return Strategy{}, fmt.Errorf("could not parse replication factor as int")
 		}
 		dcRF[dc] = uint32(rf)
 	}
-	return strategy{
+	return Strategy{
 		class: name,
 		dcRF:  dcRF,
 	}, nil
@@ -390,20 +391,12 @@ func parseTokensFromRow(n *Node, r frame.Row, ring Ring) (Ring, error) {
 	return ring, nil
 }
 
-func (c *Cluster) Topology() *topology {
-	return c.topology.Load().(*topology)
+func (c *Cluster) Topology() *Topology {
+	return c.topology.Load().(*Topology)
 }
 
-func (c *Cluster) setTopology(t *topology) {
+func (c *Cluster) setTopology(t *Topology) {
 	c.topology.Store(t)
-}
-
-func (c *Cluster) Policy() HostSelectionPolicy {
-	return c.policy.Load().(HostSelectionPolicy)
-}
-
-func (c *Cluster) setPolicy(policy HostSelectionPolicy) {
-	c.policy.Store(policy)
 }
 
 // handleEvent creates function which is passed to control connection
