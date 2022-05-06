@@ -146,7 +146,23 @@ func asyncBenchmark(config *Config, session *scylla.Session) {
 				log.Fatal(err)
 			}
 
-			massAsyncQuery(config, &insertQ, &selectQ, nextBatchStart)
+			for {
+				curBatchStart := atomic.AddInt64(&nextBatchStart, config.batchSize)
+				if curBatchStart >= config.tasks {
+					// no more work to do
+					break
+				}
+
+				curBatchEnd := min(curBatchStart+config.batchSize, config.tasks)
+
+				if config.workload == Inserts || config.workload == Mixed {
+					asyncInserts(&insertQ, curBatchStart, curBatchEnd)
+				}
+
+				if config.workload == Selects || config.workload == Mixed {
+					asyncSelects(&selectQ, curBatchStart, curBatchEnd)
+				}
+			}
 		}()
 	}
 
@@ -155,27 +171,7 @@ func asyncBenchmark(config *Config, session *scylla.Session) {
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
 }
 
-func massAsyncQuery(config *Config, insertQ, selectQ *scylla.Query, nextBatchStart int64) {
-	for {
-		curBatchStart := atomic.AddInt64(&nextBatchStart, config.batchSize)
-		if curBatchStart >= config.tasks {
-			// no more work to do
-			break
-		}
-
-		curBatchEnd := min(curBatchStart+config.batchSize, config.tasks)
-
-		if config.workload == Inserts || config.workload == Mixed {
-			makeAsyncInsterts(insertQ, curBatchStart, curBatchEnd)
-		}
-
-		if config.workload == Selects || config.workload == Mixed {
-			makeAsyncSelects(selectQ, curBatchStart, curBatchEnd)
-		}
-	}
-}
-
-func makeAsyncInsterts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) {
+func asyncInserts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
 		insertQ.BindInt64(0, pk)
 		insertQ.BindInt64(1, 2*pk)
@@ -189,7 +185,7 @@ func makeAsyncInsterts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) 
 	}
 }
 
-func makeAsyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
+func asyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
 		selectQ.BindInt64(0, pk)
 		selectQ.AsyncExec()

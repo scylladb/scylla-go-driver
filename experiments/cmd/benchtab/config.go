@@ -71,6 +71,13 @@ func readConfig() Config {
 		"Maximum number of workers",
 	)
 
+	flag.Int64Var(
+		&config.batchSize,
+		"batch-size",
+		256,
+		"Number of tasks in one batch performed by worker",
+	)
+
 	flag.BoolVar(
 		&config.dontPrepare,
 		"dont-prepare",
@@ -116,16 +123,12 @@ func readConfig() Config {
 		log.Fatal("invalid workload type")
 	}
 
-	config.batchSize = int64(256)
-
 	max := func(a, b int64) int64 {
 		if a > b {
 			return a
 		}
-
 		return b
 	}
-
 	if config.tasks/config.batchSize < config.workers {
 		config.batchSize = max(1, config.tasks/config.workers)
 	}
