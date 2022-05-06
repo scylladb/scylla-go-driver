@@ -29,7 +29,7 @@ func (q *Query) Exec() (Result, error) {
 func (q *Query) pickConn() (*transport.Conn, error) {
 	token, tokenAware := q.token()
 	info := q.info(token, tokenAware)
-	policy := q.session.cluster.Policy()
+	policy := q.session.policy()
 	n := policy.Iter(info, 0)
 
 	var conn *transport.Conn

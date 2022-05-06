@@ -2,7 +2,7 @@ package scylla
 
 import (
 	"fmt"
-	"log"
+	"go.uber.org/atomic"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
@@ -101,6 +101,19 @@ func (cfg *SessionConfig) Validate() error {
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
+	hsp     atomic.Value // HostSelectionPolicy
+}
+
+func (s *Session) policy() transport.HostSelectionPolicy {
+	return s.hsp.Load().(transport.HostSelectionPolicy)
+}
+
+func (s *Session) setPolicy(hsp transport.HostSelectionPolicy) {
+	s.hsp.Store(hsp)
+}
+
+func (s *Session) refreshHSP(t *transport.Topology, stg transport.Strategy) {
+	s.setPolicy(s.policy().New(t, stg))
 }
 
 func NewSession(cfg SessionConfig) (*Session, error) {
@@ -110,22 +123,21 @@ func NewSession(cfg SessionConfig) (*Session, error) {
 		return nil, err
 	}
 
-	cluster, err := transport.NewCluster(cfg.ConnConfig, cfg.Policy, cfg.Events, cfg.Hosts...)
+	s := &Session{cfg: cfg}
+	s.setPolicy(cfg.Policy)
+	cluster, err := transport.NewCluster(cfg.ConnConfig, s.refreshHSP, cfg.Events, cfg.Hosts...)
 	if err != nil {
 		return nil, err
 	}
-
-	s := &Session{
-		cfg:     cfg,
-		cluster: cluster,
-	}
+	s.cluster = cluster
 
 	return s, nil
 }
 
 func (s *Session) Query(content string) Query {
-	return Query{session: s,
-		stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
+	return Query{
+		session: s,
+		stmt:    transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
 		exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
 			return conn.Query(stmt, pagingState)
 		},
@@ -136,7 +148,7 @@ func (s *Session) Query(content string) Query {
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
-	policy := s.cluster.Policy()
+	policy := s.policy()
 	n := policy.Iter(s.cluster.NewQueryInfo(policy.GenerateOffset()), 0)
 	conn := n.LeastBusyConn()
 	if conn == nil {
@@ -161,16 +173,16 @@ func NewRoundRobinPolicy() transport.HostSelectionPolicy {
 	return transport.NewRoundRobinPolicy()
 }
 
-func NewSimpleTokenAwarePolicy(rf int) transport.HostSelectionPolicy {
-	return transport.NewSimpleTokenAwarePolicy(transport.NewRoundRobinPolicy(), rf)
+func NewSimpleTokenAwarePolicy() transport.HostSelectionPolicy {
+	return transport.NewSimpleTokenAwarePolicy(transport.NewRoundRobinPolicy())
 }
 
-func NewNetworkTopologyTokenAwarePolicy(dcRf map[string]int) transport.HostSelectionPolicy {
-	return transport.NewNetworkTopologyTokenAwarePolicy(transport.NewRoundRobinPolicy(), dcRf)
+func NewNetworkTopologyTokenAwarePolicy() transport.HostSelectionPolicy {
+	return transport.NewNetworkTopologyTokenAwarePolicy(transport.NewRoundRobinPolicy())
 }
 
 func NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
-	return transport.NewDCAwareRoundRobin(localDC)
+	return transport.NewDCAwareRoundRobinPolicy(localDC)
 }
 
 func (s *Session) Close() {
