@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"sync/atomic"
@@ -17,7 +16,6 @@ const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
 func main() {
 	config := readConfig()
 	log.Printf("Config %#+v", config)
-	fmt.Printf("%d %d ", config.maxCoalesced, config.waitTime)
 
 	if config.profileCPU && config.profileMem {
 		log.Fatal("select one profile type")
@@ -34,8 +32,6 @@ func main() {
 	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
 	cfg.Username = config.user
 	cfg.Password = config.password
-	cfg.MaxCoalescedRequests = config.maxCoalesced
-	cfg.WriteCoalesceWaitTime = time.Duration(config.waitTime) * time.Microsecond
 
 	if !config.dontPrepare {
 		initSession, err := scylla.NewSession(cfg)
@@ -51,11 +47,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	defer func() {
-		session.Close()
-		time.Sleep(time.Second)
-	}()
 	if config.workload == Selects && !config.dontPrepare {
 		initSelectsBenchmark(session, config)
 	}
@@ -132,7 +123,6 @@ func benchmark(config *Config, session *scylla.Session) {
 	wg.Wait()
 	benchTime := time.Now().Sub(startTime)
 	log.Printf("Finished\nBenchmark time: %d ms\n", benchTime.Milliseconds())
-	fmt.Printf("%d\n", benchTime.Milliseconds())
 }
 
 func asyncBenchmark(config *Config, session *scylla.Session) {
