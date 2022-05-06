@@ -16,10 +16,9 @@ import (
 )
 
 type (
-	peerMap    = map[string]*Node
-	dcRacksMap = map[string]int
-	dcRFMap    = map[string]uint32
-	ksMap      = map[string]keyspace
+	peerMap = map[string]*Node
+	dcRFMap = map[string]uint32
+	ksMap   = map[string]keyspace
 
 	requestChan chan struct{}
 )
