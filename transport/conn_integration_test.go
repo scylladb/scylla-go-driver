@@ -24,8 +24,8 @@ func TestOpenShardConnIntegration(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if c.shard != si.Shard {
-			t.Fatalf("wrong shard: got %v, wanted %v", c.shard, si.Shard)
+		if c.Shard() != int(si.Shard) {
+			t.Fatalf("wrong shard: got %v, wanted %v", c.Shard(), si.Shard)
 		}
 		c.Close()
 	}

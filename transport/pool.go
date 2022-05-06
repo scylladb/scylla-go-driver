@@ -14,17 +14,13 @@ import (
 
 const poolCloseShard = -1
 
-type PoolMetrics struct {
-	ReplacedWithLessBusyConn atomic.Uint64
-}
-
 type ConnPool struct {
 	host         string
 	nrShards     int
 	msbIgnore    uint8
 	conns        []atomic.Value
-	metrics      PoolMetrics
 	connClosedCh chan int // notification channel for when connection is closed
+	connObs      ConnObserver
 }
 
 func NewConnPool(host string, cfg ConnConfig) (*ConnPool, error) {
@@ -61,7 +57,9 @@ func isHeavyLoaded(conn *Conn) bool {
 
 func (p *ConnPool) maybeReplaceWithLessBusyConn(conn *Conn) *Conn {
 	if lb := p.LeastBusyConn(); conn.Waiting()-lb.Waiting() > maxStreamID<<1/10 {
-		p.metrics.ReplacedWithLessBusyConn.Inc()
+		if p.connObs != nil {
+			p.connObs.OnPickReplacedWithLessBusyConn(conn.Event())
+		}
 		return lb
 	}
 	return conn
@@ -109,10 +107,6 @@ func (p *ConnPool) clearConn(shard int) bool {
 	return conn != nil
 }
 
-func (p *ConnPool) Metrics() PoolMetrics {
-	return p.metrics
-}
-
 func (p *ConnPool) Close() {
 	p.connClosedCh <- poolCloseShard
 }
@@ -138,7 +132,9 @@ func (r *PoolRefiller) init(host string) error {
 		return fmt.Errorf("config validate :%w", err)
 	}
 
+	span := startSpan()
 	conn, err := OpenConn(host, nil, r.cfg)
+	span.stop()
 	if err != nil {
 		if conn != nil {
 			conn.Close()
@@ -165,11 +161,15 @@ func (r *PoolRefiller) init(host string) error {
 		msbIgnore:    ss.MsbIgnore,
 		conns:        make([]atomic.Value, int(ss.NrShards)),
 		connClosedCh: make(chan int, int(ss.NrShards)+1),
+		connObs:      r.cfg.ConnObserver,
 	}
 
 	conn.setOnClose(r.onConnClose)
 	r.pool.storeConn(conn)
 	r.active = 1
+	if r.pool.connObs != nil {
+		r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: conn.Event(), span: span})
+	}
 
 	return nil
 }
@@ -220,16 +220,23 @@ func (r *PoolRefiller) fill() {
 			continue
 		}
 
-		log.Printf("%s try open shard conn %d", &r.pool, i)
 		si.Shard = uint16(i)
+		span := startSpan()
 		conn, err := OpenShardConn(r.addr, si, r.cfg)
+		span.stop()
 		if err != nil {
-			log.Printf("failed to open shard conn: %s", err)
+			if r.pool.connObs != nil {
+				r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: ConnEvent{Addr: r.addr, Shard: si.Shard}, span: span, Err: err})
+			}
 			if conn != nil {
 				conn.Close()
 			}
 			continue
 		}
+		if r.pool.connObs != nil {
+			r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: conn.Event(), span: span})
+		}
+
 		if conn.Shard() != i {
 			log.Fatalf("opened conn to wrong shard: expected %d got %d", i, conn.Shard())
 		}
