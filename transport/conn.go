@@ -39,22 +39,22 @@ type request struct {
 
 var _connCloseRequest = request{}
 
-type ConnMetrics struct {
-	InFlight atomic.Uint32
-	InQueue  atomic.Uint32
+type stats struct {
+	inFlight atomic.Uint32
+	inQueue  atomic.Uint32
 }
 
 type connWriter struct {
 	conn       *bufio.Writer
 	buf        frame.Buffer
 	requestCh  chan request
-	metrics    *ConnMetrics
+	stats      *stats
 	connString func() string
 	connClose  func()
 }
 
 func (c *connWriter) submit(r request) {
-	c.metrics.InQueue.Inc()
+	c.stats.inQueue.Inc()
 	c.requestCh <- r
 }
 
@@ -72,14 +72,14 @@ func (c *connWriter) loop() {
 			if r == _connCloseRequest {
 				return
 			}
-			c.metrics.InQueue.Dec()
+			c.stats.inQueue.Dec()
 			if err := c.send(r); err != nil {
 				log.Printf("%s fatal send error, closing connection due to %s", c.connString(), err)
 				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.connString(), err)}
 				c.connClose()
 				return
 			}
-			c.metrics.InFlight.Inc()
+			c.stats.inFlight.Inc()
 		}
 		if err := c.conn.Flush(); err != nil {
 			log.Printf("%s fatal flush error, closing connection due to %s", c.connString(), err)
@@ -118,7 +118,7 @@ type connReader struct {
 	conn        io.LimitedReader
 	buf         frame.Buffer
 	bufw        io.Writer
-	metrics     *ConnMetrics
+	stats       *stats
 	handleEvent func(r response)
 	connString  func() string
 	connClose   func()
@@ -174,7 +174,7 @@ func (c *connReader) loop() {
 			return
 		}
 
-		c.metrics.InFlight.Dec()
+		c.stats.inFlight.Dec()
 
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
@@ -263,7 +263,7 @@ type Conn struct {
 	shard     uint16
 	w         connWriter
 	r         connReader
-	metrics   *ConnMetrics
+	stats     *stats
 	closeOnce sync.Once
 	onClose   func(conn *Conn)
 }
@@ -353,8 +353,7 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
 func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
-	m := new(ConnMetrics)
-
+	s := new(stats)
 	c := new(Conn)
 	*c = Conn{
 		cfg:  cfg,
@@ -362,7 +361,7 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 		w: connWriter{
 			conn:       bufio.NewWriterSize(conn, ioBufferSize),
 			requestCh:  make(chan request, requestChanSize),
-			metrics:    m,
+			stats:      s,
 			connString: c.String,
 			connClose:  c.Close,
 		},
@@ -370,12 +369,12 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 			conn: io.LimitedReader{
 				R: bufio.NewReaderSize(conn, ioBufferSize),
 			},
-			metrics:    m,
+			stats:      s,
 			h:          make(map[frame.StreamID]ResponseHandler),
 			connString: c.String,
 			connClose:  c.Close,
 		},
-		metrics: m,
+		stats: s,
 	}
 
 	go c.w.loop()
@@ -640,15 +639,15 @@ func (c *Conn) AsyncExecute(s Statement, pagingState frame.Bytes, h ResponseHand
 }
 
 func (c *Conn) Waiting() int {
-	return int(c.metrics.InQueue.Load() + c.metrics.InFlight.Load())
+	return int(c.stats.inQueue.Load() + c.stats.inFlight.Load())
 }
 
 func (c *Conn) setOnClose(f func(conn *Conn)) {
 	c.onClose = f
 }
 
-func (c *Conn) Metrics() ConnMetrics {
-	return *c.metrics
+func (c *Conn) Metrics() stats {
+	return *c.stats
 }
 
 func (c *Conn) Shard() int {
