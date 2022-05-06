@@ -10,11 +10,13 @@ type HostSelectionPolicy interface {
 	Iter(qi QueryInfo, idx int) *Node
 	Update(t *topology)
 	GenerateOffset() int
+	Clone() HostSelectionPolicy
 }
 
 type WrapperPolicy interface {
 	HostSelectionPolicy
 	WrapIter(reps []*Node, idx, off int) *Node
+	CloneWrapper() WrapperPolicy
 }
 
 type RoundRobinPolicy struct {
@@ -36,6 +38,26 @@ func (p *RoundRobinPolicy) Update(t *topology) {
 
 func (p *RoundRobinPolicy) GenerateOffset() int {
 	return int(p.Counter.Inc()) - 1
+}
+
+func (p *RoundRobinPolicy) CloneWrapper() WrapperPolicy {
+	nodesClone := make([]*Node, len(p.Nodes))
+	copy(nodesClone, p.Nodes)
+
+	return &RoundRobinPolicy{
+		Counter: atomic.NewInt64(0),
+		Nodes:   nodesClone,
+	}
+}
+
+func (p *RoundRobinPolicy) Clone() HostSelectionPolicy {
+	nodesClone := make([]*Node, len(p.Nodes))
+	copy(nodesClone, p.Nodes)
+
+	return &RoundRobinPolicy{
+		Counter: atomic.NewInt64(0),
+		Nodes:   nodesClone,
+	}
 }
 
 func NewRoundRobinPolicy() *RoundRobinPolicy {
@@ -84,6 +106,10 @@ func (p *DCAwareRoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
 	return nil
 }
 
+func (p *DCAwareRoundRobinPolicy) Clone() HostSelectionPolicy {
+	return p // TODO: implement valid Clone method.
+}
+
 func NewDCAwareRoundRobin(dc string) *DCAwareRoundRobinPolicy {
 	return &DCAwareRoundRobinPolicy{
 		RoundRobinPolicy: RoundRobinPolicy{Counter: atomic.NewInt64(0)},
@@ -127,6 +153,17 @@ func (p *SimpleTokenAwarePolicy) Update(t *topology) {
 	p.WrapperPolicy.Update(t)
 }
 
+func (p *SimpleTokenAwarePolicy) Clone() HostSelectionPolicy {
+	ringClone := make(Ring, len(p.Ring))
+	wp := p.WrapperPolicy.CloneWrapper()
+
+	return &SimpleTokenAwarePolicy{
+		WrapperPolicy: wp,
+		Ring:          ringClone,
+		RF:            p.RF,
+	}
+}
+
 func NewSimpleTokenAwarePolicy(wp WrapperPolicy, rf int) *SimpleTokenAwarePolicy {
 	return &SimpleTokenAwarePolicy{
 		WrapperPolicy: wp,
@@ -138,6 +175,13 @@ type NetworkTopologyTokenAwarePolicy struct {
 	WrapperPolicy
 	PreparedNodes []TokenReplicas
 	DCrf          map[string]int
+}
+
+func NewNetworkTopologyTokenAwarePolicy(wp WrapperPolicy, dcRf map[string]int) *NetworkTopologyTokenAwarePolicy {
+	return &NetworkTopologyTokenAwarePolicy{
+		WrapperPolicy: wp,
+		DCrf:          dcRf,
+	}
 }
 
 func (p NetworkTopologyTokenAwarePolicy) Iter(qi QueryInfo, idx int) *Node {
@@ -212,4 +256,8 @@ func (p *NetworkTopologyTokenAwarePolicy) Update(t *topology) {
 			}
 		}
 	}
+}
+
+func (p *NetworkTopologyTokenAwarePolicy) Clone() HostSelectionPolicy {
+	return p // TODO: implement valid Clone method.
 }
