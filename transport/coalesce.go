@@ -62,7 +62,7 @@ func (s *movingAverageStrategy) notify() {
 	s.gaps[s.pos] = gap
 
 	s.pos++
-	if s.pos == 16 {
+	if s.pos == movingAverageWindowSize {
 		s.ready = true
 		s.pos = 0
 	}
