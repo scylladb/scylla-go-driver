@@ -26,6 +26,7 @@ type (
 
 type Cluster struct {
 	topology          atomic.Value // *topology
+	policy            atomic.Value // HostSelectionPolicy
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
@@ -80,7 +81,6 @@ type QueryInfo struct {
 func (c *Cluster) NewQueryInfo(off int) QueryInfo {
 	return QueryInfo{
 		tokenAwareness: false,
-		topology:       c.Topology(),
 		offset:         off,
 	}
 }
@@ -89,27 +89,12 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, off int) QueryInfo {
 	return QueryInfo{
 		tokenAwareness: true,
 		token:          t,
-		topology:       c.Topology(),
 		offset:         off,
 	}
 }
 
-// primaryReplica returns ring index of primary replica that stores data described by token.
-func (t *topology) primaryReplica(token Token) int {
-	start, end := 0, len(t.preparedReplicas)
-	for start < end {
-		mid := int(uint(start+end) >> 1)
-		if t.preparedReplicas[mid].Token < token {
-			start = mid + 1
-		} else {
-			end = mid
-		}
-	}
-	return start
-}
-
 // NewCluster also creates control connection and starts handling events and refreshing topology.
-func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
+func NewCluster(cfg ConnConfig, policy HostSelectionPolicy, e []frame.EventType, hosts ...string) (*Cluster, error) {
 	kh := make(map[string]struct{}, len(hosts))
 	for _, h := range hosts {
 		kh[h] = struct{}{}
@@ -124,6 +109,7 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 		closeChan:         make(requestChan, 1),
 	}
 	c.setTopology(&topology{})
+	c.setPolicy(policy)
 
 	if control, err := c.NewControl(); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -209,6 +195,10 @@ func (c *Cluster) refreshTopology() error {
 	}
 
 	sort.Sort(t.ring)
+	policy := c.Policy()
+	newPolicy := policy.Clone()
+	newPolicy.Update(t)
+	c.setPolicy(newPolicy)
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil
@@ -216,10 +206,9 @@ func (c *Cluster) refreshTopology() error {
 
 func newTopology() *topology {
 	return &topology{
-		peers:   make(peerMap),
-		dcRacks: make(dcRacksMap),
-		nodes:   make([]*Node, 0),
-		ring:    make(Ring, 0),
+		peers: make(peerMap),
+		nodes: make([]*Node, 0),
+		ring:  make(Ring, 0),
 	}
 }
 
@@ -408,6 +397,14 @@ func (c *Cluster) Topology() *topology {
 
 func (c *Cluster) setTopology(t *topology) {
 	c.topology.Store(t)
+}
+
+func (c *Cluster) Policy() HostSelectionPolicy {
+	return c.policy.Load().(HostSelectionPolicy)
+}
+
+func (c *Cluster) setPolicy(policy HostSelectionPolicy) {
+	c.policy.Store(policy)
 }
 
 // handleEvent creates function which is passed to control connection

@@ -65,7 +65,7 @@ type SessionConfig struct {
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	return SessionConfig{
 		Hosts:      hosts,
-		Policy:     transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy()),
+		Policy:     transport.NewRoundRobinPolicy(),
 		ConnConfig: transport.DefaultConnConfig(keyspace),
 	}
 }
@@ -100,7 +100,6 @@ func (cfg *SessionConfig) Validate() error {
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
-	policy  transport.HostSelectionPolicy
 }
 
 func NewSession(cfg SessionConfig) (*Session, error) {
@@ -110,7 +109,7 @@ func NewSession(cfg SessionConfig) (*Session, error) {
 		return nil, err
 	}
 
-	cluster, err := transport.NewCluster(cfg.ConnConfig, cfg.Events, cfg.Hosts...)
+	cluster, err := transport.NewCluster(cfg.ConnConfig, cfg.Policy, cfg.Events, cfg.Hosts...)
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +117,6 @@ func NewSession(cfg SessionConfig) (*Session, error) {
 	s := &Session{
 		cfg:     cfg,
 		cluster: cluster,
-		policy:  cfg.Policy,
 	}
 
 	return s, nil
@@ -137,8 +135,9 @@ func (s *Session) Query(content string) Query {
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
-	it := s.policy.PlanIter(s.cluster.NewQueryInfo())
-	conn := it().LeastBusyConn()
+	policy := s.cluster.Policy()
+	n := policy.Iter(s.cluster.NewQueryInfo(policy.GenerateOffset()), 0)
+	conn := n.LeastBusyConn()
 	if conn == nil {
 		return Query{}, errNoConnection
 	}
@@ -157,15 +156,19 @@ func (s *Session) Prepare(content string) (Query, error) {
 	}, err
 }
 
-func (s *Session) NewRoundRobinPolicy() transport.HostSelectionPolicy {
+func NewRoundRobinPolicy() transport.HostSelectionPolicy {
 	return transport.NewRoundRobinPolicy()
 }
 
-func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
-	return transport.NewTokenAwarePolicy(transport.NewRoundRobinPolicy())
+func NewSimpleTokenAwarePolicy(rf int) transport.HostSelectionPolicy {
+	return transport.NewSimpleTokenAwarePolicy(transport.NewRoundRobinPolicy(), rf)
 }
 
-func (s *Session) NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
+func NewNetworkTopologyTokenAwarePolicy(dcRf map[string]int) transport.HostSelectionPolicy {
+	return transport.NewNetworkTopologyTokenAwarePolicy(transport.NewRoundRobinPolicy(), dcRf)
+}
+
+func NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelectionPolicy {
 	return transport.NewDCAwareRoundRobin(localDC)
 }
 
