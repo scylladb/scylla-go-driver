@@ -105,7 +105,6 @@ func runBenchmark(name, cmd, path string) []benchResult {
 					if err != nil {
 						panic(err)
 					}
-
 					time := getTime(string(out))
 					log.Printf(" time: %v\n", time)
 					result.insert(time, i)
@@ -127,7 +126,7 @@ func runAsyncBenchmark(name, cmd, path string) []benchResult {
 				for _, batch := range batchSize {
 					result := newBenchResult(name, workload, runs, tasksNum, workersNum, batch)
 					cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
-					cmdWithFlags += " -batch-size " + strconv.Itoa(result.batchSize)
+					cmdWithFlags += " -batch-size " + strconv.Itoa(result.batchSize) + " -async true"
 					for i := 0; i < runs; i++ {
 						log.Printf("%s - run: %v, workload: %s, tasks: %v, workers: %v batch: %v", name, i+1, workload, tasksNum, workersNum, result.batchSize)
 						out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").Output()
