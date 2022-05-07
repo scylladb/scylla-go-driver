@@ -29,7 +29,7 @@ func main() {
 		defer profile.Start(profile.MemProfile, profile.ProfilePath("./pprof/")).Stop()
 	}
 
-	cfg := scylla.DefaultSessionConfig("benchks", config.nodeAddresses...)
+	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
 	cfg.Username = config.user
 	cfg.Password = config.password
 	cfg.Policy = scylla.NewSimpleTokenAwarePolicy()

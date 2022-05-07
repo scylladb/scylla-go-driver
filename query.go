@@ -26,6 +26,11 @@ func (q *Query) Exec() (Result, error) {
 	return Result(res), err
 }
 
+// TODO: I don't think that this function is useful at all. We should change it.
+// pickConn returns connection, but does not execute query.
+// In case of query failure, we want to call pickConn again (with respect to retry policy).
+// So why are we calculating Token, QueryInfo, Policy here???
+// All those things should be done only once.
 func (q *Query) pickConn() (*transport.Conn, error) {
 	token, tokenAware := q.token()
 	info := q.info(token, tokenAware)
@@ -36,7 +41,7 @@ func (q *Query) pickConn() (*transport.Conn, error) {
 	if tokenAware {
 		conn = n.Conn(token)
 	} else {
-		conn = n.LeastBusyConn()
+		conn = n.LeastBusyConn() // TODO: This does not replace RR. Fallback is already implemented inside policy.
 	}
 	if conn == nil {
 		return nil, errNoConnection
