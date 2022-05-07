@@ -10,17 +10,27 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"time"
 )
 
-var addr = "192.168.100.100:9042"
-var runs = 5
-var workloads = []string{"inserts", "mixed"}
-var tasks = []int{1_000_000, 10_000_000, 100_000_000}
-var workers = []int{512, 1024, 2048, 4096, 8192}
-var cpu = runtime.NumCPU()
-var asyncWorkers = []int{cpu, cpu * 2, cpu * 4, cpu * 8, cpu * 16}
-var batchSize = []int{256, 256 * 2, 256 * 4, 256 * 8, 256 * 16}
-var defaultBatchSize = 256
+// Driver absolute paths to driver.
+const (
+	scyllaGoPath   = ""
+	gocqlPath      = ""
+	scyllaRustPath = ""
+)
+
+var (
+	addr             = "192.168.100.100:9042"
+	runs             = 5
+	workloads        = []string{"inserts", "mixed"}
+	tasks            = []int{1_000_000, 10_000_000, 100_000_000}
+	workers          = []int{512, 1024, 2048, 4096, 8192}
+	cpu              = runtime.NumCPU()
+	asyncWorkers     = []int{cpu, cpu * 2, cpu * 4, cpu * 8, cpu * 16}
+	batchSize        = []int{256, 256 * 2, 256 * 4, 256 * 8, 256 * 16}
+	defaultBatchSize = 256
+)
 
 type benchResult struct {
 	name      string
@@ -75,11 +85,11 @@ func (r *benchResult) calculateMeanAndDev() {
 }
 
 func getTime(input string) int {
-	reg, err := regexp.Compile("Benchmark Time: ([0-9]+) ms")
+
+	reg, err := regexp.Compile("Benchmark time: ([0-9]+) ms")
 	if err != nil {
 		panic(err)
 	}
-
 	time, err := strconv.Atoi(reg.FindStringSubmatch(input)[1])
 	if err != nil {
 		panic(err)
@@ -89,7 +99,7 @@ func getTime(input string) int {
 }
 
 func addFlags(cmd, workload, addr string, tasks, workers int) string {
-	return cmd + " -nodes " + addr + " -workload " + workload + " -tasks " + strconv.Itoa(tasks) + " -workers " + strconv.Itoa(workers)
+	return cmd + " --nodes " + addr + " --workload " + workload + " --tasks " + strconv.Itoa(tasks) + " --workers " + strconv.Itoa(workers)
 }
 
 func runBenchmark(name, cmd, path string) []benchResult {
@@ -100,8 +110,10 @@ func runBenchmark(name, cmd, path string) []benchResult {
 				result := newBenchResult(name, workload, runs, tasksNum, workersNum, defaultBatchSize)
 				cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
 				for i := 0; i < runs; i++ {
+					time.Sleep(time.Second)
 					log.Printf("%s - run: %v, workload: %s, tasks: %v, workers: %v, batch: %v", name, i+1, workload, tasksNum, workersNum, result.batchSize)
-					out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").Output()
+					log.Println(cmdWithFlags)
+					out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").CombinedOutput()
 					if err != nil {
 						panic(err)
 					}
@@ -126,10 +138,12 @@ func runAsyncBenchmark(name, cmd, path string) []benchResult {
 				for _, batch := range batchSize {
 					result := newBenchResult(name, workload, runs, tasksNum, workersNum, batch)
 					cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
-					cmdWithFlags += " -batch-size " + strconv.Itoa(result.batchSize) + " -async true"
+					cmdWithFlags += " --batch-size " + strconv.Itoa(result.batchSize) + " --async true"
 					for i := 0; i < runs; i++ {
+						time.Sleep(time.Second)
 						log.Printf("%s - run: %v, workload: %s, tasks: %v, workers: %v batch: %v", name, i+1, workload, tasksNum, workersNum, result.batchSize)
-						out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").Output()
+						log.Println(cmdWithFlags)
+						out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").CombinedOutput()
 						if err != nil {
 							panic(err)
 						}
@@ -175,14 +189,11 @@ func makeCSV(out string, results []benchResult) {
 }
 
 func main() {
-	scyllaGo := ""
-	gocql := ""
-	scyllaRust := ""
 
-	scyllaGoResults := runBenchmark("scylla-go-driver", "go run", scyllaGo)
-	scyllaRustResults := runBenchmark("scylla-rust-driver", "cargo run --release", scyllaRust)
-	gocqlResults := runBenchmark("gocql", "go run", gocql)
-	scyllaGoAsyncResults := runAsyncBenchmark("scylla-go-driver async", "go run", scyllaGo)
+	scyllaGoResults := runBenchmark("scylla-go-driver", "go run .", scyllaGoPath)
+	scyllaRustResults := runBenchmark("scylla-rust-driver", "cargo run --release .", scyllaRustPath)
+	gocqlResults := runBenchmark("gocql", "go run .", gocqlPath)
+	scyllaGoAsyncResults := runAsyncBenchmark("scylla-go-driver async", "go run .", scyllaGoPath)
 
 	var results []benchResult
 	results = append(results, scyllaGoResults...)
