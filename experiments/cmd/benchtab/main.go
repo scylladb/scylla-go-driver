@@ -32,6 +32,7 @@ func main() {
 	cfg := scylla.DefaultSessionConfig("benchks", config.nodeAddresses...)
 	cfg.Username = config.user
 	cfg.Password = config.password
+	cfg.Policy = scylla.NewSimpleTokenAwarePolicy()
 
 	if !config.dontPrepare {
 		initSession, err := scylla.NewSession(cfg)
