@@ -194,11 +194,11 @@ func (c *Cluster) refreshTopology() error {
 	}
 
 	sort.Sort(t.ring)
-	if ks, ok := t.keyspaces[c.cfg.Keyspace]; ok {
-		c.refreshHSP(t, ks.strategy)
-	} else {
-		return fmt.Errorf("couldn't find default keyspace strategy")
+	ks, ok := t.keyspaces[c.cfg.Keyspace]
+	if !ok {
+		log.Printf("host selection policy replaced with round robin: couldn't find default keyspace strategy")
 	}
+	c.refreshHSP(t, ks.strategy)
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil

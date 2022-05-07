@@ -38,6 +38,9 @@ func (p *RoundRobinPolicy) Iter(qi QueryInfo, idx int) *Node {
 }
 
 func (p *RoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
+	if len(p.Nodes) <= idx {
+		return nil
+	}
 	return reps[(idx+off)%len(reps)]
 }
 
@@ -71,6 +74,9 @@ func (p *DCAwareRoundRobinPolicy) Iter(qi QueryInfo, idx int) *Node {
 }
 
 func (p *DCAwareRoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
+	if len(p.Nodes) <= idx {
+		return nil
+	}
 	if p.LocalDC == "" {
 		return p.RoundRobinPolicy.WrapIter(reps, idx, off)
 	}
@@ -111,6 +117,11 @@ type SimpleTokenAwarePolicy struct {
 }
 
 func (p *SimpleTokenAwarePolicy) New(t *Topology, stg Strategy) HostSelectionPolicy {
+	if stg.rf == 0 {
+		return &SimpleTokenAwarePolicy{
+			WrapperPolicy: p.WrapperPolicy.New(t, stg).(WrapperPolicy),
+		}
+	}
 	extendedRing := make([]*Node, len(t.ring)+stg.rf)
 	for i, v := range t.ring {
 		extendedRing[i] = v.node
@@ -133,7 +144,7 @@ func NewSimpleTokenAwarePolicy(wp WrapperPolicy) *SimpleTokenAwarePolicy {
 }
 
 func (p *SimpleTokenAwarePolicy) Iter(qi QueryInfo, idx int) *Node {
-	if qi.tokenAwareness {
+	if qi.tokenAwareness && p.RF != 0 {
 		start, end := 0, len(p.Ring)-p.RF
 		for start < end {
 			mid := int(uint(start+end) >> 1)
@@ -155,6 +166,11 @@ type NetworkTopologyTokenAwarePolicy struct {
 }
 
 func (p *NetworkTopologyTokenAwarePolicy) New(t *Topology, stg Strategy) HostSelectionPolicy {
+	if stg.dcRF == nil {
+		return &NetworkTopologyTokenAwarePolicy{
+			WrapperPolicy: p.WrapperPolicy.New(t, stg).(WrapperPolicy),
+		}
+	}
 	type uniqueRack struct {
 		dc   string
 		rack string
@@ -223,17 +239,21 @@ func NewNetworkTopologyTokenAwarePolicy(wp WrapperPolicy) *NetworkTopologyTokenA
 }
 
 func (p NetworkTopologyTokenAwarePolicy) Iter(qi QueryInfo, idx int) *Node {
-	start, end := 0, len(p.PreparedNodes)
-	for start < end {
-		mid := int(uint(start+end) >> 1)
-		if p.PreparedNodes[mid].Token < qi.token {
-			start = mid + 1
-		} else {
-			end = mid
+	if qi.tokenAwareness && p.PreparedNodes != nil {
+		start, end := 0, len(p.PreparedNodes)
+		for start < end {
+			mid := int(uint(start+end) >> 1)
+			if p.PreparedNodes[mid].Token < qi.token {
+				start = mid + 1
+			} else {
+				end = mid
+			}
 		}
+		if start == len(p.PreparedNodes) {
+			start = 0
+		}
+		return p.WrapIter(p.PreparedNodes[start].Nodes, idx, qi.offset)
+	} else {
+		return p.WrapperPolicy.Iter(qi, idx)
 	}
-	if start == len(p.PreparedNodes) {
-		start = 0
-	}
-	return p.WrapIter(p.PreparedNodes[start].Nodes, idx, qi.offset)
 }
