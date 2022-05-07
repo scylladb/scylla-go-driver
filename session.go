@@ -2,6 +2,7 @@ package scylla
 
 import (
 	"fmt"
+
 	"go.uber.org/atomic"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
