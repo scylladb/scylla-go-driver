@@ -98,13 +98,14 @@ func runBenchmark(name, cmd, path string) []benchResult {
 		for _, tasksNum := range tasks {
 			for _, workersNum := range workers {
 				result := newBenchResult(name, workload, runs, tasksNum, workersNum, defaultBatchSize)
+				cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
 				for i := 0; i < runs; i++ {
 					log.Printf("%s - run: %v, workload: %s, tasks: %v, workers: %v, batch: %v", name, i+1, workload, tasksNum, workersNum, result.batchSize)
-					cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
 					out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").Output()
 					if err != nil {
 						panic(err)
 					}
+
 					time := getTime(string(out))
 					log.Printf(" time: %v\n", time)
 					result.insert(time, i)
@@ -125,10 +126,10 @@ func runAsyncBenchmark(name, cmd, path string) []benchResult {
 			for _, workersNum := range asyncWorkers {
 				for _, batch := range batchSize {
 					result := newBenchResult(name, workload, runs, tasksNum, workersNum, batch)
+					cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
+					cmdWithFlags += " -batch-size " + strconv.Itoa(result.batchSize)
 					for i := 0; i < runs; i++ {
 						log.Printf("%s - run: %v, workload: %s, tasks: %v, workers: %v batch: %v", name, i+1, workload, tasksNum, workersNum, result.batchSize)
-						cmdWithFlags := addFlags(cmd, workload, addr, tasksNum, workersNum)
-						cmdWithFlags += " -batch-size " + strconv.Itoa(batch)
 						out, err := exec.Command("/bin/sh", "-c", "cd "+path+"; "+cmdWithFlags+";").Output()
 						if err != nil {
 							panic(err)
