@@ -65,8 +65,8 @@ func newBenchResult(name, workload string, runs, tasks, workers, batch int) benc
 	}
 }
 
-func (r *benchResult) insert(time, pos int) {
-	r.time[pos] = time
+func (r *benchResult) insert(t, pos int) {
+	r.time[pos] = t
 }
 
 func (r *benchResult) calculateMeanAndDev() {
@@ -85,17 +85,13 @@ func (r *benchResult) calculateMeanAndDev() {
 }
 
 func getTime(input string) int {
-
-	reg, err := regexp.Compile("Benchmark time: ([0-9]+) ms")
-	if err != nil {
-		panic(err)
-	}
-	time, err := strconv.Atoi(reg.FindStringSubmatch(input)[1])
+	reg := regexp.MustCompile("Benchmark time: ([0-9]+) ms") // nolint:gocritic
+	t, err := strconv.Atoi(reg.FindStringSubmatch(input)[1])
 	if err != nil {
 		panic(err)
 	}
 
-	return time
+	return t
 }
 
 func addFlags(cmd, workload, addr string, tasks, workers int) string {
@@ -117,9 +113,9 @@ func runBenchmark(name, cmd, path string) []benchResult {
 					if err != nil {
 						panic(err)
 					}
-					time := getTime(string(out))
-					log.Printf(" time: %v\n", time)
-					result.insert(time, i)
+					t := getTime(string(out))
+					log.Printf(" time: %v\n", t)
+					result.insert(t, i)
 				}
 				result.calculateMeanAndDev()
 				results = append(results, result)
@@ -147,9 +143,9 @@ func runAsyncBenchmark(name, cmd, path string) []benchResult {
 						if err != nil {
 							panic(err)
 						}
-						time := getTime(string(out))
-						log.Printf(" time: %v\n", time)
-						result.insert(time, i)
+						t := getTime(string(out))
+						log.Printf("time: %v\n", t)
+						result.insert(t, i)
 					}
 					result.calculateMeanAndDev()
 					results = append(results, result)
@@ -168,7 +164,10 @@ func makeCSV(out string, results []benchResult) {
 	csvWriter := csv.NewWriter(csvFile)
 
 	head := []string{"Driver", "Workload", "Tasks", "Workers", "Batch Size", "Time", "Standard Deviation"}
-	csvWriter.Write(head)
+	err = csvWriter.Write(head)
+	if err != nil {
+		panic(err)
+	}
 
 	for _, result := range results {
 		row := []string{
@@ -181,15 +180,20 @@ func makeCSV(out string, results []benchResult) {
 			fmt.Sprintf("%f", result.dev),
 		}
 
-		csvWriter.Write(row)
+		err = csvWriter.Write(row)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	csvWriter.Flush()
-	csvFile.Close()
+	err = csvFile.Close()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func main() {
-
 	scyllaGoResults := runBenchmark("scylla-go-driver", "go run .", scyllaGoPath)
 	scyllaRustResults := runBenchmark("scylla-rust-driver", "cargo run --release .", scyllaRustPath)
 	gocqlResults := runBenchmark("gocql", "go run .", gocqlPath)
