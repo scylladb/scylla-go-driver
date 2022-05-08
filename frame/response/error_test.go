@@ -109,7 +109,7 @@ func TestUnavailableError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseUnavailableError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Unavailable' error.")
 			}
 		})
@@ -149,7 +149,7 @@ func TestWriteTimeoutError(t *testing.T) {
 			t.Parallel()
 			buf.Write(tc.content)
 			out := ParseWriteTimeoutError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -189,7 +189,7 @@ func TestReadTimeoutError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseReadTimeoutError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -230,7 +230,7 @@ func TestReadFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseReadFailureError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
 			}
 		})
@@ -268,7 +268,7 @@ func TestFuncFailureError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseFuncFailureError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
@@ -310,7 +310,7 @@ func TestWriteFailureError(t *testing.T) { // nolint:dupl // Tests are different
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseWriteFailureError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal("Failure while constructing 'Function Failure' error.")
 			}
 		})
@@ -345,7 +345,7 @@ func TestAlreadyExistsError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseAlreadyExistsError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
@@ -378,104 +378,9 @@ func TestUnpreparedError(t *testing.T) {
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			out := ParseUnpreparedError(&buf, ScyllaError{})
-			if diff := cmp.Diff(*out, tc.expected); diff != "" {
+			if diff := cmp.Diff(out, tc.expected); diff != "" {
 				t.Fatal(diff)
 			}
 		})
 	}
-}
-
-var (
-	errSE  ScyllaError
-	errUAE *UnavailableError
-	errWTE *WriteTimeoutError
-	errRTE *ReadTimeoutError
-	errRFE *ReadFailureError
-	errFFE *FuncFailureError
-	errWFE *WriteFailureError
-	errAEE *AlreadyExistsError
-	errUPE *UnpreparedError
-)
-
-// We want to make sure that parsing does not crush driver even for random data.
-// We assign result to global variable to avoid compiler optimization.
-func FuzzScyllaError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseScyllaError(&buf)
-		errSE = out
-	})
-}
-
-func FuzzUnavailableError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseUnavailableError(&buf, ScyllaError{})
-		errUAE = out
-	})
-}
-
-func FuzzWriteTimeoutErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseWriteTimeoutError(&buf, ScyllaError{})
-		errWTE = out
-	})
-}
-
-func FuzzReadTimeoutError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseReadTimeoutError(&buf, ScyllaError{})
-		errRTE = out
-	})
-}
-
-func FuzzReadFailureErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseReadFailureError(&buf, ScyllaError{})
-		errRFE = out
-	})
-}
-
-func FuzzFuncFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseFuncFailureError(&buf, ScyllaError{})
-		errFFE = out
-	})
-}
-
-func FuzzWriteFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseWriteFailureError(&buf, ScyllaError{})
-		errWFE = out
-	})
-}
-
-func FuzzParseAlreadyExistsError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseAlreadyExistsError(&buf, ScyllaError{})
-		errAEE = out
-	})
-}
-
-func FuzzUnpreparedError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
-		var buf frame.Buffer
-		buf.Write(data)
-		out := ParseUnpreparedError(&buf, ScyllaError{})
-		errUPE = out
-	})
 }

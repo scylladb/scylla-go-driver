@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
@@ -19,7 +20,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 	}{
 		{
 			name:     "Syntax",
-			error:    &SyntaxError{},
+			error:    ScyllaError{Code: frame.ErrCodeSyntax},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -27,7 +28,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Invalid",
-			error:    &InvalidError{},
+			error:    ScyllaError{Code: frame.ErrCodeInvalid},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -35,7 +36,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "AlreadyExists",
-			error:    &AlreadyExistsError{},
+			error:    AlreadyExistsError{ScyllaError: ScyllaError{Code: frame.ErrCodeAlreadyExists}},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -43,7 +44,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "FuncFailure",
-			error:    &FuncFailureError{},
+			error:    FuncFailureError{ScyllaError: ScyllaError{Code: frame.ErrCodeFunctionFailure}},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -51,7 +52,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Credentials",
-			error:    &CredentialsError{},
+			error:    ScyllaError{Code: frame.ErrCodeCredentials},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -59,7 +60,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Unauthorized",
-			error:    &UnauthorizedError{},
+			error:    ScyllaError{Code: frame.ErrCodeUnauthorized},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -67,15 +68,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Config",
-			error:    &ConfigError{},
-			res1:     DontRetry,
-			res2:     DontRetry,
-			resIdem1: DontRetry,
-			resIdem2: DontRetry,
-		},
-		{
-			name:     "ReadFailure",
-			error:    &FuncFailureError{},
+			error:    ScyllaError{Code: frame.ErrCodeConfig},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -83,7 +76,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "ReadFailure",
-			error: &ReadFailureError{
+			error: ReadFailureError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeReadFailure},
 				Consistency: frame.TWO,
 				Received:    2,
 				BlockFor:    1,
@@ -97,7 +91,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "WriteFailure",
-			error: &WriteFailureError{
+			error: WriteFailureError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeWriteFailure},
 				Consistency: frame.TWO,
 				Received:    1,
 				BlockFor:    2,
@@ -111,7 +106,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Unprepared",
-			error:    &UnpreparedError{},
+			error:    UnpreparedError{ScyllaError: ScyllaError{Code: frame.ErrCodeUnprepared}},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: DontRetry,
@@ -119,7 +114,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Overloaded",
-			error:    &OverloadedError{},
+			error:    ScyllaError{Code: frame.ErrCodeOverloaded},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: RetryNextNode,
@@ -127,7 +122,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Truncate",
-			error:    &TruncateError{},
+			error:    ScyllaError{Code: frame.ErrCodeTruncate},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: RetryNextNode,
@@ -135,7 +130,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "Server",
-			error:    &ServerError{},
+			error:    ScyllaError{Code: frame.ErrCodeServer},
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: RetryNextNode,
@@ -143,15 +138,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "IO",
-			error:    &IoError{},
-			res1:     DontRetry,
-			res2:     DontRetry,
-			resIdem1: RetryNextNode,
-			resIdem2: RetryNextNode,
-		},
-		{
-			name:     "IO",
-			error:    &IoError{},
+			error:    fmt.Errorf("dummy error"),
 			res1:     DontRetry,
 			res2:     DontRetry,
 			resIdem1: RetryNextNode,
@@ -159,7 +146,7 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name:     "IsBootstrapping",
-			error:    &IsBootstrappingError{},
+			error:    ScyllaError{Code: frame.ErrCodeBootstrapping},
 			res1:     RetryNextNode,
 			res2:     RetryNextNode,
 			resIdem1: RetryNextNode,
@@ -167,7 +154,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "Unavailable",
-			error: &UnavailableError{
+			error: UnavailableError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeUnavailable},
 				Consistency: frame.TWO,
 				Required:    2,
 				Alive:       1,
@@ -179,7 +167,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "ReadTimeout enough responses, data == true",
-			error: &ReadTimeoutError{
+			error: ReadTimeoutError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeReadTimeout},
 				Consistency: frame.TWO,
 				Received:    2,
 				BlockFor:    2,
@@ -192,7 +181,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "ReadTimeout enough responses, data == false",
-			error: &ReadTimeoutError{
+			error: ReadTimeoutError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeReadTimeout},
 				Consistency: frame.TWO,
 				Received:    2,
 				BlockFor:    2,
@@ -205,7 +195,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "ReadTimeout not enough responses, data == true",
-			error: &ReadTimeoutError{
+			error: ReadTimeoutError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeReadTimeout},
 				Consistency: frame.TWO,
 				Received:    1,
 				BlockFor:    2,
@@ -218,7 +209,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "WriteTimeout write type == BatchLog",
-			error: &WriteTimeoutError{
+			error: WriteTimeoutError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeWriteTimeout},
 				Consistency: frame.TWO,
 				Received:    1,
 				BlockFor:    2,
@@ -231,7 +223,8 @@ func TestDefaultRetryPolicy(t *testing.T) {
 		},
 		{
 			name: "WriteTimeout write type != BatchLog",
-			error: &WriteTimeoutError{
+			error: WriteTimeoutError{
+				ScyllaError: ScyllaError{Code: frame.ErrCodeWriteTimeout},
 				Consistency: frame.TWO,
 				Received:    4,
 				BlockFor:    2,

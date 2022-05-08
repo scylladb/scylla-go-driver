@@ -70,10 +70,18 @@ type DefaultRetryDecider struct {
 }
 
 func (d *DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
-	switch v := ri.Error.(type) {
+	v, ok := ri.Error.(CodedError)
+	if !ok {
+		if ri.Idempotent {
+			return RetryNextNode
+		} else {
+			return DontRetry
+		}
+	}
+	switch v.ErrorCode() {
 	// Basic errors - there are some problems on this node.
 	// Retry on a different one if possible.
-	case *IoError, *OverloadedError, *ServerError, *TruncateError:
+	case frame.ErrCodeOverloaded, frame.ErrCodeServer, frame.ErrCodeTruncate:
 		if ri.Idempotent {
 			return RetryNextNode
 		} else {
@@ -84,21 +92,25 @@ func (d *DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
 	// Maybe this node has network problems - try a different one.
 	// Perform at most one retry - it's unlikely that two nodes
 	// have network problems at the same time.
-	case *UnavailableError:
+	case frame.ErrCodeUnavailable:
 		if !d.wasUnavailable {
 			d.wasUnavailable = true
 			return RetryNextNode
 		} else {
 			return DontRetry
 		}
+	// Is Bootstrapping - node can't execute the query, we should try another one.
+	case frame.ErrCodeBootstrapping:
+		return RetryNextNode
 	// Read Timeout - coordinator didn't receive enough replies in time.
 	// Retry at most once and only if there were actually enough replies
 	// to satisfy consistency, but they were all just checksums (DataPresent == true).
 	// This happens when the coordinator picked replicas that were overloaded/dying.
 	// Retried request should have some useful response because the node will detect
 	// that these replicas are dead.
-	case *ReadTimeoutError:
-		if !d.wasReadTimeout && v.Received >= v.BlockFor && v.DataPresent {
+	case frame.ErrCodeReadTimeout:
+		err := v.(ReadTimeoutError)
+		if !d.wasReadTimeout && err.Received >= err.BlockFor && err.DataPresent {
 			d.wasReadTimeout = true
 			return RetrySameNode
 		} else {
@@ -108,17 +120,14 @@ func (d *DefaultRetryDecider) Decide(ri RetryInfo) RetryDecision {
 	// Retry at most once and only for BatchLog write.
 	// Coordinator probably didn't detect the nodes as dead.
 	// By the time we retry they should be detected as dead.
-	case *WriteTimeoutError:
-		if !d.wasWriteTimeout && ri.Idempotent && v.WriteType == frame.BatchLog {
+	case frame.ErrCodeWriteTimeout:
+		err := v.(WriteTimeoutError)
+		if !d.wasWriteTimeout && ri.Idempotent && err.WriteType == frame.BatchLog {
 			d.wasWriteTimeout = true
 			return RetrySameNode
 		} else {
 			return DontRetry
 		}
-	// Is Bootstrapping - node can't execute the query, we should try another one.
-	case *IsBootstrappingError:
-		return RetryNextNode
-	// In all other cases propagate the error to the user.
 	default:
 		return DontRetry
 	}

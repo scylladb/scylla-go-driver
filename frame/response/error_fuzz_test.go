@@ -7,86 +7,96 @@ import (
 )
 
 var (
-	dummyUAE *UnavailableError
-	dummyWTE *WriteTimeoutError
-	dummyRTE *ReadTimeoutError
-	dummyRFE *ReadFailureError
-	dummyFFE *FuncFailureError
-	dummyWFE *WriteFailureError
-	dummyAEE *AlreadyExistsError
-	dummyUPE *UnpreparedError
+	errSE  ScyllaError
+	errUAE UnavailableError
+	errWTE WriteTimeoutError
+	errRTE ReadTimeoutError
+	errRFE ReadFailureError
+	errFFE FuncFailureError
+	errWFE WriteFailureError
+	errAEE AlreadyExistsError
+	errUPE UnpreparedError
 )
 
 // We want to make sure that parsing does not crush driver even for random data.
 // We assign result to global variable to avoid compiler optimization.
-func FuzzUnavailableError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+func FuzzScyllaError(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseUnavailableError(&buf)
-		dummyUAE = out
+		out := ParseScyllaError(&buf)
+		errSE = out
+	})
+}
+
+func FuzzUnavailableError(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
+		var buf frame.Buffer
+		buf.Write(data)
+		out := ParseUnavailableError(&buf, ScyllaError{})
+		errUAE = out
 	})
 }
 
 func FuzzWriteTimeoutErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseWriteTimeoutError(&buf)
-		dummyWTE = out
+		out := ParseWriteTimeoutError(&buf, ScyllaError{})
+		errWTE = out
 	})
 }
 
 func FuzzReadTimeoutError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseReadTimeoutError(&buf)
-		dummyRTE = out
+		out := ParseReadTimeoutError(&buf, ScyllaError{})
+		errRTE = out
 	})
 }
 
 func FuzzReadFailureErrorError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseReadFailureError(&buf)
-		dummyRFE = out
+		out := ParseReadFailureError(&buf, ScyllaError{})
+		errRFE = out
 	})
 }
 
 func FuzzFuncFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseFuncFailureError(&buf)
-		dummyFFE = out
+		out := ParseFuncFailureError(&buf, ScyllaError{})
+		errFFE = out
 	})
 }
 
 func FuzzWriteFailureError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseWriteFailureError(&buf)
-		dummyWFE = out
+		out := ParseWriteFailureError(&buf, ScyllaError{})
+		errWFE = out
 	})
 }
 
 func FuzzParseAlreadyExistsError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseAlreadyExistsError(&buf)
-		dummyAEE = out
+		out := ParseAlreadyExistsError(&buf, ScyllaError{})
+		errAEE = out
 	})
 }
 
 func FuzzUnpreparedError(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer
 		buf.Write(data)
-		out := ParseUnpreparedError(&buf)
-		dummyUPE = out
+		out := ParseUnpreparedError(&buf, ScyllaError{})
+		errUPE = out
 	})
 }
