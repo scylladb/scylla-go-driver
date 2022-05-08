@@ -38,7 +38,7 @@ func (p *RoundRobinPolicy) Iter(qi QueryInfo, idx int) *Node {
 }
 
 func (p *RoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
-	if len(p.Nodes) <= idx {
+	if len(reps) <= idx {
 		return nil
 	}
 	return reps[(idx+off)%len(reps)]
@@ -74,7 +74,7 @@ func (p *DCAwareRoundRobinPolicy) Iter(qi QueryInfo, idx int) *Node {
 }
 
 func (p *DCAwareRoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
-	if len(p.Nodes) <= idx {
+	if len(reps) <= idx {
 		return nil
 	}
 	if p.LocalDC == "" {
