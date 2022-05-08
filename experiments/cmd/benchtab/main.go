@@ -32,8 +32,6 @@ func main() {
 	cfg := scylla.DefaultSessionConfig("", config.nodeAddresses...)
 	cfg.Username = config.user
 	cfg.Password = config.password
-	cfg.Policy = scylla.NewSimpleTokenAwarePolicy()
-
 	if !config.dontPrepare {
 		initSession, err := scylla.NewSession(cfg)
 		if err != nil {
@@ -44,6 +42,7 @@ func main() {
 	}
 
 	cfg.Keyspace = "benchks"
+	cfg.Policy = scylla.NewSimpleTokenAwarePolicy()
 	session, err := scylla.NewSession(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -51,6 +50,8 @@ func main() {
 	if config.workload == Selects && !config.dontPrepare {
 		initSelectsBenchmark(session, config)
 	}
+
+	time.Sleep(2 * time.Second)
 
 	if config.async {
 		asyncBenchmark(&config, session)
