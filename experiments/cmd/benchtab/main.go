@@ -54,6 +54,8 @@ func main() {
 		initSelectsBenchmark(session, config)
 	}
 
+	time.Sleep(2 * time.Second)
+
 	if config.async {
 		asyncBenchmark(&config, session)
 	} else {
