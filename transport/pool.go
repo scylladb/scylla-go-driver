@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/mmatczuk/scylla-go-driver/frame"
 	. "github.com/mmatczuk/scylla-go-driver/frame/response"
 
 	"go.uber.org/atomic"
@@ -127,10 +128,11 @@ func (p *ConnPool) closeAll() {
 }
 
 type PoolRefiller struct {
-	addr   string
-	pool   ConnPool
-	cfg    ConnConfig
-	active int
+	addr     string
+	pool     ConnPool
+	cfg      ConnConfig
+	active   int
+	authFail []bool
 }
 
 func (r *PoolRefiller) init(host string) error {
@@ -170,6 +172,7 @@ func (r *PoolRefiller) init(host string) error {
 	conn.setOnClose(r.onConnClose)
 	r.pool.storeConn(conn)
 	r.active = 1
+	r.authFail = make([]bool, int(ss.NrShards))
 
 	return nil
 }
@@ -216,7 +219,7 @@ func (r *PoolRefiller) fill() {
 	}
 
 	for i := 0; i < r.pool.nrShards; i++ {
-		if r.pool.loadConn(i) != nil {
+		if r.authFail[i] || r.pool.loadConn(i) != nil {
 			continue
 		}
 
@@ -224,6 +227,10 @@ func (r *PoolRefiller) fill() {
 		si.Shard = uint16(i)
 		conn, err := OpenShardConn(r.addr, si, r.cfg)
 		if err != nil {
+			e, ok := err.(CodedError)
+			if ok && e.ErrorCode() == frame.ErrCodeCredentials {
+				r.authFail[i] = true
+			}
 			log.Printf("failed to open shard conn: %s", err)
 			if conn != nil {
 				conn.Close()
