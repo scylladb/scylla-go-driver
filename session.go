@@ -2,6 +2,7 @@ package scylla
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
@@ -170,5 +171,6 @@ func (s *Session) NewDCAwareRoundRobinPolicy(localDC string) transport.HostSelec
 }
 
 func (s *Session) Close() {
+	log.Println("session: close")
 	s.cluster.Close()
 }
