@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -103,7 +104,12 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 			strategy:       stg.strategy,
 		}, nil
 	} else {
-		return QueryInfo{}, fmt.Errorf("couldn't find given keyspace in current topology")
+		var allKs []string
+		for k := range top.keyspaces {
+			allKs = append(allKs, k)
+		}
+		sort.Strings(allKs)
+		return QueryInfo{}, fmt.Errorf("couldn't find keyspace %q in current topology, known keyspaces are: %s", ks, strings.Join(allKs, ", "))
 	}
 }
 
