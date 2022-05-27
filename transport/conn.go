@@ -61,10 +61,16 @@ func (c *connWriter) submit(r request) {
 func (c *connWriter) loop() {
 	for {
 		size := len(c.requestCh)
-		if size > maxCoalescedRequests {
-			size = maxCoalescedRequests
-		} else if size == 0 {
+		// If there are no requests backoff.
+		// Through experimentation, we know that, sleeping more than 1ms makes no difference or is counterproductive.
+		if size == 0 {
+			time.Sleep(time.Millisecond)
+			size = len(c.requestCh)
+		}
+		if size == 0 {
 			size = 1
+		} else if size > maxCoalescedRequests {
+			size = maxCoalescedRequests
 		}
 
 		for i := 0; i < size; i++ {
