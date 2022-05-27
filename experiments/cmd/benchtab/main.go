@@ -10,8 +10,8 @@ import (
 	"github.com/pkg/profile"
 )
 
-const insertStmt = "INSERT INTO benchks.benchtab (pk, v1, v2) VALUES(?, ?, ?)"
-const selectStmt = "SELECT v1, v2 FROM benchks.benchtab WHERE pk = ?"
+const insertStmt = "INSERT INTO benchtab (pk, v1, v2) VALUES(?, ?, ?)"
+const selectStmt = "SELECT v1, v2 FROM benchtab WHERE pk = ?"
 
 func main() {
 	config := readConfig()
@@ -38,11 +38,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		initKeyspaceAndTable(initSession)
+		initKeyspaceAndTable(initSession, config.keyspace)
 		initSession.Close()
 	}
 
-	cfg.Keyspace = "benchks"
+	cfg.Keyspace = config.keyspace
 	session, err := scylla.NewSession(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -214,18 +214,18 @@ func asyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	}
 }
 
-func initKeyspaceAndTable(session *scylla.Session) {
-	q := session.Query("DROP KEYSPACE IF EXISTS benchks")
+func initKeyspaceAndTable(session *scylla.Session, ks string) {
+	q := session.Query("DROP KEYSPACE IF EXISTS " + ks)
 	if _, err := q.Exec(); err != nil {
 		log.Fatal(err)
 	}
 
-	q = session.Query("CREATE KEYSPACE IF NOT EXISTS benchks WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}")
+	q = session.Query("CREATE KEYSPACE " + ks + " WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}")
 	if _, err := q.Exec(); err != nil {
 		log.Fatal(err)
 	}
 
-	q = session.Query("CREATE TABLE IF NOT EXISTS benchks.benchtab (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)")
+	q = session.Query("CREATE TABLE " + ks + ".benchtab (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)")
 	if _, err := q.Exec(); err != nil {
 		log.Fatal(err)
 	}

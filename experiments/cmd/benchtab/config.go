@@ -19,6 +19,7 @@ type Config struct {
 	workload      Workload
 	user          string
 	password      string
+	keyspace      string
 	tasks         int64
 	workers       int64
 	batchSize     int64
@@ -55,6 +56,13 @@ func readConfig() Config {
 		"password",
 		"cassandra",
 		"Password",
+	)
+
+	flag.StringVar(
+		&config.keyspace,
+		"keyspace",
+		"benchks",
+		"Test keyspace",
 	)
 
 	flag.Int64Var(
