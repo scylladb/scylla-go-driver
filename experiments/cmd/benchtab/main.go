@@ -47,6 +47,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	truncateTable(session)
+
 	if config.workload == Selects && !config.dontPrepare {
 		initSelectsBenchmark(session, config)
 	}
@@ -211,6 +213,13 @@ func asyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 		if v1 != 2*pk || v2 != 3*pk {
 			log.Fatalf("expected (%d, %d), got (%d, %d)", 2*pk, 3*pk, v1, v2)
 		}
+	}
+}
+
+func truncateTable(session *scylla.Session) {
+	q := session.Query("TRUNCATE TABLE benchtab")
+	if _, err := q.Exec(); err != nil {
+		log.Fatal(err)
 	}
 }
 
