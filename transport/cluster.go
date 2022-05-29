@@ -69,29 +69,6 @@ type Strategy struct {
 
 }
 
-// QueryInfo represents data required for host selection policy to create query plan.
-// Token and strategy are only necessary for token aware policies.
-type QueryInfo struct {
-	tokenAwareness bool
-	token          Token
-	offset         int
-}
-
-func (c *Cluster) NewQueryInfo(off int) QueryInfo {
-	return QueryInfo{
-		tokenAwareness: false,
-		offset:         off,
-	}
-}
-
-func (c *Cluster) NewTokenAwareQueryInfo(t Token, off int) QueryInfo {
-	return QueryInfo{
-		tokenAwareness: true,
-		token:          t,
-		offset:         off,
-	}
-}
-
 // NewCluster also creates control connection and starts handling events and refreshing topology.
 func NewCluster(cfg ConnConfig, refreshHSP func(t *Topology, stg Strategy), e []frame.EventType, hosts ...string) (*Cluster, error) {
 	kh := make(map[string]struct{}, len(hosts))

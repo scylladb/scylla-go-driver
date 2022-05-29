@@ -33,15 +33,22 @@ func (q *Query) Exec() (Result, error) {
 // All those things should be done only once.
 func (q *Query) pickConn() (*transport.Conn, error) {
 	token, tokenAware := q.token()
-	info := q.info(token, tokenAware)
 	policy := q.session.policy()
+
+	var info transport.QueryInfo
+	if tokenAware {
+		info = policy.NewTokenAwareQueryInfo(token)
+	} else {
+		info = policy.NewQueryInfo()
+	}
+
 	n := policy.Iter(info, 0)
 
 	var conn *transport.Conn
 	if tokenAware {
 		conn = n.Conn(token)
 	} else {
-		conn = n.LeastBusyConn() // TODO: This does not replace RR. Fallback is already implemented inside policy.
+		conn = n.LeastBusyConn()
 	}
 	if conn == nil {
 		return nil, errNoConnection
@@ -102,14 +109,6 @@ func (q *Query) token() (transport.Token, bool) {
 	}
 
 	return transport.MurmurToken(q.buf.Bytes()), true
-}
-
-func (q *Query) info(token transport.Token, tokenAware bool) transport.QueryInfo {
-	if tokenAware {
-		return q.session.cluster.NewTokenAwareQueryInfo(token, 0)
-	}
-
-	return q.session.cluster.NewQueryInfo(0)
 }
 
 func (q *Query) BindInt64(pos int, v int64) *Query {

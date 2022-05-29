@@ -2,6 +2,7 @@ package scylla
 
 import (
 	"fmt"
+	"log"
 
 	"go.uber.org/atomic"
 
@@ -150,7 +151,7 @@ func (s *Session) Query(content string) Query {
 
 func (s *Session) Prepare(content string) (Query, error) {
 	policy := s.policy()
-	n := policy.Iter(s.cluster.NewQueryInfo(policy.GenerateOffset()), 0)
+	n := policy.Iter(policy.NewQueryInfo(), 0)
 	conn := n.LeastBusyConn()
 	if conn == nil {
 		return Query{}, errNoConnection

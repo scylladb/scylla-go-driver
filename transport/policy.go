@@ -9,12 +9,21 @@ import (
 type HostSelectionPolicy interface {
 	New(t *Topology, stg Strategy) HostSelectionPolicy
 	Iter(qi QueryInfo, idx int) *Node
-	GenerateOffset() int
+	NewQueryInfo() QueryInfo
+	NewTokenAwareQueryInfo(t Token) QueryInfo
 }
 
 type WrapperPolicy interface {
 	HostSelectionPolicy
 	WrapIter(reps []*Node, idx, off int) *Node
+}
+
+// QueryInfo represents data required for host selection policy to rout query.
+// During Query execution QueryInfo does not change (in contrary to queried index).
+type QueryInfo struct {
+	tokenAwareness bool
+	token          Token
+	offset         int // Used by Round Robin type policies.
 }
 
 type RoundRobinPolicy struct {
@@ -44,7 +53,22 @@ func (p *RoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
 	return reps[(idx+off)%len(reps)]
 }
 
-func (p *RoundRobinPolicy) GenerateOffset() int {
+func (p *RoundRobinPolicy) NewQueryInfo() QueryInfo {
+	return QueryInfo{
+		tokenAwareness: false,
+		offset:         p.generateOffset(),
+	}
+}
+
+func (p *RoundRobinPolicy) NewTokenAwareQueryInfo(t Token) QueryInfo {
+	return QueryInfo{
+		tokenAwareness: true,
+		token:          t,
+		offset:         p.generateOffset(),
+	}
+}
+
+func (p *RoundRobinPolicy) generateOffset() int {
 	return int(p.Counter.Inc()) - 1
 }
 
@@ -91,7 +115,7 @@ func (p *DCAwareRoundRobinPolicy) WrapIter(reps []*Node, idx, off int) *Node {
 			r++
 		}
 	}
-	if idx <= l {
+	if idx < l {
 		target = (idx + off) % l
 		wantLocal = true
 	} else {
@@ -145,7 +169,7 @@ func NewSimpleTokenAwarePolicy(wp WrapperPolicy) *SimpleTokenAwarePolicy {
 
 func (p *SimpleTokenAwarePolicy) Iter(qi QueryInfo, idx int) *Node {
 	if qi.tokenAwareness && p.RF != 0 {
-		start, end := 0, len(p.Ring)-p.RF
+		start, end := 0, len(p.Ring)
 		for start < end {
 			mid := int(uint(start+end) >> 1)
 			if p.Ring[mid].token < qi.token {
@@ -183,18 +207,19 @@ func (p *NetworkTopologyTokenAwarePolicy) New(t *Topology, stg Strategy) HostSel
 	for k := range u {
 		dcRacks[k.dc]++
 	}
-
 	repeats := make(map[string]int, len(stg.dcRF))
 	repsLen := 0
-	for k, v := range stg.dcRF {
+	for _, v := range stg.dcRF {
 		repsLen += int(v)
-		repeats[k] = int(v) - dcRacks[k]
 	}
 
 	holder := make([]*Node, repsLen*len(t.ring))
 	preparedNodes := make([]TokenReplicas, len(t.ring))
 	for i := range preparedNodes {
 		preparedNodes[i].Nodes = holder[i*repsLen : (i+1)*repsLen]
+		for k, v := range stg.dcRF {
+			repeats[k] = int(v) - dcRacks[k]
+		}
 		taken := 0
 		for j := 0; ; j++ {
 			n := t.ring[(i+j)%len(t.ring)].node
@@ -210,7 +235,6 @@ func (p *NetworkTopologyTokenAwarePolicy) New(t *Topology, stg Strategy) HostSel
 					}
 				}
 			}
-
 			if fromDC < rf {
 				if fromRack == 0 {
 					preparedNodes[i].Nodes[taken] = n
