@@ -189,22 +189,22 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 	}
 }
 
-///*
-//	mockTopologyTokenAwareNetworkStrategy creates cluster topology with info about 8 nodes
-//	living in two different datacenters.
-//
-//	Ring field is populated as follows:
-//	ring tokens:            50 100 150 200 250 300 400 500 510
-//	corresponding node ids: 1  5   2   1   6   4   8   7   3
-//
-//	Datacenter:       waw
-//	nodes in rack r1: 1 2
-//	nodes in rack r2: 3 4
-//
-//	Datacenter:       her
-//	nodes in rack r3: 5 6
-//	nodes in rack r4: 7 8
-//*/
+/*
+	mockTopologyTokenAwareNetworkStrategy creates cluster topology with info about 8 nodes
+	living in two different datacenters.
+
+	Ring field is populated as follows:
+	ring tokens:            50 100 150 200 250 300 400 500 510
+	corresponding node ids: 1  5   2   1   6   4   8   7   3
+
+	Datacenter:       waw
+	nodes in rack r1: 1 2
+	nodes in rack r2: 3 4
+
+	Datacenter:       her
+	nodes in rack r3: 5 6
+	nodes in rack r4: 7 8
+*/
 func mockTopologyTokenAwareNetworkStrategy() *Topology {
 	dummyNodes := []*Node{
 		{addr: "1", datacenter: "waw", rack: "r1"},
