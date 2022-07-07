@@ -96,9 +96,9 @@ func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Int
 	defer session.Close()
 
 	initStmts := []string{
-		"DROP KEYSPACE IF EXISTS mykeyspace",
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
 		"CREATE TABLE IF NOT EXISTS mykeyspace.triples (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)",
+		"TRUNCATE mykeyspace.triples",
 	}
 
 	for _, stmt := range initStmts {
@@ -155,9 +155,9 @@ func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integr
 	defer session.Close()
 
 	initStmts := []string{
-		"DROP KEYSPACE IF EXISTS mykeyspace",
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
 		"CREATE TABLE IF NOT EXISTS mykeyspace.triples (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)",
+		"TRUNCATE TABLE mykeyspace.triples",
 	}
 
 	for _, stmt := range initStmts {

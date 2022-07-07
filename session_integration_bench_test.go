@@ -10,9 +10,9 @@ func BenchmarkSessionQueryIntegration(b *testing.B) {
 	session := newTestSession(b)
 
 	initStmts := []string{
-		"DROP KEYSPACE IF EXISTS mykeyspace",
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
 		"CREATE TABLE IF NOT EXISTS mykeyspace.triples (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)",
+		"TRUNCATE TABLE mykeyspace.triples",
 	}
 
 	for _, stmt := range initStmts {
@@ -70,9 +70,9 @@ func BenchmarkSessionAsyncQueryIntegration(b *testing.B) {
 	session := newTestSession(b)
 
 	initStmts := []string{
-		"DROP KEYSPACE IF EXISTS mykeyspace",
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
 		"CREATE TABLE IF NOT EXISTS mykeyspace.triples (pk bigint PRIMARY KEY, v1 bigint, v2 bigint)",
+		"TRUNCATE TABLE mykeyspace.triples",
 	}
 
 	for _, stmt := range initStmts {
