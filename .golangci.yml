@@ -33,6 +33,7 @@ linters:
     - errorlint
     - exhaustive
     - exhaustivestruct
+    - exhaustruct
     - forbidigo
     - forcetypeassert
     - funlen
@@ -50,6 +51,7 @@ linters:
     - ireturn
     - maligned
     - nlreturn
+    - nonamedreturns
     - nolintlint
     - prealloc
     - promlinter
