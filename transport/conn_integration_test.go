@@ -47,6 +47,7 @@ func newConnTestHelper(t testing.TB) *connTestHelper {
 func (h *connTestHelper) applyFixture() {
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("TRUNCATE TABLE mykeyspace.users")
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
 	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
 	if err := h.conn.UseKeyspace("mykeyspace"); err != nil {
@@ -57,6 +58,7 @@ func (h *connTestHelper) applyFixture() {
 func (h *connTestHelper) setupMassiveUsersTable() {
 	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
 	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.massive_users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec("TRUNCATE TABLE mykeyspace.massive_users")
 }
 
 func (h *connTestHelper) exec(cql string) {
@@ -83,7 +85,6 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	h := newConnTestHelper(t)
 	h.setupMassiveUsersTable()
 	defer h.close()
-	defer h.exec("DROP KEYSPACE mykeyspace")
 
 	const n = maxStreamID
 
@@ -149,7 +150,6 @@ func TestCloseHangingIntegration(t *testing.T) {
 			}
 			// Shut the connection down in the middle of querying
 			if id == n/2 {
-				h.exec("DROP KEYSPACE mykeyspace")
 				h.conn.Close()
 			}
 		}(i)
