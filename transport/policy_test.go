@@ -3,7 +3,6 @@ package transport
 import (
 	"testing"
 
-	"github.com/google/btree"
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
@@ -147,16 +146,16 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 		{hostID: frame.UUID{2}, addr: "2", datacenter: "waw"},
 		{hostID: frame.UUID{3}, addr: "3", datacenter: "waw"},
 	}
-	ring := btree.New[RingEntry](BTreeDegree)
-
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[1], token: 50})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: 100})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[1], token: 150})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[2], token: 200})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: 250})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[1], token: 300})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[2], token: 400})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: 500})
+	ring := []RingEntry{
+		{node: dummyNodes[1], token: 50},
+		{node: dummyNodes[0], token: 100},
+		{node: dummyNodes[1], token: 150},
+		{node: dummyNodes[2], token: 200},
+		{node: dummyNodes[0], token: 250},
+		{node: dummyNodes[1], token: 300},
+		{node: dummyNodes[2], token: 400},
+		{node: dummyNodes[0], token: 500},
+	}
 
 	ks := ksMap{
 		"rf2": {strategy: strategy{class: simpleStrategy, rf: 2}},
@@ -166,8 +165,8 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 	return &topology{
 		nodes:     dummyNodes,
 		ring:      ring,
-		trie:      trieRoot(),
 		keyspaces: ks,
+		trie:      trieRoot(),
 	}
 }
 
@@ -261,17 +260,17 @@ func mockTopologyTokenAwareNetworkStrategy() *topology {
 		{addr: "8", datacenter: "her", rack: "r4"},
 	}
 	dcs := dcRacksMap{"waw": 2, "her": 2}
-	ring := btree.New[RingEntry](BTreeDegree)
-
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: 50})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[4], token: 100})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[1], token: 150})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[0], token: 200})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[5], token: 250})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[3], token: 300})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[7], token: 400})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[6], token: 500})
-	ring.ReplaceOrInsert(RingEntry{node: dummyNodes[2], token: 510})
+	ring := Ring{
+		{node: dummyNodes[0], token: 50},
+		{node: dummyNodes[4], token: 100},
+		{node: dummyNodes[1], token: 150},
+		{node: dummyNodes[0], token: 200},
+		{node: dummyNodes[5], token: 250},
+		{node: dummyNodes[3], token: 300},
+		{node: dummyNodes[7], token: 400},
+		{node: dummyNodes[6], token: 500},
+		{node: dummyNodes[2], token: 510},
+	}
 
 	ks := ksMap{
 		"waw/her": {strategy: strategy{class: networkTopologyStrategy, dcRF: dcRFMap{"waw": 2, "her": 3}}},
@@ -281,8 +280,8 @@ func mockTopologyTokenAwareNetworkStrategy() *topology {
 		dcRacks:   dcs,
 		nodes:     dummyNodes,
 		ring:      ring,
-		trie:      trieRoot(),
 		keyspaces: ks,
+		trie:      trieRoot(),
 	}
 }
 

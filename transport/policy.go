@@ -107,17 +107,38 @@ func (p *TokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
 }
 
 func (p *TokenAwarePolicy) SimpleStrategyReplicas(qi QueryInfo) []*Node {
-	return qi.topology.replicas(qi.token, int(qi.strategy.rf), func(n *Node, res []*Node) bool {
+	rit := qi.topology.replicaIter(qi.token)
+	filter := func(n *Node, res []*Node) bool {
+		for _, v := range res {
+			if n.hostID == v.hostID {
+				return false
+			}
+		}
+
 		return true
-	})
+	}
+
+	cur := &qi.topology.trie
+	for len(cur.Path()) < int(qi.strategy.rf) {
+		n := rit.Next()
+		if n == nil {
+			return cur.Path()
+		}
+
+		if filter(n, cur.Path()) {
+			cur = cur.Next(n)
+		}
+	}
+
+	return cur.Path()
 }
 
 func (p *TokenAwarePolicy) NetworkTopologyStrategyReplicas(qi QueryInfo) []*Node {
-	resLen := 0
+	desiredCnt := 0
 	// repeats store the amount of nodes from the same rack that we can take in given DC.
 	repeats := make(map[string]int, len(qi.strategy.dcRF))
 	for k, v := range qi.strategy.dcRF {
-		resLen += int(v)
+		desiredCnt += int(v)
 		repeats[k] = int(v) - qi.topology.dcRacks[k]
 	}
 
@@ -148,5 +169,19 @@ func (p *TokenAwarePolicy) NetworkTopologyStrategyReplicas(qi QueryInfo) []*Node
 		}
 		return false
 	}
-	return qi.topology.replicas(qi.token, resLen, filter)
+
+	rit := qi.topology.replicaIter(qi.token)
+
+	cur := &qi.topology.trie
+	for len(cur.Path()) < desiredCnt {
+		n := rit.Next()
+		if n == nil {
+			return cur.Path()
+		}
+
+		if filter(n, cur.Path()) {
+			cur = cur.Next(n)
+		}
+	}
+	return cur.Path()
 }
