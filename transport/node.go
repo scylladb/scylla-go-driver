@@ -38,8 +38,10 @@ func (n *Node) Conn(token Token) *Conn {
 }
 
 type RingEntry struct {
-	node  *Node
-	token Token
+	node           *Node
+	token          Token
+	localReplicas  []*Node
+	remoteReplicas []*Node
 }
 
 func (r RingEntry) Less(i RingEntry) bool {
@@ -51,3 +53,44 @@ type Ring []RingEntry
 func (r Ring) Less(i, j int) bool { return r[i].token < r[j].token }
 func (r Ring) Len() int           { return len(r) }
 func (r Ring) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
+
+// Iterator over all nodes starting from offset.
+type replicaIter struct {
+	ring    Ring
+	offset  int
+	fetched int
+}
+
+func (r *replicaIter) Next() *Node {
+	if r.fetched >= len(r.ring) {
+		return nil
+	}
+
+	ret := r.ring[r.offset].node
+	r.offset++
+	r.fetched++
+	if r.offset >= len(r.ring) {
+		r.offset = 0
+	}
+
+	return ret
+}
+
+// tokenLowerBound returns the position of first node with token larger than given, 0 if there wasn't one.
+func (r Ring) tokenLowerBound(token Token) int {
+	start, end := 0, len(r)
+	for start < end {
+		mid := int(uint(start+end) >> 1)
+		if r[mid].token < token {
+			start = mid + 1
+		} else {
+			end = mid
+		}
+	}
+
+	if end >= len(r) {
+		end = 0
+	}
+
+	return end
+}

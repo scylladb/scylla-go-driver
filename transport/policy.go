@@ -2,186 +2,210 @@ package transport
 
 import (
 	"log"
-
-	"go.uber.org/atomic"
+	"sort"
 )
 
-// HostSelectionPolicy prepares plan (slice of Nodes) and returns iterator that goes over it.
-// After going through the whole plan, iterator returns nil instead of valid *Node.
+// HostSelectionPolicy decides which node the query should be routed to.
 type HostSelectionPolicy interface {
-	PlanIter(QueryInfo) func() *Node
-}
-
-// WrapperPolicy is used to combine round-robin policies with token aware ones.
-type WrapperPolicy interface {
-	HostSelectionPolicy
-	WrapPlan([]*Node) func() *Node
-}
-
-type RoundRobinPolicy struct {
-	counter atomic.Int64 // Counter has to be taken modulo length of node slice.
-}
-
-func NewRoundRobinPolicy() *RoundRobinPolicy {
-	return &RoundRobinPolicy{counter: *atomic.NewInt64(0)}
-}
-
-func (p *RoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
-	return p.WrapPlan(qi.topology.nodes)
-}
-
-func (p *RoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
-	i := int(p.counter.Inc() - 1)
-	start := i
-	return func() *Node {
-		if i == start+len(plan) {
-			return nil
-		}
-		defer func() { i++ }()
-		return plan[i%len(plan)]
-	}
-}
-
-type DCAwareRoundRobinPolicy struct {
-	counter atomic.Int64 // Counter has to be taken modulo length of node slice.
-	localDC string
-}
-
-func NewDCAwareRoundRobin(dc string) *DCAwareRoundRobinPolicy {
-	return &DCAwareRoundRobinPolicy{
-		counter: *atomic.NewInt64(0),
-		localDC: dc,
-	}
-}
-
-func (p *DCAwareRoundRobinPolicy) PlanIter(qi QueryInfo) func() *Node {
-	return p.WrapPlan(qi.topology.nodes)
-}
-
-func (p *DCAwareRoundRobinPolicy) WrapPlan(plan []*Node) func() *Node {
-	i := p.counter.Inc() - 1
-	l := make([]*Node, 0)
-	r := make([]*Node, 0)
-	for _, n := range plan {
-		if p.localDC == n.datacenter {
-			l = append(l, n)
-		} else {
-			r = append(r, n)
-		}
-	}
-	lit := (&RoundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(l)
-	rit := (&RoundRobinPolicy{counter: *atomic.NewInt64(i)}).WrapPlan(r)
-	return func() *Node {
-		if n := lit(); n != nil {
-			return n
-		} else {
-			return rit()
-		}
-	}
+	// Returns i-th node of the host selection plan, returns nil after going through the whole plan.
+	Node(QueryInfo, int) *Node
 }
 
 type TokenAwarePolicy struct {
-	wrapperPolicy WrapperPolicy
+	localDC string
 }
 
-func NewTokenAwarePolicy(wp WrapperPolicy) *TokenAwarePolicy {
-	return &TokenAwarePolicy{wrapperPolicy: wp}
+func NewTokenAwarePolicy(localDC string) *TokenAwarePolicy {
+	return &TokenAwarePolicy{localDC: localDC}
 }
 
-func (p *TokenAwarePolicy) PlanIter(qi QueryInfo) func() *Node {
-	// Fallback to policy implemented in wrapperPolicy.
-	if !qi.tokenAwareness {
-		return p.wrapperPolicy.PlanIter(qi)
+func (p *TokenAwarePolicy) Node(qi QueryInfo, offset int) *Node {
+	if p.localDC == "" {
+		var replicas []*Node
+		pi := qi.topology.policyInfo
+		if qi.tokenAware {
+			pos := pi.ring.tokenLowerBound(qi.token)
+			replicas = pi.ring[pos].localReplicas
+		} else {
+			// Fallback to round robin on all nodes.
+			replicas = pi.localNodes
+		}
+
+		if offset >= len(replicas) {
+			return nil
+		}
+
+		idx := (qi.offset + uint64(offset)) % uint64(len(replicas))
+		return replicas[idx]
 	}
 
-	switch qi.strategy.class {
+	var local, remote []*Node
+	pi := qi.topology.policyInfo
+	if qi.tokenAware {
+		pos := pi.ring.tokenLowerBound(qi.token)
+		local = pi.ring[pos].localReplicas
+		remote = pi.ring[pos].remoteReplicas
+	} else {
+		// Fallback to DC aware round robin on all nodes.
+		local = pi.localNodes
+		remote = pi.remoteNodes
+	}
+
+	if offset < len(local) {
+		idx := (qi.offset + uint64(offset)) % uint64(len(local))
+		return local[idx]
+	} else if offset < len(local)+len(remote) {
+		idx := (qi.offset + uint64(offset) - uint64(len(local))) % uint64(len(remote))
+		return remote[idx]
+	}
+
+	return nil
+}
+
+type policyInfo struct {
+	ring Ring
+
+	localNodes  []*Node
+	remoteNodes []*Node
+}
+
+func (pi *policyInfo) Preprocess(t *topology, ks keyspace) {
+	switch ks.strategy.class {
 	case simpleStrategy, localStrategy:
-		return p.wrapperPolicy.WrapPlan(p.SimpleStrategyReplicas(qi))
+		pi.preprocessSimpleStrategy(t, ks.strategy)
 	case networkTopologyStrategy:
-		return p.wrapperPolicy.WrapPlan(p.NetworkTopologyStrategyReplicas(qi))
+		pi.preprocessNetworkTopologyStrategy(t, ks.strategy)
 	default:
-		log.Printf("host selection policy: query with 'other' strategy class")
-		// TODO: add support for other strategies. For now fallback to wrapper.
-		return p.wrapperPolicy.PlanIter(qi)
+		log.Println("policyInfo: unknown strategy, defaulting to round robin")
+		if t.localDC == "" {
+			pi.preprocessRoundRobinStrategy(t)
+		} else {
+			pi.preprocessDCAwareRoundRobinStrategy(t)
+		}
 	}
 }
 
-func (p *TokenAwarePolicy) SimpleStrategyReplicas(qi QueryInfo) []*Node {
-	rit := qi.topology.replicaIter(qi.token)
-	filter := func(n *Node, res []*Node) bool {
-		for _, v := range res {
-			if n.hostID == v.hostID {
-				return false
-			}
+func (pi *policyInfo) preprocessSimpleStrategy(t *topology, stg strategy) {
+	pi.localNodes = t.nodes
+	sort.Sort(pi.ring)
+	trie := trieRoot()
+	for i := range pi.ring {
+		rit := replicaIter{
+			ring:    pi.ring,
+			offset:  i,
+			fetched: 0,
 		}
 
-		return true
-	}
-
-	cur := &qi.topology.trie
-	for len(cur.Path()) < int(qi.strategy.rf) {
-		n := rit.Next()
-		if n == nil {
-			return cur.Path()
-		}
-
-		if filter(n, cur.Path()) {
-			cur = cur.Next(n)
-		}
-	}
-
-	return cur.Path()
-}
-
-func (p *TokenAwarePolicy) NetworkTopologyStrategyReplicas(qi QueryInfo) []*Node {
-	desiredCnt := 0
-	// repeats store the amount of nodes from the same rack that we can take in given DC.
-	repeats := make(map[string]int, len(qi.strategy.dcRF))
-	for k, v := range qi.strategy.dcRF {
-		desiredCnt += int(v)
-		repeats[k] = int(v) - qi.topology.dcRacks[k]
-	}
-
-	filter := func(n *Node, res []*Node) bool {
-		rf := qi.strategy.dcRF[n.datacenter]
-		fromDC := 0
-		fromRack := 0
-		for _, v := range res {
-			if n.addr == v.addr {
-				return false
-			}
-			if n.datacenter == v.datacenter {
-				fromDC++
-				if n.rack == v.rack {
-					fromRack++
+		filter := func(n *Node, res []*Node) bool {
+			for _, v := range res {
+				if n.hostID == v.hostID {
+					return false
 				}
 			}
+
+			return true
 		}
 
-		if fromDC < int(rf) {
-			if fromRack == 0 {
-				return true
+		cur := &trie
+		for len(cur.Path()) < int(stg.rf) {
+			n := rit.Next()
+			if n == nil {
+				break
 			}
-			if repeats[n.datacenter] > 0 {
-				repeats[n.datacenter]--
-				return true
+
+			if filter(n, cur.Path()) {
+				cur = cur.Next(n)
 			}
 		}
-		return false
+		pi.ring[i].localReplicas = cur.Path()
 	}
+}
 
-	rit := qi.topology.replicaIter(qi.token)
+func (pi *policyInfo) preprocessRoundRobinStrategy(t *topology) {
+	pi.localNodes = t.nodes
+	pi.remoteNodes = nil
+}
 
-	cur := &qi.topology.trie
-	for len(cur.Path()) < desiredCnt {
-		n := rit.Next()
-		if n == nil {
-			return cur.Path()
+func (pi *policyInfo) preprocessDCAwareRoundRobinStrategy(t *topology) {
+	pi.localNodes = make([]*Node, 0)
+	pi.remoteNodes = make([]*Node, 0)
+	for _, v := range t.nodes {
+		if v.datacenter == t.localDC {
+			pi.localNodes = append(pi.localNodes, v)
+		} else {
+			pi.remoteNodes = append(pi.remoteNodes, v)
+		}
+	}
+}
+
+func (pi *policyInfo) preprocessNetworkTopologyStrategy(t *topology, stg strategy) {
+	sort.Sort(pi.ring)
+	trie := trieRoot()
+	for i := range pi.ring {
+		rit := replicaIter{
+			ring:    pi.ring,
+			offset:  i,
+			fetched: 0,
+		}
+		desiredCnt := 0
+		// repeats store the amount of nodes from the same rack that we can take in given DC.
+		repeats := make(map[string]int, len(stg.dcRF))
+		for k, v := range stg.dcRF {
+			desiredCnt += int(v)
+			repeats[k] = int(v) - t.dcRacks[k]
 		}
 
-		if filter(n, cur.Path()) {
-			cur = cur.Next(n)
+		filter := func(n *Node, res []*Node) bool {
+			rf := stg.dcRF[n.datacenter]
+			fromDC := 0
+			fromRack := 0
+			for _, v := range res {
+				if n.addr == v.addr {
+					return false
+				}
+				if n.datacenter == v.datacenter {
+					fromDC++
+					if n.rack == v.rack {
+						fromRack++
+					}
+				}
+			}
+
+			if fromDC < int(rf) {
+				if fromRack == 0 {
+					return true
+				}
+				if repeats[n.datacenter] > 0 {
+					repeats[n.datacenter]--
+					return true
+				}
+			}
+			return false
 		}
+
+		plan := make([]*Node, 0, desiredCnt)
+		for len(plan) < desiredCnt {
+			n := rit.Next()
+			if n == nil {
+				break
+			}
+
+			if filter(n, plan) {
+				plan = append(plan, n)
+			}
+		}
+
+		local := &trie
+		remote := &trie
+		for _, n := range plan {
+			if n.datacenter == t.localDC {
+				local = local.Next(n)
+			} else {
+				remote = remote.Next(n)
+			}
+		}
+
+		pi.ring[i].localReplicas = local.Path()
+		pi.ring[i].remoteReplicas = remote.Path()
 	}
-	return cur.Path()
 }

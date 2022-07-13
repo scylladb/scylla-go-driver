@@ -32,13 +32,13 @@ func (q *Query) pickConn() (*transport.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	it := q.session.policy.PlanIter(info)
+	n := q.session.policy.Node(info, 0)
 
 	var conn *transport.Conn
 	if tokenAware {
-		conn = it().Conn(token)
+		conn = n.Conn(token)
 	} else {
-		conn = it().LeastBusyConn()
+		conn = n.LeastBusyConn()
 	}
 	if conn == nil {
 		return nil, errNoConnection

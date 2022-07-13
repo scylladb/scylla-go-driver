@@ -24,8 +24,24 @@ func mockTopologyRoundRobin() *topology {
 	}
 }
 
+func mockCluster(t *topology, ks, localDC string) *Cluster {
+	c := Cluster{}
+	t.localDC = localDC
+
+	if k, ok := t.keyspaces[ks]; ok {
+		t.policyInfo.Preprocess(t, k)
+	} else {
+		t.policyInfo.Preprocess(t, keyspace{})
+	}
+	c.setTopology(t)
+
+	return &c
+}
+
 func TestRoundRobinPolicy(t *testing.T) { //nolint:paralleltest // Can't run in parallel.
 	top := mockTopologyRoundRobin()
+	c := mockCluster(top, "", "")
+
 	testCases := []struct {
 		name     string
 		qi       QueryInfo
@@ -33,48 +49,41 @@ func TestRoundRobinPolicy(t *testing.T) { //nolint:paralleltest // Can't run in 
 	}{
 		{
 			name:     "iteration 1",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"1", "2", "3", "4", "5"},
 		},
 		{
 			name:     "iteration 2",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"2", "3", "4", "5", "1"},
 		},
 		{
 			name:     "iteration 3",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"3", "4", "5", "1", "2"},
 		},
 		{
 			name:     "iteration 4",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"4", "5", "1", "2", "3"},
 		},
 		{
 			name:     "iteration 5",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"5", "1", "2", "3", "4"},
 		},
 		{
 			name:     "iteration 6",
-			qi:       QueryInfo{topology: top},
 			expected: []string{"1", "2", "3", "4", "5"},
 		},
 	}
 
-	policy := NewRoundRobinPolicy()
-
+	policy := NewTokenAwarePolicy("")
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
-		it := policy.PlanIter(tc.qi)
+		qi := c.NewQueryInfo()
 		t.Run(tc.name, func(t *testing.T) {
-			for _, addr := range tc.expected {
-				if res := it().addr; res != addr {
+			for offset, addr := range tc.expected {
+				if res := policy.Node(qi, offset).addr; res != addr {
 					t.Fatalf("TestRoundRobinPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
 				}
 			}
-			if it() != nil {
+			if policy.Node(qi, len(tc.expected)) != nil {
 				t.Fatalf("TestRoundRobinPolicy: plan iter didn't return nil after making the whole cycle")
 			}
 		})
@@ -110,18 +119,19 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) { //nolint:paralleltest // Can't 
 		},
 	}
 
-	policy := NewDCAwareRoundRobin("eu")
+	policy := NewTokenAwarePolicy("eu")
+	c := mockCluster(top, "", "eu")
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
-		it := policy.PlanIter(tc.qi)
+		qi := c.NewQueryInfo()
 		t.Run(tc.name, func(t *testing.T) {
-			for _, addr := range tc.expected {
-				if res := it().addr; res != addr {
+			for offset, addr := range tc.expected {
+				if res := policy.Node(qi, offset).addr; res != addr {
 					t.Fatalf("TestDCAwareRoundRobinPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
 				}
 			}
-			if it() != nil {
+			if policy.Node(qi, len(tc.expected)) != nil {
 				t.Fatalf("TestDCAwareRoundRobinPolicy: plan iter didn't return nil after making the whole cycle")
 			}
 		})
@@ -163,10 +173,11 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 	}
 
 	return &topology{
-		nodes:     dummyNodes,
-		ring:      ring,
+		nodes: dummyNodes,
+		policyInfo: policyInfo{
+			ring: ring,
+		},
 		keyspaces: ks,
-		trie:      trieRoot(),
 	}
 }
 
@@ -174,27 +185,21 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 	top := mockTopologyTokenAwareSimpleStrategy()
 	testCases := []struct {
 		name     string
+		keyspace string
+		token    Token
 		qi       QueryInfo
 		expected []string
 	}{
 		{
-			name: "replication factor = 2",
-			qi: QueryInfo{
-				tokenAwareness: true,
-				token:          160,
-				topology:       top,
-				strategy:       top.keyspaces["rf2"].strategy,
-			},
+			name:     "replication factor = 2",
+			keyspace: "rf2",
+			token:    160,
 			expected: []string{"3", "1"},
 		},
 		{
-			name: "replication factor = 3",
-			qi: QueryInfo{
-				tokenAwareness: true,
-				token:          60,
-				topology:       top,
-				strategy:       top.keyspaces["rf3"].strategy,
-			},
+			name:     "replication factor = 3",
+			keyspace: "rf3",
+			token:    60,
 			expected: []string{"1", "2", "3"},
 		},
 		// TODO mmt: use realistic mock ring
@@ -210,18 +215,23 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 		// },
 	}
 
-	policy := NewTokenAwarePolicy(dummyWrapper{})
+	policy := NewTokenAwarePolicy("")
 
 	for i := 0; i < len(testCases); i++ {
 		tc := testCases[i]
-		it := policy.PlanIter(tc.qi)
+		c := mockCluster(top, tc.keyspace, "")
+		qi, err := c.NewTokenAwareQueryInfo(tc.token, tc.keyspace)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		t.Run(tc.name, func(t *testing.T) {
-			for _, addr := range tc.expected {
-				if res := it().addr; res != addr {
+			for offset, addr := range tc.expected {
+				if res := policy.Node(qi, offset).addr; res != addr {
 					t.Fatalf("TestTokenAwareSimpleStrategyPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
 				}
 			}
-			if it() != nil {
+			if policy.Node(qi, len(tc.expected)) != nil {
 				t.Fatalf("TestTokenAwareSimpleStrategyPolicy: plan iter didn't return nil after making the whole cycle")
 			}
 		})
@@ -248,16 +258,16 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 	strategy: network topology
 	replication factors: waw: 2 her: 3
 */
-func mockTopologyTokenAwareNetworkStrategy() *topology {
+func mockTopologyTokenAwareDCAwareStrategy() *topology {
 	dummyNodes := []*Node{
-		{addr: "1", datacenter: "waw", rack: "r1"},
-		{addr: "2", datacenter: "waw", rack: "r1"},
-		{addr: "3", datacenter: "waw", rack: "r2"},
-		{addr: "4", datacenter: "waw", rack: "r2"},
-		{addr: "5", datacenter: "her", rack: "r3"},
-		{addr: "6", datacenter: "her", rack: "r3"},
-		{addr: "7", datacenter: "her", rack: "r4"},
-		{addr: "8", datacenter: "her", rack: "r4"},
+		{hostID: frame.UUID{1}, addr: "1", datacenter: "waw", rack: "r1"},
+		{hostID: frame.UUID{2}, addr: "2", datacenter: "waw", rack: "r1"},
+		{hostID: frame.UUID{3}, addr: "3", datacenter: "waw", rack: "r2"},
+		{hostID: frame.UUID{4}, addr: "4", datacenter: "waw", rack: "r2"},
+		{hostID: frame.UUID{5}, addr: "5", datacenter: "her", rack: "r3"},
+		{hostID: frame.UUID{6}, addr: "6", datacenter: "her", rack: "r3"},
+		{hostID: frame.UUID{7}, addr: "7", datacenter: "her", rack: "r4"},
+		{hostID: frame.UUID{8}, addr: "8", datacenter: "her", rack: "r4"},
 	}
 	dcs := dcRacksMap{"waw": 2, "her": 2}
 	ring := Ring{
@@ -277,65 +287,51 @@ func mockTopologyTokenAwareNetworkStrategy() *topology {
 	}
 
 	return &topology{
-		dcRacks:   dcs,
-		nodes:     dummyNodes,
-		ring:      ring,
-		keyspaces: ks,
-		trie:      trieRoot(),
+		dcRacks:    dcs,
+		nodes:      dummyNodes,
+		policyInfo: policyInfo{ring: ring},
+		keyspaces:  ks,
 	}
 }
 
 func TestTokenAwareNetworkStrategyPolicy(t *testing.T) { //nolint:paralleltest // Not necessary in simple strategy unit test.
-	top := mockTopologyTokenAwareNetworkStrategy()
+	top := mockTopologyTokenAwareDCAwareStrategy()
 	testCases := []struct {
 		name     string
+		keyspace string
+		localDC  string
+		token    Token
 		qi       QueryInfo
 		expected []string
 	}{
 		{
-			name: "'waw' dc with rf = 2, 'her' dc with rf = 3",
-			qi: QueryInfo{
-				tokenAwareness: true,
-				token:          0,
-				topology:       top,
-				strategy:       top.keyspaces["waw/her"].strategy,
-			},
-			expected: []string{"1", "5", "6", "4", "8"},
+			name:     "'waw' dc with rf = 2, 'her' dc with rf = 3",
+			keyspace: "waw/her",
+			localDC:  "waw",
+			token:    0,
+			// not {"1", "2", "5", "6", "8"} as node "2" is on the same rack as "1"
+			expected: []string{"1", "4", "5", "6", "8"},
 		},
 	}
 
-	policy := NewTokenAwarePolicy(dummyWrapper{})
-
 	for i := 0; i < len(testCases); i++ {
+		policy := NewTokenAwarePolicy("waw")
 		tc := testCases[i]
-		it := policy.PlanIter(tc.qi)
+		c := mockCluster(top, tc.keyspace, tc.localDC)
+		qi, err := c.NewTokenAwareQueryInfo(tc.token, tc.keyspace)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		t.Run(tc.name, func(t *testing.T) {
-			for _, addr := range tc.expected {
-				if res := it().addr; res != addr {
-					t.Fatalf("TestTokenAwareNetworkStrategyPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
+			for offset, addr := range tc.expected {
+				if res := policy.Node(qi, offset).addr; res != addr {
+					t.Fatalf("TestTokenAwareSimpleStrategyPolicy: in test case %#+v: got \"%s\" but expected \"%s\"", tc, res, addr)
 				}
 			}
-			if it() != nil {
+			if policy.Node(qi, len(tc.expected)) != nil {
 				t.Fatalf("TestTokenAwareNetworkStrategyPolicy: plan iter didn't return nil after making the whole cycle")
 			}
 		})
-	}
-}
-
-type dummyWrapper struct{}
-
-func (d dummyWrapper) PlanIter(qi QueryInfo) func() *Node {
-	return d.WrapPlan(qi.topology.nodes)
-}
-
-func (d dummyWrapper) WrapPlan(plan []*Node) func() *Node {
-	counter := 0
-	return func() *Node {
-		if counter == len(plan) {
-			return nil
-		}
-
-		defer func() { counter++ }()
-		return plan[counter]
 	}
 }

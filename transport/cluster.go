@@ -33,15 +33,17 @@ type Cluster struct {
 	refreshChan       requestChan
 	reopenControlChan requestChan
 	closeChan         requestChan
+
+	queryInfoCounter atomic.Uint64
 }
 
 type topology struct {
-	peers     peerMap
-	dcRacks   dcRacksMap
-	nodes     []*Node
-	ring      Ring
-	trie      trie
-	keyspaces ksMap
+	localDC    string
+	peers      peerMap
+	dcRacks    dcRacksMap
+	nodes      []*Node
+	policyInfo policyInfo
+	keyspaces  ksMap
 }
 
 type keyspace struct {
@@ -68,22 +70,23 @@ type strategy struct {
 	rf    uint32            // Used in simpleStrategy.
 	dcRF  dcRFMap           // Used in networkTopologyStrategy.
 	data  map[string]string // Used in other strategy.
-
 }
 
 // QueryInfo represents data required for host selection policy to create query plan.
 // Token and strategy are only necessary for token aware policies.
 type QueryInfo struct {
-	tokenAwareness bool
-	token          Token
-	topology       *topology
-	strategy       strategy
+	tokenAware bool
+	token      Token
+	topology   *topology
+	strategy   strategy
+	offset     uint64 // For round robin strategies.
 }
 
 func (c *Cluster) NewQueryInfo() QueryInfo {
 	return QueryInfo{
-		tokenAwareness: false,
-		topology:       c.Topology(),
+		tokenAware: false,
+		topology:   c.Topology(),
+		offset:     c.generateOffset(),
 	}
 }
 
@@ -95,10 +98,11 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 	}
 	if stg, ok := top.keyspaces[ks]; ok {
 		return QueryInfo{
-			tokenAwareness: true,
-			token:          t,
-			topology:       top,
-			strategy:       stg.strategy,
+			tokenAware: true,
+			token:      t,
+			topology:   top,
+			strategy:   stg.strategy,
+			offset:     c.generateOffset(),
 		}, nil
 	} else {
 		var allKs []string
@@ -110,52 +114,13 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 	}
 }
 
-// Iterator over all nodes starting from offset.
-type replicaIter struct {
-	ring    Ring
-	offset  int
-	fetched int
-}
-
-func (r *replicaIter) Next() *Node {
-	if r.fetched >= len(r.ring) {
-		return nil
-	}
-
-	ret := r.ring[r.offset].node
-	r.offset++
-	r.fetched++
-	if r.offset >= len(r.ring) {
-		r.offset = 0
-	}
-
-	return ret
-}
-
-// replicaIter finds first node with token and return replicaIter starting from it.
-func (t *topology) replicaIter(token Token) replicaIter {
-	start, end := 0, len(t.ring)
-	for start < end {
-		mid := int(uint(start+end) >> 1)
-		if t.ring[mid].token < token {
-			start = mid + 1
-		} else {
-			end = mid
-		}
-	}
-
-	if end >= len(t.ring) {
-		end = 0
-	}
-
-	return replicaIter{
-		ring:   t.ring,
-		offset: end,
-	}
+// TODO overflow and negative modulo.
+func (c *Cluster) generateOffset() uint64 {
+	return c.queryInfoCounter.Inc() - 1
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
-func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster, error) {
+func NewCluster(cfg ConnConfig, p HostSelectionPolicy, e []frame.EventType, hosts ...string) (*Cluster, error) {
 	kh := make(map[string]struct{}, len(hosts))
 	for _, h := range hosts {
 		kh[h] = struct{}{}
@@ -169,7 +134,12 @@ func NewCluster(cfg ConnConfig, e []frame.EventType, hosts ...string) (*Cluster,
 		reopenControlChan: make(requestChan, 1),
 		closeChan:         make(requestChan, 1),
 	}
-	c.setTopology(&topology{})
+
+	localDC := ""
+	if p, ok := p.(*TokenAwarePolicy); ok {
+		localDC = p.localDC
+	}
+	c.setTopology(&topology{localDC: localDC})
 
 	if control, err := c.NewControl(); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -217,6 +187,7 @@ func (c *Cluster) refreshTopology() error {
 
 	old := c.Topology().peers
 	t := newTopology()
+	t.localDC = c.Topology().localDC
 	t.keyspaces, err = c.updateKeyspace()
 	if err != nil {
 		return fmt.Errorf("query keyspaces: %w", err)
@@ -250,7 +221,7 @@ func (c *Cluster) refreshTopology() error {
 		t.peers[n.addr] = n
 		t.nodes = append(t.nodes, n)
 		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = struct{}{}
-		if err := parseTokensFromRow(n, r, &t.ring); err != nil {
+		if err := parseTokensFromRow(n, r, &t.policyInfo.ring); err != nil {
 			return err
 		}
 	}
@@ -265,7 +236,12 @@ func (c *Cluster) refreshTopology() error {
 		}
 	}
 
-	sort.Sort(t.ring)
+	if ks, ok := t.keyspaces[c.cfg.Keyspace]; ok {
+		t.policyInfo.Preprocess(t, ks)
+	} else {
+		t.policyInfo.Preprocess(t, keyspace{})
+	}
+
 	c.setTopology(t)
 	drainChan(c.refreshChan)
 	return nil
@@ -276,8 +252,9 @@ func newTopology() *topology {
 		peers:   make(peerMap),
 		dcRacks: make(dcRacksMap),
 		nodes:   make([]*Node, 0),
-		ring:    make(Ring, 0),
-		trie:    trieRoot(),
+		policyInfo: policyInfo{
+			ring: make(Ring, 0),
+		},
 	}
 }
 
