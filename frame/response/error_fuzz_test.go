@@ -18,8 +18,7 @@ var (
 	errUPE UnpreparedError
 )
 
-// We want to make sure that parsing does not crush driver even for random data.
-// We assign result to global variable to avoid compiler optimization.
+// We assign the result to a global variable to avoid compiler optimization.
 func FuzzScyllaError(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) { // nolint:thelper // This is not a helper function.
 		var buf frame.Buffer

@@ -7,7 +7,7 @@ import (
 )
 
 // ScyllaError is embedded in all error frames.
-// ScyllaError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1046
+// ScyllaError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1046
 type ScyllaError struct {
 	Code    frame.ErrorCode
 	Message string
@@ -61,7 +61,7 @@ func ParseError(b *frame.Buffer) CodedError {
 	}
 }
 
-// UnavailableError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1060
+// UnavailableError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1060
 type UnavailableError struct {
 	ScyllaError
 	Consistency frame.Consistency
@@ -78,7 +78,7 @@ func ParseUnavailableError(b *frame.Buffer, err ScyllaError) UnavailableError {
 	}
 }
 
-// WriteTimeoutError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1076
+// WriteTimeoutError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1076
 type WriteTimeoutError struct {
 	ScyllaError
 	Consistency frame.Consistency
@@ -97,7 +97,7 @@ func ParseWriteTimeoutError(b *frame.Buffer, err ScyllaError) WriteTimeoutError 
 	}
 }
 
-// ReadTimeoutError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1108
+// ReadTimeoutError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1108
 type ReadTimeoutError struct {
 	ScyllaError
 	Consistency frame.Consistency
@@ -116,7 +116,7 @@ func ParseReadTimeoutError(b *frame.Buffer, err ScyllaError) ReadTimeoutError {
 	}
 }
 
-// ReadFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1125
+// ReadFailureError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1125
 type ReadFailureError struct {
 	ScyllaError
 	Consistency frame.Consistency
@@ -137,7 +137,7 @@ func ParseReadFailureError(b *frame.Buffer, err ScyllaError) ReadFailureError {
 	}
 }
 
-// FuncFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1140
+// FuncFailureError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1140
 type FuncFailureError struct {
 	ScyllaError
 	Keyspace string
@@ -154,7 +154,7 @@ func ParseFuncFailureError(b *frame.Buffer, err ScyllaError) FuncFailureError {
 	}
 }
 
-// WriteFailureError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1147
+// WriteFailureError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1147
 type WriteFailureError struct {
 	ScyllaError
 	Consistency frame.Consistency
@@ -175,7 +175,7 @@ func ParseWriteFailureError(b *frame.Buffer, err ScyllaError) WriteFailureError 
 	}
 }
 
-// AlreadyExistsError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1187
+// AlreadyExistsError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1187
 type AlreadyExistsError struct {
 	ScyllaError
 	Keyspace string
@@ -190,7 +190,7 @@ func ParseAlreadyExistsError(b *frame.Buffer, err ScyllaError) AlreadyExistsErro
 	}
 }
 
-// UnpreparedError spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1197
+// UnpreparedError spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1197
 type UnpreparedError struct {
 	ScyllaError
 	UnknownID frame.ShortBytes

@@ -6,17 +6,17 @@ import (
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
-// Result spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L546
+// Result spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L546
 // Below are types of Result with different bodies.
 
-// VoidResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L562
+// VoidResult spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L562
 type VoidResult struct{}
 
 func ParseVoidResult(_ *frame.Buffer) *VoidResult {
 	return &VoidResult{}
 }
 
-// RowsResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L568
+// RowsResult spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L568
 type RowsResult struct {
 	Metadata    frame.ResultMetadata
 	RowsCnt     frame.Int
@@ -64,7 +64,7 @@ func ParseRowsResult(b *frame.Buffer) *RowsResult {
 	return &r
 }
 
-// SetKeyspaceResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L669
+// SetKeyspaceResult spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L669
 type SetKeyspaceResult struct {
 	Name string
 }
@@ -75,7 +75,7 @@ func ParseSetKeyspaceResult(b *frame.Buffer) *SetKeyspaceResult {
 	}
 }
 
-// PreparedResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L675
+// PreparedResult spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L675
 type PreparedResult struct {
 	ID             frame.ShortBytes
 	Metadata       frame.PreparedMetadata
@@ -90,7 +90,7 @@ func ParsePreparedResult(b *frame.Buffer) *PreparedResult {
 	}
 }
 
-// SchemaChangeResult spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L742
+// SchemaChangeResult spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L742
 type SchemaChangeResult struct {
 	SchemaChange SchemaChange
 }

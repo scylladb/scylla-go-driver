@@ -72,7 +72,7 @@ func TestParseScyllaError(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseScyllaError(&buf)
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing ScyllaError")
+				t.Fatal("failure while constructing ScyllaError")
 			}
 		})
 	}
@@ -110,7 +110,7 @@ func TestUnavailableError(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseUnavailableError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'Unavailable' error.")
+				t.Fatal("failure while constructing 'Unavailable' error")
 			}
 		})
 	}
@@ -150,7 +150,7 @@ func TestWriteTimeoutError(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseWriteTimeoutError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
+				t.Fatal("failure while constructing 'WriteTo Timeout' error")
 			}
 		})
 		buf.Reset()
@@ -190,7 +190,7 @@ func TestReadTimeoutError(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseReadTimeoutError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
+				t.Fatal("failure while constructing 'WriteTo Timeout' error")
 			}
 		})
 	}
@@ -231,7 +231,7 @@ func TestReadFailureError(t *testing.T) { // nolint:dupl // Tests are different.
 			buf.Write(tc.content)
 			out := ParseReadFailureError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'WriteTo Timeout' error.")
+				t.Fatal("failure while constructing 'WriteTo Timeout' error")
 			}
 		})
 	}
@@ -269,7 +269,7 @@ func TestFuncFailureError(t *testing.T) {
 			buf.Write(tc.content)
 			out := ParseFuncFailureError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'Function Failure' error.")
+				t.Fatal("failure while constructing 'Function Failure' error")
 			}
 		})
 	}
@@ -311,7 +311,7 @@ func TestWriteFailureError(t *testing.T) { // nolint:dupl // Tests are different
 			buf.Write(tc.content)
 			out := ParseWriteFailureError(&buf, ScyllaError{})
 			if diff := cmp.Diff(out, tc.expected); diff != "" {
-				t.Fatal("Failure while constructing 'Function Failure' error.")
+				t.Fatal("failure while constructing 'Function Failure' error")
 			}
 		})
 	}

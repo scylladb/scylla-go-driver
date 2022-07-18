@@ -11,7 +11,7 @@ const (
 
 var _ frame.Request = (*Batch)(nil)
 
-// Batch spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L414
+// Batch spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L414
 type Batch struct {
 	Type              frame.BatchTypeFlag
 	Flags             frame.QueryFlags
@@ -44,7 +44,7 @@ func (*Batch) OpCode() frame.OpCode {
 	return frame.OpBatch
 }
 
-// BatchQuery spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L452
+// BatchQuery spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L452
 type BatchQuery struct {
 	Kind     frame.BatchQueryKind
 	Query    string

@@ -6,10 +6,10 @@ import (
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
-// Event spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L754
+// Event spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L754
 // Below are types of events with different bodies.
 
-// TopologyChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L760
+// TopologyChange spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L760
 type TopologyChange struct {
 	Change  frame.TopologyChangeType
 	Address frame.Inet
@@ -22,7 +22,7 @@ func ParseTopologyChange(b *frame.Buffer) *TopologyChange {
 	}
 }
 
-// StatusChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L766
+// StatusChange spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L766
 type StatusChange struct {
 	Status  frame.StatusChangeType
 	Address frame.Inet
@@ -35,7 +35,7 @@ func ParseStatusChange(b *frame.Buffer) *StatusChange {
 	}
 }
 
-// SchemaChange spec: https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L771
+// SchemaChange spec: https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L771
 type SchemaChange struct {
 	Change    frame.SchemaChangeType
 	Target    frame.SchemaChangeTarget
