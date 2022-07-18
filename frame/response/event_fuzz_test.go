@@ -12,8 +12,7 @@ var (
 	dummySchC *SchemaChange
 )
 
-// We want to make sure that parsing does not crush driver even for random data.
-// We assign result to global variable to avoid compiler optimization.
+// We assign the result to a global variable to avoid compiler optimization.
 func FuzzStatusChange(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		var buf frame.Buffer

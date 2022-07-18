@@ -5,7 +5,7 @@ import (
 )
 
 // Generic types from CQL binary protocol.
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L214-L266
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L214-L266
 type (
 	Int            = int32
 	Long           = int64
@@ -20,7 +20,7 @@ type (
 	BytesMap       = map[string]Bytes
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L229-L233
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L229-L233
 type Value struct {
 	N     Int
 	Bytes Bytes
@@ -37,7 +37,7 @@ func (v Value) Clone() Value {
 	return c
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L241-L245
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L241-L245
 type Inet struct {
 	IP   Bytes
 	Port Int
@@ -48,7 +48,7 @@ func (i Inet) String() string {
 	return net.IP(i.IP).String()
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L183-L201
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L183-L201
 type OpCode = Byte
 
 const (
@@ -89,7 +89,7 @@ var allOpCodes = map[OpCode]struct{}{
 	OpAuthSuccess:   {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L246-L259
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L246-L259
 type Consistency = Short
 
 const (
@@ -106,10 +106,10 @@ const (
 	LOCALONE    Consistency = 0x000A
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L502
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L502
 type ErrorCode = Int
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L125-L158
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L125-L158
 type HeaderFlags = Byte
 
 const (
@@ -119,7 +119,7 @@ const (
 	Warning       HeaderFlags = 0x08
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L346-L385
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L346-L385
 type QueryFlags = Byte
 
 const (
@@ -133,10 +133,10 @@ const (
 )
 
 type (
-	// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L576-L594
+	// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L576-L594
 	ResultFlags = Int
 
-	// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L684-L690
+	// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L684-L690
 	PreparedFlags = Int
 )
 
@@ -146,7 +146,7 @@ const (
 	NoMetadata       ResultFlags = 0x0004
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L421-L426
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L421-L426
 type BatchTypeFlag = byte
 
 const (
@@ -155,13 +155,13 @@ const (
 	CounterBatchFlag  BatchTypeFlag = 2
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L456
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L456
 type BatchQueryKind = byte
 
 // CQLv4 is the only protocol version currently supported.
 const CQLv4 Byte = 0x4
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L1086-L1107
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L1086-L1107
 type WriteType string
 
 const (
@@ -186,7 +186,7 @@ var allWriteTypes = map[WriteType]struct{}{
 	CDC:           {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L757-L791
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L757-L791
 type EventType = string
 
 const (
@@ -201,7 +201,7 @@ var allEventTypes = map[EventType]struct{}{
 	SchemaChange:   {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L760-L765
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L760-L765
 type TopologyChangeType string
 
 const (
@@ -214,7 +214,7 @@ var allTopologyChangeTypes = map[TopologyChangeType]struct{}{
 	RemovedNode: {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L766-L770
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L766-L770
 type StatusChangeType string
 
 const (
@@ -227,7 +227,7 @@ var allStatusChangeTypes = map[StatusChangeType]struct{}{
 	Down: {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L771-L791
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L771-L791
 type SchemaChangeType string
 
 const (
@@ -242,7 +242,7 @@ var allSchemaChangeTypes = map[SchemaChangeType]struct{}{
 	Dropped: {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L775-L779
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L775-L779
 type SchemaChangeTarget string
 
 const (
@@ -261,7 +261,7 @@ var allSchemaChangeTargets = map[SchemaChangeTarget]struct{}{
 	Aggregate: {},
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L296-L308
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L296-L308
 type StartupOptions StringMap
 
 type Compression string
@@ -292,7 +292,7 @@ var possibleOptions = StringMultiMap{
 // QueryOptions represent optional Values defined by flags.
 // Consists of Values required for all flags.
 // Values for unset flags are uninitialized.
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L350-L385
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L350-L385
 type QueryOptions struct {
 	Flags             QueryFlags
 	Values            []Value
@@ -324,10 +324,10 @@ func (q *QueryOptions) SetFlags() {
 	}
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L236-L239
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L236-L239
 type OptionID Short
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L615-L658
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L615-L658
 const (
 	CustomID    OptionID = 0x0000
 	ASCIIID     OptionID = 0x0001
@@ -356,28 +356,28 @@ const (
 	TupleID     OptionID = 0x0031
 )
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L612-L617
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L612-L617
 type CustomOption struct {
 	Name string
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L637-L638
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L637-L638
 type ListOption struct {
 	Element Option
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L639-L640
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L639-L640
 type MapOption struct {
 	Key   Option
 	Value Option
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L641-L642
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L641-L642
 type SetOption struct {
 	Element Option
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L643-L654
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L643-L654
 type UDTOption struct {
 	Keyspace   string
 	Name       string
@@ -385,12 +385,12 @@ type UDTOption struct {
 	fieldTypes []Option
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L655-L658
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L655-L658
 type TupleOption struct {
 	ValueTypes []Option
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L236-L239
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L236-L239
 type Option struct {
 	ID     OptionID
 	Custom *CustomOption
@@ -401,10 +401,10 @@ type Option struct {
 	Tuple  *TupleOption
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L240
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L240
 type OptionList []Option
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L573-L658
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L573-L658
 type ResultMetadata struct {
 	Flags      ResultFlags
 	ColumnsCnt Int
@@ -417,7 +417,7 @@ type ResultMetadata struct {
 	Columns []ColumnSpec
 }
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L601-L658
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L601-L658
 type ColumnSpec struct {
 	Keyspace string
 	Table    string
@@ -427,7 +427,7 @@ type ColumnSpec struct {
 
 type Row []CqlValue
 
-// https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L681-L724
+// https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L681-L724
 type PreparedMetadata struct {
 	Flags          PreparedFlags
 	ColumnsCnt     Int
