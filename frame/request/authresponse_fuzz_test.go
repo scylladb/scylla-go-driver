@@ -6,7 +6,6 @@ import (
 	"github.com/mmatczuk/scylla-go-driver/frame"
 )
 
-// We want to make sure that parsing does not crush driver even for random data.
 func FuzzAuthResponse(f *testing.F) {
 	f.Add("", "")
 	f.Add("user", "password")

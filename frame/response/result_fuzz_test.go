@@ -13,8 +13,7 @@ var (
 	dummySC *SchemaChangeResult
 )
 
-// We want to make sure that parsing does not crush driver even for random data.
-// We assign result to global variable to avoid compiler optimization.
+// We assign the result to a global variable to avoid compiler optimization.
 func FuzzRowsResult(f *testing.F) {
 	for _, v := range rowsResultTests {
 		f.Add(v)

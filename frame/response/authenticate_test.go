@@ -32,7 +32,7 @@ func TestAuthenticateEncodeDecode(t *testing.T) {
 				t.Fatal(diff)
 			}
 			if len(out.Bytes()) != 0 {
-				t.Fatal("Failure buffer not empty after read.")
+				t.Fatal("failure buffer not empty after read")
 			}
 		})
 	}

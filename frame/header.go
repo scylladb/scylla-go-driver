@@ -6,7 +6,7 @@ type StreamID = int16
 // HeaderSize specifies number of header bytes.
 const HeaderSize = 9
 
-// Header spec https://github.com/apache/cassandra/blob/trunk/doc/native_protocol_v4.spec#L101.
+// Header spec https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L101.
 type Header struct {
 	Version  Byte
 	Flags    HeaderFlags

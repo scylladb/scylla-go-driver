@@ -64,12 +64,12 @@ func TestBatch(t *testing.T) {
 			var buf frame.Buffer
 			tc.content.WriteTo(&buf)
 			if batchType := buf.ReadByte(); batchType != tc.content.Type {
-				t.Fatal("Invalid type.")
+				t.Fatal("invalid type")
 			}
 
 			n := buf.ReadShort()
 			if n != frame.Short(len(tc.content.Queries)) {
-				t.Fatal("Invalid n.")
+				t.Fatal("invalid n")
 			}
 
 			for j := frame.Short(0); j < n; j++ {
@@ -77,23 +77,23 @@ func TestBatch(t *testing.T) {
 			}
 
 			if cons := buf.ReadShort(); cons != tc.content.Consistency {
-				t.Fatal("Invalid consistency.")
+				t.Fatal("invalid consistency")
 			}
 
 			flag := buf.ReadByte()
 			if flag != tc.content.Flags {
-				t.Fatal("Invalid flag.")
+				t.Fatal("invalid flag")
 			}
 
 			if flag&frame.WithSerialConsistency != 0 {
 				if serCons := buf.ReadShort(); serCons != tc.content.SerialConsistency {
-					t.Fatal("Invalid serial consistency.")
+					t.Fatal("invalid serial consistency")
 				}
 			}
 
 			if flag&frame.WithDefaultTimestamp != 0 {
 				if time := buf.ReadLong(); time != tc.content.Timestamp {
-					t.Fatal("Invalid time.")
+					t.Fatal("invalid time")
 				}
 			}
 		})
