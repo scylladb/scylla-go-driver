@@ -147,12 +147,20 @@ func (r *PoolRefiller) init(host string) error {
 		conn.Close()
 		return fmt.Errorf("supported: %w", err)
 	}
-	ss := s.ScyllaSupported()
 
-	if v, ok := s.Options[ScyllaShardAwarePort]; ok {
-		r.addr = net.JoinHostPort(host, v[0])
+	ss := s.ScyllaSupported()
+	if r.cfg.TLSConfig != nil {
+		if v, ok := s.Options[ScyllaShardAwarePortSSL]; ok {
+			r.addr = net.JoinHostPort(host, v[0])
+		} else {
+			return fmt.Errorf("missing encrypted shard aware port information %v", s.Options)
+		}
 	} else {
-		return fmt.Errorf("missing shard aware port information %v", s.Options)
+		if v, ok := s.Options[ScyllaShardAwarePort]; ok {
+			r.addr = net.JoinHostPort(host, v[0])
+		} else {
+			return fmt.Errorf("missing shard aware port information %v", s.Options)
+		}
 	}
 
 	r.pool = ConnPool{

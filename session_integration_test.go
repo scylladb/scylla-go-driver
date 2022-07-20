@@ -3,7 +3,10 @@
 package scylla
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"io/ioutil"
 	"testing"
 
 	"go.uber.org/goleak"
@@ -228,5 +231,110 @@ func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integr
 		if len(m) != N {
 			t.Fatalf("expected %d different rows, got %d", N, len(m))
 		}
+	}
+}
+
+var (
+	caPath   = "testdata/tls/cadb.pem"
+	certPath = "testdata/tls/db.crt"
+	keyPath  = "testdata/tls/db.key"
+)
+
+func newCertPoolFromFile(t *testing.T, path string) *x509.CertPool {
+	certPool := x509.NewCertPool()
+	pem, err := ioutil.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !certPool.AppendCertsFromPEM(pem) {
+		t.Fatalf("failed parsing of CA certs")
+	}
+
+	return certPool
+}
+
+func makeCertificatesFromFiles(t *testing.T, certPath, keyPath string) []tls.Certificate {
+	cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return []tls.Certificate{cert}
+}
+
+func TestTLSIntegration(t *testing.T) {
+	testCases := []struct {
+		name      string
+		tlsConfig *tls.Config
+	}{
+		{
+			name:      "no tls",
+			tlsConfig: nil,
+		},
+		{
+			name: "tls - no client verification",
+			tlsConfig: &tls.Config{
+				RootCAs:            x509.NewCertPool(),
+				InsecureSkipVerify: true,
+				Certificates:       makeCertificatesFromFiles(t, certPath, keyPath),
+			},
+		},
+		{
+			name: "tls - with client verification",
+			tlsConfig: &tls.Config{
+				RootCAs:            newCertPoolFromFile(t, caPath),
+				InsecureSkipVerify: false,
+				ServerName:         "192.168.100.100",
+				Certificates:       makeCertificatesFromFiles(t, certPath, keyPath),
+			},
+		},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := testingSessionConfig.Clone()
+			cfg.TLSConfig = tc.tlsConfig
+			cfg.Keyspace = ""
+			cfg.Hosts = []string{"192.168.100.100"}
+			if cfg.TLSConfig != nil {
+				cfg.DefaultPort = "9142"
+			}
+
+			session, err := NewSession(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			stmts := []string{
+				"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
+				"CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))",
+				"INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')",
+				"INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')",
+			}
+
+			for _, stmt := range stmts {
+				q := session.Query(stmt)
+				if _, err := q.Exec(); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			q := session.Query("SELECT COUNT(*) FROM mykeyspace.users")
+			if r, err := q.Exec(); err != nil {
+				t.Fatal(err)
+			} else {
+				n, err := r.Rows[0][0].AsInt64()
+				t.Log(n)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if n != 2 {
+					t.Fatalf("expected 2, got %d", n)
+				}
+			}
+		})
 	}
 }
