@@ -87,6 +87,8 @@ func (cfg SessionConfig) Clone() SessionConfig {
 	v.Events = make([]EventType, len(cfg.Events))
 	copy(v.Events, cfg.Events)
 
+	v.TLSConfig = v.TLSConfig.Clone()
+
 	return v
 }
 

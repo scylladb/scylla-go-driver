@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bufio"
+	"crypto/tls"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -297,6 +298,10 @@ type ConnConfig struct {
 	TCPNoDelay bool
 	Timeout    time.Duration
 
+	// If not nil, all connections will use TLS according to TLSConfig,
+	// please note that the default port (9042) may not support TLS.
+	TLSConfig *tls.Config
+
 	DefaultConsistency frame.Consistency
 	DefaultPort        string
 
@@ -378,7 +383,32 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 		return nil, fmt.Errorf("set TCP no delay option: %w", err)
 	}
 
+	if cfg.TLSConfig != nil {
+		tConn, err := WrapTLS(tcpConn, cfg.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		return WrapConn(tConn, cfg)
+	}
+
 	return WrapConn(tcpConn, cfg)
+}
+
+func WrapTLS(conn *net.TCPConn, cfg *tls.Config) (net.Conn, error) {
+	cfg = cfg.Clone()
+	tconn := tls.Client(conn, cfg)
+	if err := tconn.Handshake(); err != nil {
+		if err := tconn.Close(); err != nil {
+			log.Printf("%s failed to close: %s", tconn.RemoteAddr(), err)
+		} else {
+			log.Printf("%s closed", tconn.RemoteAddr())
+		}
+
+		return nil, err
+	}
+
+	return tconn, nil
 }
 
 // WrapConn transforms tcp connection to a working Scylla connection.
