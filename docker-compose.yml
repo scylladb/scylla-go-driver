@@ -8,9 +8,24 @@ services:
     ports:
       - "9042:9042"
       - "19042:19042"
+      - "9142:9142"
+      - "19142:19142"
     networks:
       public:
         ipv4_address: 192.168.100.100
+    volumes:
+    - type: bind
+      source: ./testdata/config/scylla.yaml
+      target: /etc/scylla/scylla.yaml
+    - type: bind
+      source: ./testdata/tls/cadb.pem
+      target: /etc/scylla/cadb.pem
+    - type: bind
+      source: ./testdata/tls/db.crt
+      target: /etc/scylla/db.crt
+    - type: bind
+      source: ./testdata/tls/db.key
+      target: /etc/scylla/db.key
 
 networks:
   public:
