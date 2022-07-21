@@ -2,6 +2,7 @@ package transport
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"errors"
@@ -60,7 +61,7 @@ func (c *connWriter) submit(r request) {
 	c.requestCh <- r
 }
 
-func (c *connWriter) loop() {
+func (c *connWriter) loop(ctx context.Context) {
 	for {
 		size := len(c.requestCh)
 		// If there are no requests backoff.
@@ -81,7 +82,7 @@ func (c *connWriter) loop() {
 				return
 			}
 			c.stats.inQueue.Dec()
-			if err := c.send(r); err != nil {
+			if err := c.send(ctx, r); err != nil {
 				log.Printf("%s fatal send error, closing connection due to %s", c.connString(), err)
 				r.ResponseHandler <- response{Err: fmt.Errorf("%s send: %w", c.connString(), err)}
 				c.connClose()
@@ -97,7 +98,7 @@ func (c *connWriter) loop() {
 	}
 }
 
-func (c *connWriter) send(r request) error {
+func (c *connWriter) send(ctx context.Context, r request) error {
 	c.buf.Reset()
 
 	// Dump request with header to buffer
@@ -114,11 +115,15 @@ func (c *connWriter) send(r request) error {
 	l := uint32(len(b) - frame.HeaderSize)
 	binary.BigEndian.PutUint32(b[5:9], l)
 
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("send cancelled due to %w", err)
+	}
+
 	// Send
 	var err error
 	if r.Compress {
 		if c.compr != nil {
-			_, err = c.compr.compress(c.conn, c.buf.BytesBuffer())
+			_, err = c.compr.compress(ctx, c.conn, c.buf.BytesBuffer())
 		} else {
 			return errComprUnspecified
 		}
@@ -171,6 +176,7 @@ func (c *connReader) handler(streamID frame.StreamID) ResponseHandler {
 	return h
 }
 
+// loop terminates when its connection gets closed by the pool, especially when session context is done.
 func (c *connReader) loop() {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
@@ -334,11 +340,11 @@ const (
 )
 
 // OpenShardConn opens connection mapped to a specific shard on Scylla node.
-func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) {
+func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) {
 	it := ShardPortIterator(si)
 	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
 	for i := 0; i < maxTries; i++ {
-		conn, err := OpenLocalPortConn(addr, it(), cfg)
+		conn, err := OpenLocalPortConn(ctx, addr, it(), cfg)
 		if err != nil {
 			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
 			if conn != nil {
@@ -355,25 +361,25 @@ func OpenShardConn(addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) {
 // OpenLocalPortConn opens connection on a given local port.
 //
 // If error and connection are returned the connection is not valid and must be closed by the caller.
-func OpenLocalPortConn(addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
+func OpenLocalPortConn(ctx context.Context, addr string, localPort uint16, cfg ConnConfig) (*Conn, error) {
 	localAddr, err := net.ResolveTCPAddr("tcp", ":"+strconv.Itoa(int(localPort)))
 	if err != nil {
 		return nil, fmt.Errorf("resolve local TCP address: %w", err)
 	}
 
-	return OpenConn(addr, localAddr, cfg)
+	return OpenConn(ctx, addr, localAddr, cfg)
 }
 
 // OpenConn opens connection with specific local address.
 // In case lAddr is nil, random local address is used.
 //
 // If error and connection are returned the connection is not valid and must be closed by the caller.
-func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error) {
+func OpenConn(ctx context.Context, addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error) {
 	d := net.Dialer{
 		Timeout:   cfg.Timeout,
 		LocalAddr: localAddr,
 	}
-	conn, err := d.Dial("tcp", withPort(addr, cfg.DefaultPort))
+	conn, err := d.DialContext(ctx, "tcp", withPort(addr, cfg.DefaultPort))
 	if err != nil {
 		return nil, fmt.Errorf("dial TCP address %s: %w", addr, err)
 	}
@@ -384,21 +390,21 @@ func OpenConn(addr string, localAddr *net.TCPAddr, cfg ConnConfig) (*Conn, error
 	}
 
 	if cfg.TLSConfig != nil {
-		tConn, err := WrapTLS(tcpConn, cfg.TLSConfig)
+		tConn, err := WrapTLS(ctx, tcpConn, cfg.TLSConfig)
 		if err != nil {
 			return nil, err
 		}
 
-		return WrapConn(tConn, cfg)
+		return WrapConn(ctx, tConn, cfg)
 	}
 
-	return WrapConn(tcpConn, cfg)
+	return WrapConn(ctx, tcpConn, cfg)
 }
 
-func WrapTLS(conn *net.TCPConn, cfg *tls.Config) (net.Conn, error) {
+func WrapTLS(ctx context.Context, conn *net.TCPConn, cfg *tls.Config) (net.Conn, error) {
 	cfg = cfg.Clone()
 	tconn := tls.Client(conn, cfg)
-	if err := tconn.Handshake(); err != nil {
+	if err := tconn.HandshakeContext(ctx); err != nil {
 		if err := tconn.Close(); err != nil {
 			log.Printf("%s failed to close: %s", tconn.RemoteAddr(), err)
 		} else {
@@ -413,7 +419,7 @@ func WrapTLS(conn *net.TCPConn, cfg *tls.Config) (net.Conn, error) {
 
 // WrapConn transforms tcp connection to a working Scylla connection.
 // If error and connection are returned the connection is not valid and must be closed by the caller.
-func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
+func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error) {
 	s := new(stats)
 	c := new(Conn)
 	*c = Conn{
@@ -455,10 +461,10 @@ func WrapConn(conn net.Conn, cfg ConnConfig) (*Conn, error) {
 		}
 	}
 
-	go c.w.loop()
+	go c.w.loop(ctx)
 	go c.r.loop()
 
-	if err := c.init(); err != nil {
+	if err := c.init(ctx); err != nil {
 		return c, err
 	}
 
@@ -492,7 +498,7 @@ func validateKeyspace(keyspace string) error {
 
 const cqlVersion = "3.0.0"
 
-func (c *Conn) init() error {
+func (c *Conn) init(ctx context.Context) error {
 	if s, err := c.Supported(); err != nil {
 		return fmt.Errorf("supported: %w", err)
 	} else {

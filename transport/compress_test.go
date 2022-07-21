@@ -2,9 +2,12 @@ package transport
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"io"
 	"math/rand"
+	"os/signal"
+	"syscall"
 	"testing"
 
 	"github.com/klauspost/compress/s2"
@@ -132,7 +135,10 @@ func testLz4(t *testing.T, c *compr, compress bool, data *comprData) {
 }
 
 func testCompress(t *testing.T, c *compr, dst, src *bytes.Buffer, target []byte) {
-	n, err := c.compress(dst, src)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	n, err := c.compress(ctx, dst, src)
 	if err != nil {
 		t.Fatal("error in compression", err)
 	}

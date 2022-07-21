@@ -1,6 +1,7 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -124,7 +125,7 @@ func (c *Cluster) generateOffset() uint64 {
 }
 
 // NewCluster also creates control connection and starts handling events and refreshing topology.
-func NewCluster(cfg ConnConfig, p HostSelectionPolicy, e []frame.EventType, hosts ...string) (*Cluster, error) {
+func NewCluster(ctx context.Context, cfg ConnConfig, p HostSelectionPolicy, e []frame.EventType, hosts ...string) (*Cluster, error) {
 	kh := make(map[string]struct{}, len(hosts))
 	for _, h := range hosts {
 		kh[h] = struct{}{}
@@ -145,24 +146,24 @@ func NewCluster(cfg ConnConfig, p HostSelectionPolicy, e []frame.EventType, host
 	}
 	c.setTopology(&topology{localDC: localDC})
 
-	if control, err := c.NewControl(); err != nil {
+	if control, err := c.NewControl(ctx); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
 	} else {
 		c.control = control
 	}
-	if err := c.refreshTopology(); err != nil {
+	if err := c.refreshTopology(ctx); err != nil {
 		return nil, fmt.Errorf("refresh topology: %w", err)
 	}
 
-	go c.loop()
+	go c.loop(ctx)
 	return c, nil
 }
 
-func (c *Cluster) NewControl() (*Conn, error) {
+func (c *Cluster) NewControl(ctx context.Context) (*Conn, error) {
 	log.Printf("cluster: open control connection")
 	var errs []string
 	for addr := range c.knownHosts {
-		conn, err := OpenConn(addr, nil, c.cfg)
+		conn, err := OpenConn(ctx, addr, nil, c.cfg)
 		if err == nil {
 			if err := conn.RegisterEventHandler(c.handleEvent, c.handledEvents...); err == nil {
 				return conn, nil
@@ -182,9 +183,9 @@ func (c *Cluster) NewControl() (*Conn, error) {
 
 // refreshTopology creates new topology filled with the result of keyspaceQuery, localQuery and peerQuery.
 // Old topology is replaced with the new one atomically to prevent dirty reads.
-func (c *Cluster) refreshTopology() error {
+func (c *Cluster) refreshTopology(ctx context.Context) error {
 	log.Printf("cluster: refresh topology")
-	rows, err := c.getAllNodesInfo()
+	rows, err := c.getAllNodesInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("query info about nodes in cluster: %w", err)
 	}
@@ -192,7 +193,7 @@ func (c *Cluster) refreshTopology() error {
 	old := c.Topology().peers
 	t := newTopology()
 	t.localDC = c.Topology().localDC
-	t.keyspaces, err = c.updateKeyspace()
+	t.keyspaces, err = c.updateKeyspace(ctx)
 	if err != nil {
 		return fmt.Errorf("query keyspaces: %w", err)
 	}
@@ -213,7 +214,7 @@ func (c *Cluster) refreshTopology() error {
 			n.pool = node.pool
 			n.setStatus(node.Status())
 		} else {
-			if pool, err := NewConnPool(n.addr, c.cfg); err != nil {
+			if pool, err := NewConnPool(ctx, n.addr, c.cfg); err != nil {
 				n.setStatus(statusDown)
 			} else {
 				n.setStatus(statusUP)
@@ -290,7 +291,7 @@ const (
 	replicationIndex = 1
 )
 
-func (c *Cluster) getAllNodesInfo() ([]frame.Row, error) {
+func (c *Cluster) getAllNodesInfo(ctx context.Context) ([]frame.Row, error) {
 	peerRes, err := c.control.Query(peerQuery, nil)
 	if err != nil {
 		return nil, fmt.Errorf("discover peer topology: %w", err)
@@ -343,7 +344,7 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 	}, nil
 }
 
-func (c *Cluster) updateKeyspace() (ksMap, error) {
+func (c *Cluster) updateKeyspace(ctx context.Context) (ksMap, error) {
 	rows, err := c.control.Query(keyspaceQuery, nil)
 	if err != nil {
 		return nil, err
@@ -497,19 +498,24 @@ func (c *Cluster) handleStatusChange(v *StatusChange) {
 const refreshInterval = 60 * time.Second
 
 // loop handles cluster requests.
-func (c *Cluster) loop() {
+func (c *Cluster) loop(ctx context.Context) {
 	ticker := time.NewTicker(refreshInterval)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-c.refreshChan:
-			c.tryRefresh()
+			c.tryRefresh(ctx)
 		case <-c.reopenControlChan:
-			c.tryReopenControl()
+			c.tryReopenControl(ctx)
+		case <-ctx.Done():
+			log.Printf("cluster closing due to: %v", ctx.Err())
+			c.handleClose()
+			return
 		case <-c.closeChan:
 			c.handleClose()
 			return
 		case <-ticker.C:
-			c.tryRefresh()
+			c.tryRefresh(ctx)
 		}
 	}
 }
@@ -518,8 +524,8 @@ const tryRefreshInterval = time.Second
 
 // tryRefresh refreshes cluster topology.
 // In case of error tries to reopen control connection and tries again.
-func (c *Cluster) tryRefresh() {
-	if err := c.refreshTopology(); err != nil {
+func (c *Cluster) tryRefresh(ctx context.Context) {
+	if err := c.refreshTopology(ctx); err != nil {
 		c.RequestReopenControl()
 		time.AfterFunc(tryRefreshInterval, c.RequestRefresh)
 		log.Printf("cluster: refresh topology: %v", err)
@@ -528,9 +534,9 @@ func (c *Cluster) tryRefresh() {
 
 const tryReopenControlInterval = time.Second
 
-func (c *Cluster) tryReopenControl() {
+func (c *Cluster) tryReopenControl(ctx context.Context) {
 	log.Printf("cluster: reopen control connection")
-	if control, err := c.NewControl(); err != nil {
+	if control, err := c.NewControl(ctx); err != nil {
 		time.AfterFunc(tryReopenControlInterval, c.RequestReopenControl)
 		log.Printf("cluster: failed to reopen control connection: %v", err)
 	} else {

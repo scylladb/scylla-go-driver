@@ -3,11 +3,14 @@
 package transport
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"testing"
 
 	"github.com/scylladb/scylla-go-driver/frame"
@@ -16,13 +19,16 @@ import (
 )
 
 func TestOpenShardConnIntegration(t *testing.T) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
 	si := ShardInfo{
 		NrShards: 4,
 	}
 
 	for i := uint16(0); i < si.NrShards; i++ {
 		si.Shard = i
-		c, err := OpenShardConn(TestHost+":19042", si, DefaultConnConfig(""))
+		c, err := OpenShardConn(ctx, TestHost+":19042", si, DefaultConnConfig(""))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -38,8 +44,8 @@ type connTestHelper struct {
 	conn *Conn
 }
 
-func newConnTestHelper(t testing.TB) *connTestHelper {
-	conn, err := OpenConn(TestHost, nil, DefaultConnConfig(""))
+func newConnTestHelper(ctx context.Context, t testing.TB) *connTestHelper {
+	conn, err := OpenConn(ctx, TestHost, nil, DefaultConnConfig(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,7 +90,10 @@ func cqlText(s string) frame.CqlValue {
 }
 
 func TestConnMassiveQueryIntegration(t *testing.T) {
-	h := newConnTestHelper(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	h := newConnTestHelper(ctx, t)
 	h.setupMassiveUsersTable()
 	defer h.close()
 
@@ -132,7 +141,10 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 }
 
 func TestCloseHangingIntegration(t *testing.T) {
-	h := newConnTestHelper(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	h := newConnTestHelper(ctx, t)
 	h.applyFixture()
 	defer h.close()
 
@@ -200,26 +212,29 @@ func (h *connTestHelper) execCompression(cql string) {
 }
 
 func TestCompressionIntegration(t *testing.T) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
 	toSend := make([]byte, (1 << 20)) // 1MB
 	for i := 0; i < (1 << 20); i++ {
 		toSend[i] = 'a' + byte(rand.Intn(26))
 	}
 	t.Run("snappy", func(t *testing.T) {
-		testCompression(t, frame.Snappy, []byte("rick"))
-		testCompression(t, frame.Snappy, toSend)
+		testCompression(ctx, t, frame.Snappy, []byte("rick"))
+		testCompression(ctx, t, frame.Snappy, toSend)
 	})
 	t.Run("lz4", func(t *testing.T) {
-		testCompression(t, frame.Lz4, []byte("rick"))
-		testCompression(t, frame.Lz4, toSend)
+		testCompression(ctx, t, frame.Lz4, []byte("rick"))
+		testCompression(ctx, t, frame.Lz4, toSend)
 	})
 }
 
-func testCompression(t *testing.T, c frame.Compression, toSend []byte) {
+func testCompression(ctx context.Context, t *testing.T, c frame.Compression, toSend []byte) {
 	t.Helper()
 
 	cfg := DefaultConnConfig("")
 	cfg.Compression = c
-	conn, err := OpenConn(TestHost, nil, cfg)
+	conn, err := OpenConn(ctx, TestHost, nil, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}

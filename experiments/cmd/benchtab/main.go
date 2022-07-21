@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"os/signal"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/pkg/profile"
@@ -14,6 +17,9 @@ const insertStmt = "INSERT INTO benchtab (pk, v1, v2) VALUES(?, ?, ?)"
 const selectStmt = "SELECT v1, v2 FROM benchtab WHERE pk = ?"
 
 func main() {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
 	config := readConfig()
 	log.Printf("Config %#+v", config)
 
@@ -34,7 +40,7 @@ func main() {
 	cfg.Password = config.password
 
 	if !config.dontPrepare {
-		initSession, err := scylla.NewSession(cfg)
+		initSession, err := scylla.NewSession(ctx, cfg)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -43,7 +49,7 @@ func main() {
 	}
 
 	cfg.Keyspace = config.keyspace
-	session, err := scylla.NewSession(cfg)
+	session, err := scylla.NewSession(ctx, cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
