@@ -3,11 +3,18 @@
 package scylla
 
 import (
+	"context"
+	"os/signal"
+	"syscall"
 	"testing"
 )
 
 func BenchmarkSessionQueryIntegration(b *testing.B) {
-	session := newTestSession(b)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, b)
+	defer session.Close()
 
 	initStmts := []string{
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
@@ -67,7 +74,11 @@ func BenchmarkSessionQueryIntegration(b *testing.B) {
 }
 
 func BenchmarkSessionAsyncQueryIntegration(b *testing.B) {
-	session := newTestSession(b)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, b)
+	defer session.Close()
 
 	initStmts := []string{
 		"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",

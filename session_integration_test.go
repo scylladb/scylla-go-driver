@@ -3,11 +3,14 @@
 package scylla
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 
@@ -18,12 +21,12 @@ const TestHost = "192.168.100.100"
 
 var testingSessionConfig = DefaultSessionConfig("mykeyspace", TestHost)
 
-func initKeyspace(t testing.TB) {
+func initKeyspace(ctx context.Context, t testing.TB) {
 	t.Helper()
 
 	cfg := testingSessionConfig
 	cfg.Keyspace = ""
-	s, err := NewSession(cfg)
+	s, err := NewSession(ctx, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,11 +38,11 @@ func initKeyspace(t testing.TB) {
 	s.Close()
 }
 
-func newTestSession(t testing.TB) *Session {
+func newTestSession(ctx context.Context, t testing.TB) *Session {
 	t.Helper()
 
-	initKeyspace(t)
-	s, err := NewSession(testingSessionConfig)
+	initKeyspace(ctx, t)
+	s, err := NewSession(ctx, testingSessionConfig)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,7 +51,10 @@ func newTestSession(t testing.TB) *Session {
 
 func TestSessionIntegration(t *testing.T) {
 	defer goleak.VerifyNone(t)
-	session := newTestSession(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
 	defer session.Close()
 
 	stmts := []string{
@@ -97,7 +103,10 @@ const (
 
 func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Integration tests are not run in parallel!
 	defer goleak.VerifyNone(t)
-	session := newTestSession(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
 	defer session.Close()
 
 	initStmts := []string{
@@ -156,7 +165,10 @@ func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Int
 
 func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integration tests are not run in parallel!
 	defer goleak.VerifyNone(t)
-	session := newTestSession(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
 	defer session.Close()
 
 	initStmts := []string{
@@ -267,6 +279,8 @@ func makeCertificatesFromFiles(t *testing.T, certPath, keyPath string) []tls.Cer
 
 func TestTLSIntegration(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
 
 	testCases := []struct {
 		name      string
@@ -306,7 +320,7 @@ func TestTLSIntegration(t *testing.T) {
 				cfg.DefaultPort = "9142"
 			}
 
-			session, err := NewSession(cfg)
+			session, err := NewSession(ctx, cfg)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -346,14 +360,11 @@ func TestTLSIntegration(t *testing.T) {
 
 func TestPrepareIntegration(t *testing.T) {
 	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
 
-	cfg := DefaultSessionConfig("", TestHost)
-	session, err := NewSession(cfg)
+	session := newTestSession(ctx, t)
 	defer session.Close()
-
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	initStmts := []string{
 		"DROP KEYSPACE IF EXISTS testks",

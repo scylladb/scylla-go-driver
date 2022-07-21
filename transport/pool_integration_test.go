@@ -3,15 +3,18 @@
 package transport
 
 import (
+	"context"
 	"math"
+	"os/signal"
+	"syscall"
 	"testing"
 	"time"
 )
 
 const refillerBackoff = 500 * time.Millisecond
 
-func newTestConnPool(t *testing.T) *ConnPool {
-	p, err := NewConnPool(TestHost, DefaultConnConfig(""))
+func newTestConnPool(ctx context.Context, t *testing.T) *ConnPool {
+	p, err := NewConnPool(ctx, TestHost, DefaultConnConfig(""))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -30,8 +33,10 @@ func newTestConnPool(t *testing.T) *ConnPool {
 }
 
 func TestConnPoolIntegration(t *testing.T) {
-	p := newTestConnPool(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
 
+	p := newTestConnPool(ctx, t)
 	t.Log("Close connections")
 	for _, c := range p.AllConns() {
 		c.Close()
@@ -60,7 +65,10 @@ func TestConnPoolIntegration(t *testing.T) {
 }
 
 func TestConnPoolConnIntegration(t *testing.T) {
-	p := newTestConnPool(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	p := newTestConnPool(ctx, t)
 	defer p.Close()
 
 	t0 := MurmurToken([]byte(""))
