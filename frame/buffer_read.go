@@ -381,8 +381,8 @@ func (b *Buffer) ReadOption() Option {
 	switch id {
 	case CustomID:
 		return Option{
-			ID:     id,
-			Custom: b.ReadCustomOption(),
+			ID:           id,
+			CustomOption: b.ReadCustomOption(),
 		}
 	case ListID:
 		return Option{

@@ -3,6 +3,7 @@ package scylla
 import (
 	"fmt"
 
+	"github.com/gocql/gocql"
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
 )
@@ -14,9 +15,13 @@ type Query struct {
 	exec      func(*transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
 	asyncExec func(*transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
 	res       []transport.ResponseHandler
+	err       []error
 }
 
 func (q *Query) Exec() (Result, error) {
+	if q.err != nil {
+		return Result{}, fmt.Errorf("%v", q.err)
+	}
 	conn, err := q.pickConn()
 	if err != nil {
 		return Result{}, err
@@ -109,25 +114,6 @@ func (q *Query) info(token transport.Token, tokenAware bool) (transport.QueryInf
 	}
 
 	return q.session.cluster.NewQueryInfo(), nil
-}
-
-func (q *Query) BindInt64(pos int, v int64) *Query {
-	p := &q.stmt.Values[pos]
-	if p.N == 0 {
-		p.N = 8
-		p.Bytes = make([]byte, 8)
-	}
-
-	p.Bytes[0] = byte(v >> 56)
-	p.Bytes[1] = byte(v >> 48)
-	p.Bytes[2] = byte(v >> 40)
-	p.Bytes[3] = byte(v >> 32)
-	p.Bytes[4] = byte(v >> 24)
-	p.Bytes[5] = byte(v >> 16)
-	p.Bytes[6] = byte(v >> 8)
-	p.Bytes[7] = byte(v)
-
-	return q
 }
 
 func (q *Query) SetPageSize(v int32) {
@@ -259,4 +245,71 @@ func (w *iterWorker) loop() {
 			return
 		}
 	}
+}
+
+// BindAny allows binding any value to the bind marker at given pos in query,
+// it shouldn't be used on non-prepared queries, as it will always result in query execution error later.
+func (q *Query) BindAny(pos int, x any) *Query {
+	if q.stmt.Metadata == nil {
+		q.err = append(q.err, fmt.Errorf("binding any to unprepared queries is not supported"))
+		return q
+	}
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	var err error
+	q.stmt.Values[pos].Bytes, err = gocql.Marshal(q.stmt.Values[pos].Type, x)
+	if err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+	q.stmt.Values[pos].N = int32(len(q.stmt.Values[pos].Bytes))
+
+	return q
+}
+
+func (q *Query) checkBounds(pos int) error {
+	if q.stmt.Metadata != nil {
+		if pos < 0 || pos >= len(q.stmt.Values) {
+			return fmt.Errorf("no bind marker with position %d", pos)
+		}
+
+		return nil
+	}
+
+	for i := len(q.stmt.Values); i <= pos; i++ {
+		q.stmt.Values = append(q.stmt.Values, frame.Value{})
+	}
+	return nil
+}
+
+func (q *Query) BindInt64(pos int, v int64) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	p := &q.stmt.Values[pos]
+	if p.Type != nil && p.Type.ID != frame.BigIntID {
+		q.err = append(q.err, fmt.Errorf("can't bind int64 to the bind marker with position %d", pos))
+		return q
+	}
+
+	if p.N != 8 {
+		p.N = 8
+		p.Bytes = make([]byte, 8)
+	}
+
+	p.Bytes[0] = byte(v >> 56)
+	p.Bytes[1] = byte(v >> 48)
+	p.Bytes[2] = byte(v >> 40)
+	p.Bytes[3] = byte(v >> 32)
+	p.Bytes[4] = byte(v >> 24)
+	p.Bytes[5] = byte(v >> 16)
+	p.Bytes[6] = byte(v >> 8)
+	p.Bytes[7] = byte(v)
+
+	return q
 }

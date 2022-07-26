@@ -1,7 +1,14 @@
 package frame
 
 import (
+	"fmt"
+	"math/big"
 	"net"
+	"reflect"
+	"time"
+
+	"github.com/gocql/gocql"
+	"gopkg.in/inf.v0"
 )
 
 // Generic types from CQL binary protocol.
@@ -22,6 +29,7 @@ type (
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L229-L233
 type Value struct {
+	Type  *Option
 	N     Int
 	Bytes Bytes
 }
@@ -392,13 +400,103 @@ type TupleOption struct {
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L236-L239
 type Option struct {
-	ID     OptionID
-	Custom *CustomOption
-	List   *ListOption
-	Map    *MapOption
-	Set    *SetOption
-	UDT    *UDTOption
-	Tuple  *TupleOption
+	ID           OptionID
+	CustomOption *CustomOption
+	List         *ListOption
+	Map          *MapOption
+	Set          *SetOption
+	UDT          *UDTOption
+	Tuple        *TupleOption
+}
+
+func (o *Option) Type() gocql.Type {
+	return gocql.Type(o.ID)
+}
+
+func (o *Option) Version() byte {
+	return CQLv4
+}
+
+func (o *Option) Custom() string {
+	return ""
+}
+
+func (o *Option) New() interface{} {
+	return nil
+}
+
+func (o *Option) NewWithError() (interface{}, error) {
+	typ, err := goType(o)
+	if err != nil {
+		return nil, err
+	}
+	return reflect.New(typ).Interface(), nil
+}
+
+func goType(o *Option) (reflect.Type, error) {
+	switch o.Type() {
+	case gocql.TypeVarchar, gocql.TypeAscii, gocql.TypeInet, gocql.TypeText:
+		return reflect.TypeOf(string("")), nil
+	case gocql.TypeBigInt, gocql.TypeCounter:
+		return reflect.TypeOf(int64(0)), nil
+	case gocql.TypeTime:
+		return reflect.TypeOf(time.Duration(0)), nil
+	case gocql.TypeTimestamp:
+		return reflect.TypeOf(time.Time{}), nil
+	case gocql.TypeBlob:
+		return reflect.TypeOf([]byte(nil)), nil
+	case gocql.TypeBoolean:
+		return reflect.TypeOf(false), nil
+	case gocql.TypeFloat:
+		return reflect.TypeOf(float32(0.0)), nil
+	case gocql.TypeDouble:
+		return reflect.TypeOf(float64(0.0)), nil
+	case gocql.TypeInt:
+		return reflect.TypeOf(int(0)), nil
+	case gocql.TypeSmallInt:
+		return reflect.TypeOf(int16(0)), nil
+	case gocql.TypeTinyInt:
+		return reflect.TypeOf(int8(0)), nil
+	case gocql.TypeDecimal:
+		return reflect.TypeOf((*inf.Dec)(nil)), nil
+	case gocql.TypeUUID, gocql.TypeTimeUUID:
+		return reflect.TypeOf(UUID{}), nil
+	case gocql.TypeList:
+		elemType, err := goType(&o.List.Element)
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(elemType), nil
+	case gocql.TypeSet:
+		elemType, err := goType(&o.Set.Element)
+		if err != nil {
+			return nil, err
+		}
+		return reflect.SliceOf(elemType), nil
+	case gocql.TypeMap:
+		keyType, err := goType(&o.Map.Key)
+		if err != nil {
+			return nil, err
+		}
+		valueType, err := goType(&o.Map.Value)
+		if err != nil {
+			return nil, err
+		}
+		return reflect.MapOf(keyType, valueType), nil
+	case gocql.TypeVarint:
+		return reflect.TypeOf((*big.Int)(nil)), nil
+	case gocql.TypeTuple:
+		// what can we do here? all there is to do is to make a list of interface{}
+		return reflect.TypeOf(make([]interface{}, len(o.Tuple.ValueTypes))), nil
+	case gocql.TypeUDT:
+		return reflect.TypeOf(make(map[string]interface{})), nil
+	case gocql.TypeDate:
+		return reflect.TypeOf(time.Time{}), nil
+	case gocql.TypeDuration:
+		return reflect.TypeOf(gocql.Duration{}), nil
+	default:
+		return nil, fmt.Errorf("cannot create Go type for unknown CQL type ID=%d", o.ID)
+	}
 }
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L240
