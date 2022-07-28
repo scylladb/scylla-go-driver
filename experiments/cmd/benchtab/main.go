@@ -92,7 +92,7 @@ func benchmark(config *Config, session *scylla.Session) {
 
 				for pk := curBatchStart; pk < curBatchEnd; pk++ {
 					if config.workload == Inserts || config.workload == Mixed {
-						_, err := insertQ.BindInt64(0, pk).BindInt64(1, 2*pk).BindInt64(2, 3*pk).Exec()
+						_, err := insertQ.BindAny(0, pk).BindAny(1, 2*pk).BindAny(2, 3*pk).Exec()
 						if err != nil {
 							panic(err)
 						}
@@ -100,16 +100,16 @@ func benchmark(config *Config, session *scylla.Session) {
 
 					if config.workload == Selects || config.workload == Mixed {
 						var v1, v2 int64
-						res, err := selectQ.BindInt64(0, pk).Exec()
+						res, err := selectQ.BindAny(0, pk).Exec()
 						if err != nil {
 							panic(err)
 						}
 
-						v1, err = res.Rows[0][0].AsInt64()
+						err = res.Rows[0][0].Unmarshal(&v1)
 						if err != nil {
 							log.Fatal(err)
 						}
-						v2, err = res.Rows[0][1].AsInt64()
+						err = res.Rows[0][1].Unmarshal(&v2)
 						if err != nil {
 							log.Fatal(err)
 						}
@@ -175,9 +175,9 @@ func asyncBenchmark(config *Config, session *scylla.Session) {
 
 func asyncInserts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
-		insertQ.BindInt64(0, pk)
-		insertQ.BindInt64(1, 2*pk)
-		insertQ.BindInt64(2, 3*pk)
+		insertQ.BindAny(0, pk)
+		insertQ.BindAny(1, 2*pk)
+		insertQ.BindAny(2, 3*pk)
 		insertQ.AsyncExec()
 	}
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
@@ -189,7 +189,7 @@ func asyncInserts(insertQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 
 func asyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
-		selectQ.BindInt64(0, pk)
+		selectQ.BindAny(0, pk)
 		selectQ.AsyncExec()
 	}
 	for pk := curBatchStart; pk < curBatchEnd; pk++ {
@@ -202,11 +202,12 @@ func asyncSelects(selectQ *scylla.Query, curBatchStart, curBatchEnd int64) {
 			log.Fatalf("expected 1 row, got %d", len(res.Rows))
 		}
 
-		v1, err := res.Rows[0][0].AsInt64()
+		var v1, v2 int64
+		err = res.Rows[0][0].Unmarshal(&v1)
 		if err != nil {
 			log.Fatal(err)
 		}
-		v2, err := res.Rows[0][1].AsInt64()
+		err = res.Rows[0][1].Unmarshal(&v2)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -266,9 +267,9 @@ func initSelectsBenchmark(session *scylla.Session, config Config) {
 				curBatchEnd := min(curBatchStart+config.batchSize, config.tasks)
 
 				for pk := curBatchStart; pk < curBatchEnd; pk++ {
-					insertQ.BindInt64(0, pk)
-					insertQ.BindInt64(1, 2*pk)
-					insertQ.BindInt64(2, 3*pk)
+					insertQ.BindAny(0, pk)
+					insertQ.BindAny(1, 2*pk)
+					insertQ.BindAny(2, 3*pk)
 					if _, err := insertQ.Exec(); err != nil {
 						log.Fatal(err)
 					}
