@@ -6,8 +6,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"go.uber.org/goleak"
 )
@@ -336,5 +338,65 @@ func TestTLSIntegration(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPrepareIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
+	cfg := DefaultSessionConfig("", TestHost)
+	session, err := NewSession(cfg)
+	defer session.Close()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	initStmts := []string{
+		"DROP KEYSPACE IF EXISTS testks",
+		"CREATE KEYSPACE IF NOT EXISTS testks WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
+		"CREATE TABLE IF NOT EXISTS testks.doubles (pk bigint PRIMARY KEY, v bigint)",
+	}
+
+	for _, stmt := range initStmts {
+		q := session.Query(stmt)
+		if _, err := q.Exec(); err != nil {
+			t.Fatal(err)
+		}
+
+		// Await schema agreement, TODO: implement true schema agreement.
+		time.Sleep(time.Second)
+	}
+
+	q, err := session.Prepare("INSERT INTO testks.doubles (pk, v) VALUES (?, ?)")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i := int64(0); i < 1000; i++ {
+		_, err := q.BindInt64(0, i).BindInt64(1, 2*i).Exec()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	for i := int64(0); i < 1000; i++ {
+		q, err := session.Prepare("SELECT v FROM testks.doubles WHERE pk = " + fmt.Sprint(i))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for rep := 0; rep < 3; rep++ {
+			res, err := q.Exec()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if v, err := res.Rows[0][0].AsInt64(); err != nil {
+				t.Fatal(err)
+			} else if v != 2*i {
+				t.Fatalf("expected %d, got %d", 2*i, v)
+			}
+		}
 	}
 }

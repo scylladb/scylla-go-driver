@@ -20,7 +20,7 @@ func mockTopologyRoundRobin() *topology {
 	}
 
 	return &topology{
-		nodes: dummyNodes,
+		Nodes: dummyNodes,
 	}
 }
 
@@ -173,7 +173,7 @@ func mockTopologyTokenAwareSimpleStrategy() *topology {
 	}
 
 	return &topology{
-		nodes: dummyNodes,
+		Nodes: dummyNodes,
 		policyInfo: policyInfo{
 			ring: ring,
 		},
@@ -288,7 +288,7 @@ func mockTopologyTokenAwareDCAwareStrategy() *topology {
 
 	return &topology{
 		dcRacks:    dcs,
-		nodes:      dummyNodes,
+		Nodes:      dummyNodes,
 		policyInfo: policyInfo{ring: ring},
 		keyspaces:  ks,
 	}

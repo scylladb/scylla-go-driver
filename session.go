@@ -3,6 +3,7 @@ package scylla
 import (
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/mmatczuk/scylla-go-driver/frame"
 	"github.com/mmatczuk/scylla-go-driver/transport"
@@ -147,24 +148,39 @@ func (s *Session) Query(content string) Query {
 }
 
 func (s *Session) Prepare(content string) (Query, error) {
-	n := s.policy.Node(s.cluster.NewQueryInfo(), 0)
-	conn := n.LeastBusyConn()
-	if conn == nil {
-		return Query{}, errNoConnection
+	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
+
+	// Prepare on all nodes concurrently.
+	nodes := s.cluster.Topology().Nodes
+	resStmt := make([]transport.Statement, len(nodes))
+	resErr := make([]error, len(nodes))
+	var wg sync.WaitGroup
+	for i := range nodes {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			resStmt[idx], resErr[idx] = nodes[idx].Prepare(stmt)
+		}(i)
+	}
+	wg.Wait()
+
+	// Find first result that succeeded.
+	for i := range nodes {
+		if resErr[i] == nil {
+			return Query{
+				session: s,
+				stmt:    resStmt[i],
+				exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
+					return conn.Execute(stmt, pagingState)
+				},
+				asyncExec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
+					conn.AsyncExecute(stmt, pagingState, handler)
+				},
+			}, nil
+		}
 	}
 
-	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
-	res, err := conn.Prepare(stmt)
-
-	return Query{session: s,
-		stmt: res,
-		exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
-			return conn.Execute(stmt, pagingState)
-		},
-		asyncExec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
-			conn.AsyncExecute(stmt, pagingState, handler)
-		},
-	}, err
+	return Query{}, fmt.Errorf("prepare failed on all nodes, details: %v", resErr)
 }
 
 func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
