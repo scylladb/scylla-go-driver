@@ -41,7 +41,7 @@ type topology struct {
 	localDC    string
 	peers      peerMap
 	dcRacks    dcRacksMap
-	nodes      []*Node
+	Nodes      []*Node
 	policyInfo policyInfo
 	keyspaces  ksMap
 }
@@ -94,6 +94,10 @@ func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) 
 	top := c.Topology()
 	// When keyspace is not specified, we take default keyspace from ConnConfig.
 	if ks == "" {
+		if c.cfg.Keyspace == "" {
+			// We don't know anything about the keyspace, fallback to non-token aware query.
+			return c.NewQueryInfo(), nil
+		}
 		ks = c.cfg.Keyspace
 	}
 	if stg, ok := top.keyspaces[ks]; ok {
@@ -219,7 +223,7 @@ func (c *Cluster) refreshTopology() error {
 		// Every encountered node becomes known host for future use.
 		c.knownHosts[n.addr] = struct{}{}
 		t.peers[n.addr] = n
-		t.nodes = append(t.nodes, n)
+		t.Nodes = append(t.Nodes, n)
 		u[uniqueRack{dc: n.datacenter, rack: n.rack}] = struct{}{}
 		if err := parseTokensFromRow(n, r, &t.policyInfo.ring); err != nil {
 			return err
@@ -251,7 +255,7 @@ func newTopology() *topology {
 	return &topology{
 		peers:   make(peerMap),
 		dcRacks: make(dcRacksMap),
-		nodes:   make([]*Node, 0),
+		Nodes:   make([]*Node, 0),
 		policyInfo: policyInfo{
 			ring: make(Ring, 0),
 		},
