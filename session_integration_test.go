@@ -266,6 +266,8 @@ func makeCertificatesFromFiles(t *testing.T, certPath, keyPath string) []tls.Cer
 }
 
 func TestTLSIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	testCases := []struct {
 		name      string
 		tlsConfig *tls.Config
@@ -308,6 +310,7 @@ func TestTLSIntegration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			defer session.Close()
 
 			stmts := []string{
 				"CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
