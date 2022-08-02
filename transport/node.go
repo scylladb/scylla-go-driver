@@ -37,6 +37,10 @@ func (n *Node) Conn(token Token) *Conn {
 	return n.pool.Conn(token)
 }
 
+func (n *Node) Prepare(s Statement) (Statement, error) {
+	return n.LeastBusyConn().Prepare(s)
+}
+
 type RingEntry struct {
 	node           *Node
 	token          Token

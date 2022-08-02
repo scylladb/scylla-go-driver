@@ -86,7 +86,7 @@ func (pi *policyInfo) Preprocess(t *topology, ks keyspace) {
 }
 
 func (pi *policyInfo) preprocessSimpleStrategy(t *topology, stg strategy) {
-	pi.localNodes = t.nodes
+	pi.localNodes = t.Nodes
 	sort.Sort(pi.ring)
 	trie := trieRoot()
 	for i := range pi.ring {
@@ -122,14 +122,14 @@ func (pi *policyInfo) preprocessSimpleStrategy(t *topology, stg strategy) {
 }
 
 func (pi *policyInfo) preprocessRoundRobinStrategy(t *topology) {
-	pi.localNodes = t.nodes
+	pi.localNodes = t.Nodes
 	pi.remoteNodes = nil
 }
 
 func (pi *policyInfo) preprocessDCAwareRoundRobinStrategy(t *topology) {
 	pi.localNodes = make([]*Node, 0)
 	pi.remoteNodes = make([]*Node, 0)
-	for _, v := range t.nodes {
+	for _, v := range t.Nodes {
 		if v.datacenter == t.localDC {
 			pi.localNodes = append(pi.localNodes, v)
 		} else {
