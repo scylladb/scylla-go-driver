@@ -67,9 +67,9 @@ var (
 )
 
 type SessionConfig struct {
-	Hosts  []string
-	Events []EventType
-	Policy transport.HostSelectionPolicy
+	Hosts               []string
+	Events              []EventType
+	HostSelectionPolicy transport.HostSelectionPolicy
 
 	SchemaAgreementInterval time.Duration
 	// Controls the timeout for the automatic wait for schema agreement after sending a schema-altering statement.
@@ -82,10 +82,10 @@ type SessionConfig struct {
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	return SessionConfig{
 		Hosts:                           hosts,
-		Policy:                          transport.NewTokenAwarePolicy(""),
-		ConnConfig:                      transport.DefaultConnConfig(keyspace),
+		HostSelectionPolicy:             transport.NewTokenAwarePolicy(""),
 		SchemaAgreementInterval:         200 * time.Millisecond,
 		AutoAwaitSchemaAgreementTimeout: 60 * time.Second,
+		ConnConfig:                      transport.DefaultConnConfig(keyspace),
 	}
 }
 
@@ -121,7 +121,6 @@ func (cfg *SessionConfig) Validate() error {
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
-	policy  transport.HostSelectionPolicy
 }
 
 func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
@@ -131,7 +130,7 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 		return nil, err
 	}
 
-	cluster, err := transport.NewCluster(ctx, cfg.ConnConfig, cfg.Policy, cfg.Events, cfg.Hosts...)
+	cluster, err := transport.NewCluster(ctx, cfg.ConnConfig, cfg.HostSelectionPolicy, cfg.Events, cfg.Hosts...)
 	if err != nil {
 		return nil, err
 	}
@@ -139,7 +138,6 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 	s := &Session{
 		cfg:     cfg,
 		cluster: cluster,
-		policy:  cfg.Policy,
 	}
 
 	return s, nil

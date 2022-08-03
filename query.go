@@ -37,7 +37,7 @@ func (q *Query) pickConn() (*transport.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	n := q.session.policy.Node(info, 0)
+	n := q.session.cfg.HostSelectionPolicy.Node(info, 0)
 
 	var conn *transport.Conn
 	if tokenAware {
