@@ -18,7 +18,12 @@ type Query struct {
 }
 
 func (q *Query) Exec(ctx context.Context) (Result, error) {
-	conn, err := q.pickConn()
+	info, err := q.info()
+	if err != nil {
+		return Result{}, err
+	}
+
+	conn, err := q.pickConn(info)
 	if err != nil {
 		return Result{}, err
 	}
@@ -31,20 +36,10 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 	return Result(res), q.session.handleAutoAwaitSchemaAgreement(ctx, q.stmt.Content, &res)
 }
 
-func (q *Query) pickConn() (*transport.Conn, error) {
-	token, tokenAware := q.token()
-	info, err := q.info(token, tokenAware)
-	if err != nil {
-		return nil, err
-	}
-	n := q.session.cfg.HostSelectionPolicy.Node(info, 0)
+func (q *Query) pickConn(qi transport.QueryInfo) (*transport.Conn, error) {
+	n := q.session.cfg.HostSelectionPolicy.Node(qi, 0)
 
-	var conn *transport.Conn
-	if tokenAware {
-		conn = n.Conn(token)
-	} else {
-		conn = n.LeastBusyConn()
-	}
+	conn := n.Conn(qi)
 	if conn == nil {
 		return nil, errNoConnection
 	}
@@ -54,8 +49,12 @@ func (q *Query) pickConn() (*transport.Conn, error) {
 
 func (q *Query) AsyncExec(ctx context.Context) {
 	stmt := q.stmt.Clone()
+	info, err := q.info()
+	if err != nil {
+		q.res = append(q.res, transport.MakeResponseHandlerWithError(err))
+	}
 
-	conn, err := q.pickConn()
+	conn, err := q.pickConn(info)
 	if err != nil {
 		q.res = append(q.res, transport.MakeResponseHandlerWithError(err))
 		return
@@ -106,7 +105,8 @@ func (q *Query) token() (transport.Token, bool) {
 	return transport.MurmurToken(q.buf.Bytes()), true
 }
 
-func (q *Query) info(token transport.Token, tokenAware bool) (transport.QueryInfo, error) {
+func (q *Query) info() (transport.QueryInfo, error) {
+	token, tokenAware := q.token()
 	if tokenAware {
 		// TODO: Will the driver support using different keyspaces than default?
 		info, err := q.session.cluster.NewTokenAwareQueryInfo(token, "")
@@ -160,7 +160,13 @@ func (q *Query) Iter(ctx context.Context) Iter {
 		errCh:     make(chan error, 1),
 	}
 
-	conn, err := q.pickConn()
+	info, err := q.info()
+	if err != nil {
+		it.errCh <- err
+		return it
+	}
+
+	conn, err := q.pickConn(info)
 	if err != nil {
 		it.errCh <- err
 		return it
