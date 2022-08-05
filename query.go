@@ -23,17 +23,44 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 		return Result{}, err
 	}
 
-	conn, err := q.pickConn(info)
-	if err != nil {
-		return Result{}, err
-	}
+	// Most queries don't need retries, rd will be allocated on first failure.
+	var rd transport.RetryDecider
+	var lastErr error
+	n := q.session.cfg.HostSelectionPolicy.Node(info, 0)
+	i := 0
+	for n != nil {
+	sameNodeRetries:
+		for {
+			conn := n.Conn(info)
+			res, err := q.exec(ctx, conn, q.stmt, nil)
+			if err != nil {
+				ri := transport.RetryInfo{
+					Error:       err,
+					Idempotent:  q.stmt.Idempotent,
+					Consistency: q.stmt.Consistency,
+				}
 
-	res, err := q.exec(ctx, conn, q.stmt, nil)
-	if err != nil {
-		return Result(res), err
-	}
+				if rd == nil {
+					rd = q.session.cfg.RetryPolicy.NewRetryDecider()
+				}
+				switch rd.Decide(ri) {
+				case transport.RetrySameNode:
+					continue sameNodeRetries
+				case transport.RetryNextNode:
+					lastErr = err
+					break sameNodeRetries
+				case transport.DontRetry:
+					return Result{}, err
+				}
+			}
 
-	return Result(res), q.session.handleAutoAwaitSchemaAgreement(ctx, q.stmt.Content, &res)
+			return Result(res), q.session.handleAutoAwaitSchemaAgreement(ctx, q.stmt.Content, &res)
+		}
+
+		i++
+		n = q.session.cfg.HostSelectionPolicy.Node(info, i)
+	}
+	return Result{}, lastErr
 }
 
 func (q *Query) pickConn(qi transport.QueryInfo) (*transport.Conn, error) {
