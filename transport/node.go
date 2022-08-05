@@ -35,9 +35,12 @@ func (n *Node) setStatus(v bool) {
 func (n *Node) LeastBusyConn() *Conn {
 	return n.pool.LeastBusyConn()
 }
+func (n *Node) Conn(qi QueryInfo) *Conn {
+	if qi.tokenAware {
+		return n.pool.Conn(qi.token)
+	}
 
-func (n *Node) Conn(token Token) *Conn {
-	return n.pool.Conn(token)
+	return n.LeastBusyConn()
 }
 
 func (n *Node) Prepare(ctx context.Context, s Statement) (Statement, error) {
