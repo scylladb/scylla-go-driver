@@ -17,6 +17,7 @@ type Statement struct {
 	SerialConsistency frame.Consistency
 	Tracing           bool
 	Compression       bool
+	Idempotent        bool
 	Metadata          *frame.ResultMetadata
 }
 
