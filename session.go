@@ -70,6 +70,7 @@ type SessionConfig struct {
 	Hosts               []string
 	Events              []EventType
 	HostSelectionPolicy transport.HostSelectionPolicy
+	RetryPolicy         transport.RetryPolicy
 
 	SchemaAgreementInterval time.Duration
 	// Controls the timeout for the automatic wait for schema agreement after sending a schema-altering statement.
@@ -83,6 +84,7 @@ func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	return SessionConfig{
 		Hosts:                           hosts,
 		HostSelectionPolicy:             transport.NewTokenAwarePolicy(""),
+		RetryPolicy:                     transport.NewDefaultRetryPolicy(),
 		SchemaAgreementInterval:         200 * time.Millisecond,
 		AutoAwaitSchemaAgreementTimeout: 60 * time.Second,
 		ConnConfig:                      transport.DefaultConnConfig(keyspace),
