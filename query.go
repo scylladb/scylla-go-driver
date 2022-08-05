@@ -151,6 +151,14 @@ func (q *Query) Compression() bool {
 	return q.stmt.Compression
 }
 
+func (q *Query) SetIdempotent(v bool) {
+	q.stmt.Idempotent = v
+}
+
+func (q *Query) Idempotent() bool {
+	return q.stmt.Idempotent
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
