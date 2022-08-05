@@ -201,16 +201,14 @@ func (q *Query) Iter(ctx context.Context) Iter {
 		return it
 	}
 
-	conn, err := q.pickConn(info)
-	if err != nil {
-		it.errCh <- err
-		return it
-	}
-
 	worker := iterWorker{
-		stmt:      q.stmt.Clone(),
-		conn:      conn,
+		stmt: q.stmt.Clone(),
+
+		rd:        q.session.cfg.RetryPolicy.NewRetryDecider(),
+		queryInfo: info,
+		pickNode:  q.session.cfg.HostSelectionPolicy.Node,
 		queryExec: q.exec,
+
 		requestCh: it.requestCh,
 		nextCh:    it.nextCh,
 		errCh:     it.errCh,
@@ -276,9 +274,15 @@ func (it *Iter) Close() {
 
 type iterWorker struct {
 	stmt        transport.Statement
-	conn        *transport.Conn
 	pagingState []byte
 	queryExec   func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
+
+	queryInfo transport.QueryInfo
+	pickNode  func(transport.QueryInfo, int) *transport.Node
+	nodeIdx   int
+	conn      *transport.Conn
+
+	rd transport.RetryDecider
 
 	requestCh chan struct{}
 	nextCh    chan transport.QueryResult
@@ -286,23 +290,68 @@ type iterWorker struct {
 }
 
 func (w *iterWorker) loop(ctx context.Context) {
+	n := w.pickNode(w.queryInfo, 0)
+	if n == nil {
+		w.errCh <- fmt.Errorf("can't pick a node to execute request")
+		return
+	}
+	w.conn = n.Conn(w.queryInfo)
+
 	for {
 		_, ok := <-w.requestCh
 		if !ok {
 			return
 		}
 
-		res, err := w.queryExec(ctx, w.conn, w.stmt, w.pagingState)
+		res, err := w.exec(ctx)
 		if err != nil {
 			w.errCh <- err
 			return
 		}
+
 		w.pagingState = res.PagingState
 		w.nextCh <- res
-
 		if !res.HasMorePages {
 			w.errCh <- ErrNoMoreRows
 			return
 		}
+	}
+}
+
+func (w *iterWorker) exec(ctx context.Context) (transport.QueryResult, error) {
+	w.rd.Reset()
+	var lastErr error
+	for {
+	sameNodeRetries:
+		for {
+			res, err := w.queryExec(ctx, w.conn, w.stmt, w.pagingState)
+			if err != nil {
+				ri := transport.RetryInfo{
+					Error:       err,
+					Idempotent:  w.stmt.Idempotent,
+					Consistency: w.stmt.Consistency,
+				}
+
+				switch w.rd.Decide(ri) {
+				case transport.RetrySameNode:
+					continue sameNodeRetries
+				case transport.RetryNextNode:
+					lastErr = err
+					break sameNodeRetries
+				case transport.DontRetry:
+					return transport.QueryResult{}, err
+				}
+			}
+
+			return res, nil
+		}
+
+		w.nodeIdx++
+		n := w.pickNode(w.queryInfo, w.nodeIdx)
+		if n == nil {
+			return transport.QueryResult{}, lastErr
+		}
+
+		w.conn = n.Conn(w.queryInfo)
 	}
 }
