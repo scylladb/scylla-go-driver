@@ -3,8 +3,8 @@ package transport
 import (
 	"fmt"
 
-	"github.com/mmatczuk/scylla-go-driver/frame"
-	. "github.com/mmatczuk/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/frame"
+	. "github.com/scylladb/scylla-go-driver/frame/response"
 )
 
 // responseAsError returns either IoError or some error defined in response.error.

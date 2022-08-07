@@ -1,6 +1,6 @@
 package scylla
 
-import "github.com/mmatczuk/scylla-go-driver/frame"
+import "github.com/scylladb/scylla-go-driver/frame"
 
 // This file is identical to errors.go located in scylla pkg.
 // Error codes are necessary in frame pkg for parsing responses,
