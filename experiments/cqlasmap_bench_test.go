@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mmatczuk/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/frame"
 )
 
 func CqlAsMap[K comparable, V any](c frame.CqlValue) (map[K]V, error) {

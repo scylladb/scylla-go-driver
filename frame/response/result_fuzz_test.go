@@ -3,7 +3,7 @@ package response
 import (
 	"testing"
 
-	"github.com/mmatczuk/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/frame"
 )
 
 var (

@@ -1,8 +1,8 @@
 package transport
 
 import (
-	"github.com/mmatczuk/scylla-go-driver/frame"
-	. "github.com/mmatczuk/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/frame"
+	. "github.com/scylladb/scylla-go-driver/frame/response"
 )
 
 type RetryInfo struct {

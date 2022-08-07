@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/mmatczuk/scylla-go-driver/frame"
-	. "github.com/mmatczuk/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/frame"
+	. "github.com/scylladb/scylla-go-driver/frame/response"
 )
 
 func TestDefaultRetryPolicy(t *testing.T) {
