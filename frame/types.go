@@ -1,6 +1,7 @@
 package frame
 
 import (
+	"errors"
 	"net"
 )
 
@@ -328,6 +329,7 @@ func (q *QueryOptions) SetFlags() {
 type OptionID Short
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L615-L658
+// https://github.com/apache/cassandra/blob/881b08f7015a4342833079e648e478526cc3b31a/doc/native_protocol_v5.spec#L1050-L1210
 const (
 	CustomID    OptionID = 0x0000
 	ASCIIID     OptionID = 0x0001
@@ -349,6 +351,7 @@ const (
 	TimeID      OptionID = 0x0012
 	SmallIntID  OptionID = 0x0013
 	TinyIntID   OptionID = 0x0014
+	DurationID  OptionID = 0x0015
 	ListID      OptionID = 0x0020
 	MapID       OptionID = 0x0021
 	SetID       OptionID = 0x0022
@@ -436,4 +439,32 @@ type PreparedMetadata struct {
 	GlobalKeyspace string
 	GlobalTable    string
 	Columns        []ColumnSpec
+}
+
+type Duration struct {
+	Months      int32
+	Days        int32
+	Nanoseconds int64
+}
+
+var errInvalidDuration = errors.New("duration fields must be all positive or all negative")
+
+// validate checks that the Duration complies with the protocol specification.
+//
+// If there is an issue, validate returns an error.
+func (d Duration) validate() error {
+	// All the fields must have the same sign (or be zero).
+	// https://github.com/apache/cassandra/blob/afa7dfb5a48ecb56abc2d8bbb1de0fc8f1ca77b9/doc/native_protocol_v5.spec#L1107-L1116
+	// We compare all three pairs to account for zero fields.
+	months := int64(d.Months)
+	days := int64(d.Days)
+	valid := sameSign(months, days) && sameSign(days, d.Nanoseconds) && sameSign(months, d.Nanoseconds)
+	if !valid {
+		return errInvalidDuration
+	}
+	return nil
+}
+
+func sameSign(a, b int64) bool {
+	return a == 0 || b == 0 || (a < 0) == (b < 0)
 }

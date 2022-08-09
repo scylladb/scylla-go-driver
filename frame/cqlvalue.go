@@ -265,6 +265,48 @@ func (c CqlValue) AsStringMap() (map[string]string, error) {
 	return res, nil
 }
 
+func (c CqlValue) AsDuration() (Duration, error) {
+	var err error
+	if c.Type.ID != DurationID {
+		return Duration{}, fmt.Errorf("%v is not a duration", c)
+	}
+	raw := c.Value
+	months, n, err := decodeVInt(raw)
+	if err != nil {
+		return Duration{}, err
+	}
+	if months < math.MinInt32 || months > math.MaxInt32 {
+		return Duration{}, fmt.Errorf("months out of range")
+	}
+	raw = raw[n:]
+	days, n, err := decodeVInt(raw)
+	if err != nil {
+		return Duration{}, err
+	}
+	if days < math.MinInt32 || days > math.MaxInt32 {
+		return Duration{}, fmt.Errorf("days out of range")
+	}
+	raw = raw[n:]
+	nanoseconds, n, err := decodeVInt(raw)
+	if err != nil {
+		return Duration{}, err
+	}
+	raw = raw[n:]
+	if len(raw) > 0 {
+		return Duration{}, fmt.Errorf("extra data after duration value")
+	}
+	d := Duration{
+		Months:      int32(months),
+		Days:        int32(days),
+		Nanoseconds: nanoseconds,
+	}
+	err = d.validate()
+	if err != nil {
+		return Duration{}, err
+	}
+	return d, nil
+}
+
 func CqlFromASCII(s string) (CqlValue, error) {
 	for _, v := range s {
 		if v > unicode.MaxASCII {
@@ -415,4 +457,21 @@ func CqlFromFloat64(v float64) CqlValue {
 		byte(bits),
 	}
 	return c
+}
+
+func CqlFromDuration(d Duration) (CqlValue, error) {
+	err := d.validate()
+	if err != nil {
+		return CqlValue{}, err
+	}
+
+	c := CqlValue{
+		Type:  &Option{ID: DurationID},
+		Value: make(Bytes, 0, 27),
+	}
+
+	c.Value = appendVInt(c.Value, int64(d.Months))
+	c.Value = appendVInt(c.Value, int64(d.Days))
+	c.Value = appendVInt(c.Value, d.Nanoseconds)
+	return c, nil
 }

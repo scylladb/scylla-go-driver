@@ -411,7 +411,7 @@ func (b *Buffer) ReadOption() Option {
 		}
 	default:
 		if Debug {
-			if id < ASCIIID || TinyIntID < id {
+			if id < ASCIIID || DurationID < id {
 				log.Printf("unknown Option ID: %d", id)
 			}
 		}

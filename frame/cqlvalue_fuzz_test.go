@@ -243,3 +243,27 @@ func FuzzCqlValueStringMap(f *testing.F) {
 		}
 	})
 }
+
+func FuzzCqlValueDuration(f *testing.F) {
+	f.Add(int32(1), int32(2), int64(3))
+	f.Fuzz(func(t *testing.T, a, b int32, c int64) {
+		in := Duration{
+			Months:      a,
+			Days:        b,
+			Nanoseconds: c,
+		}
+		cv, err := CqlFromDuration(in)
+		if err != nil {
+			// Cannot serialize data, so we have no checks to do.
+			// This happens if the sign of the values differs.
+			return
+		}
+		out, err := cv.AsDuration()
+		if err != nil {
+			t.Errorf("cannot deserialize serialized data: %v", err)
+		}
+		if diff := cmp.Diff(in, out); diff != "" {
+			t.Errorf("in: %v, out: %v", in, out)
+		}
+	})
+}
