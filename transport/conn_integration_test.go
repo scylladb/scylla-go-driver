@@ -52,30 +52,30 @@ func newConnTestHelper(ctx context.Context, t testing.TB) *connTestHelper {
 	return &connTestHelper{t: t, conn: conn}
 }
 
-func (h *connTestHelper) applyFixture() {
-	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
-	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
-	h.exec("TRUNCATE TABLE mykeyspace.users")
-	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
-	h.exec("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
-	if err := h.conn.UseKeyspace("mykeyspace"); err != nil {
+func (h *connTestHelper) applyFixture(ctx context.Context) {
+	h.exec(ctx, "CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec(ctx, "CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec(ctx, "TRUNCATE TABLE mykeyspace.users")
+	h.exec(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
+	h.exec(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+	if err := h.conn.UseKeyspace(ctx, "mykeyspace"); err != nil {
 		log.Fatalf("use keyspace %v", err)
 	}
 }
 
-func (h *connTestHelper) setupMassiveUsersTable() {
-	h.exec("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
-	h.exec("CREATE TABLE IF NOT EXISTS mykeyspace.massive_users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
-	h.exec("TRUNCATE TABLE mykeyspace.massive_users")
+func (h *connTestHelper) setupMassiveUsersTable(ctx context.Context) {
+	h.exec(ctx, "CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.exec(ctx, "CREATE TABLE IF NOT EXISTS mykeyspace.massive_users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.exec(ctx, "TRUNCATE TABLE mykeyspace.massive_users")
 }
 
-func (h *connTestHelper) exec(cql string) {
+func (h *connTestHelper) exec(ctx context.Context, cql string) {
 	h.t.Helper()
 	s := Statement{
 		Content:     cql,
 		Consistency: frame.ONE,
 	}
-	if _, err := h.conn.Query(s, nil); err != nil {
+	if _, err := h.conn.Query(ctx, s, nil); err != nil {
 		h.t.Fatal(err)
 	}
 }
@@ -94,7 +94,7 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 	defer cancel()
 
 	h := newConnTestHelper(ctx, t)
-	h.setupMassiveUsersTable()
+	h.setupMassiveUsersTable(ctx)
 	defer h.close()
 
 	const n = maxStreamID
@@ -117,11 +117,11 @@ func TestConnMassiveQueryIntegration(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 
-			if _, err := h.conn.Query(makeInsert(id), nil); err != nil {
+			if _, err := h.conn.Query(ctx, makeInsert(id), nil); err != nil {
 				t.Fatal(err)
 			}
 
-			res, err := h.conn.Query(makeQuery(id), nil)
+			res, err := h.conn.Query(ctx, makeQuery(id), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -145,7 +145,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 	defer cancel()
 
 	h := newConnTestHelper(ctx, t)
-	h.applyFixture()
+	h.applyFixture(ctx)
 	defer h.close()
 
 	query := Statement{Content: "SELECT * FROM mykeyspace.users", Consistency: frame.ONE}
@@ -158,7 +158,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 		go func(id int) {
 			defer wg.Done()
 
-			res, err := h.conn.Query(query, nil)
+			res, err := h.conn.Query(ctx, query, nil)
 			if len(res.Rows) != 2 && err == nil {
 				t.Fatalf("invalid number of rows")
 			}
@@ -177,7 +177,7 @@ func TestCloseHangingIntegration(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := h.conn.Query(query, nil)
+			_, err := h.conn.Query(ctx, query, nil)
 			if err == nil {
 				t.Fatalf("connection should be closed!")
 			}
@@ -188,25 +188,25 @@ func TestCloseHangingIntegration(t *testing.T) {
 	wg.Wait()
 }
 
-func (h *connTestHelper) applyCompressionFixture(toSend []byte) {
-	h.execCompression("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
-	h.execCompression("CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
-	h.execCompression("TRUNCATE TABLE mykeyspace.users")
-	h.execCompression(fmt.Sprintf("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, '%s', 'sanchez')", toSend))
-	h.execCompression("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
-	if err := h.conn.UseKeyspace("mykeyspace"); err != nil {
+func (h *connTestHelper) applyCompressionFixture(ctx context.Context, toSend []byte) {
+	h.execCompression(ctx, "CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
+	h.execCompression(ctx, "CREATE TABLE IF NOT EXISTS mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))")
+	h.execCompression(ctx, "TRUNCATE TABLE mykeyspace.users")
+	h.execCompression(ctx, fmt.Sprintf("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, '%s', 'sanchez')", toSend))
+	h.execCompression(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
+	if err := h.conn.UseKeyspace(ctx, "mykeyspace"); err != nil {
 		log.Fatalf("use keyspace %v", err)
 	}
 }
 
-func (h *connTestHelper) execCompression(cql string) {
+func (h *connTestHelper) execCompression(ctx context.Context, cql string) {
 	h.t.Helper()
 	s := Statement{
 		Content:     cql,
 		Consistency: frame.ONE,
 		Compression: true,
 	}
-	if _, err := h.conn.Query(s, nil); err != nil {
+	if _, err := h.conn.Query(ctx, s, nil); err != nil {
 		h.t.Fatal(err)
 	}
 }
@@ -240,7 +240,7 @@ func testCompression(ctx context.Context, t *testing.T, c frame.Compression, toS
 	}
 
 	h := &connTestHelper{t: t, conn: conn}
-	h.applyCompressionFixture(toSend)
+	h.applyCompressionFixture(ctx, toSend)
 
 	defer h.close()
 
@@ -258,7 +258,7 @@ func testCompression(ctx context.Context, t *testing.T, c frame.Compression, toS
 		},
 	}
 
-	res, err := h.conn.Query(query, nil)
+	res, err := h.conn.Query(ctx, query, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

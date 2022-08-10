@@ -1,6 +1,8 @@
 package transport
 
 import (
+	"context"
+
 	"github.com/scylladb/scylla-go-driver/frame"
 	"go.uber.org/atomic"
 )
@@ -37,8 +39,8 @@ func (n *Node) Conn(token Token) *Conn {
 	return n.pool.Conn(token)
 }
 
-func (n *Node) Prepare(s Statement) (Statement, error) {
-	return n.LeastBusyConn().Prepare(s)
+func (n *Node) Prepare(ctx context.Context, s Statement) (Statement, error) {
+	return n.LeastBusyConn().Prepare(ctx, s)
 }
 
 type RingEntry struct {

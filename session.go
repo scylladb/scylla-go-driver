@@ -139,16 +139,16 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 func (s *Session) Query(content string) Query {
 	return Query{session: s,
 		stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
-		exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
-			return conn.Query(stmt, pagingState)
+		exec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
+			return conn.Query(ctx, stmt, pagingState)
 		},
-		asyncExec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
-			conn.AsyncQuery(stmt, pagingState, handler)
+		asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
+			conn.AsyncQuery(ctx, stmt, pagingState, handler)
 		},
 	}
 }
 
-func (s *Session) Prepare(content string) (Query, error) {
+func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
 
 	// Prepare on all nodes concurrently.
@@ -160,7 +160,7 @@ func (s *Session) Prepare(content string) (Query, error) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			resStmt[idx], resErr[idx] = nodes[idx].Prepare(stmt)
+			resStmt[idx], resErr[idx] = nodes[idx].Prepare(ctx, stmt)
 		}(i)
 	}
 	wg.Wait()
@@ -171,11 +171,11 @@ func (s *Session) Prepare(content string) (Query, error) {
 			return Query{
 				session: s,
 				stmt:    resStmt[i],
-				exec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
-					return conn.Execute(stmt, pagingState)
+				exec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
+					return conn.Execute(ctx, stmt, pagingState)
 				},
-				asyncExec: func(conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
-					conn.AsyncExecute(stmt, pagingState, handler)
+				asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
+					conn.AsyncExecute(ctx, stmt, pagingState, handler)
 				},
 			}, nil
 		}

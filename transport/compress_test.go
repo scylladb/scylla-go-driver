@@ -138,7 +138,7 @@ func testCompress(t *testing.T, c *compr, dst, src *bytes.Buffer, target []byte)
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
 	defer cancel()
 
-	n, err := c.compress(ctx, dst, src)
+	n, err := c.compress(ctx, ctx, dst, src)
 	if err != nil {
 		t.Fatal("error in compression", err)
 	}
