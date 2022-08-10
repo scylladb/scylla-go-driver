@@ -32,7 +32,7 @@ func initKeyspace(ctx context.Context, t testing.TB) {
 	}
 
 	q := s.Query("CREATE KEYSPACE IF NOT EXISTS mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}")
-	if _, err = q.Exec(); err != nil {
+	if _, err = q.Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	s.Close()
@@ -66,14 +66,14 @@ func TestSessionIntegration(t *testing.T) {
 
 	for _, stmt := range stmts {
 		q := session.Query(stmt)
-		if _, err := q.Exec(); err != nil {
+		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	q := session.Query("SELECT * FROM mykeyspace.users")
 
-	res, err := q.Exec()
+	res, err := q.Exec(ctx)
 	if err != nil {
 		t.Fatalf("couldn't query: %v", err)
 	}
@@ -117,30 +117,30 @@ func TestSessionPrepareIntegration(t *testing.T) { // nolint:paralleltest // Int
 
 	for _, stmt := range initStmts {
 		q := session.Query(stmt)
-		if _, err := q.Exec(); err != nil {
+		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	insertQuery, err := session.Prepare(insertStmt)
+	insertQuery, err := session.Prepare(ctx, insertStmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	selectQuery, err := session.Prepare(selectStmt)
+	selectQuery, err := session.Prepare(ctx, selectStmt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for i := int64(0); i < 100; i++ {
 		insertQuery.BindInt64(0, i).BindInt64(1, 2*i).BindInt64(2, 3*i)
-		res, err := insertQuery.Exec()
+		res, err := insertQuery.Exec(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		selectQuery.BindInt64(0, i)
-		res, err = selectQuery.Exec()
+		res, err = selectQuery.Exec(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -179,12 +179,12 @@ func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integr
 
 	for _, stmt := range initStmts {
 		q := session.Query(stmt)
-		if _, err := q.Exec(); err != nil {
+		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	insertQuery, err := session.Prepare(insertStmt)
+	insertQuery, err := session.Prepare(ctx, insertStmt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integr
 	for i := int64(0); i < int64(N); i++ {
 		insertQuery.BindInt64(0, i).BindInt64(1, 2*i).BindInt64(2, 3*i)
 
-		if _, err := insertQuery.Exec(); err != nil {
+		if _, err := insertQuery.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -201,13 +201,13 @@ func TestSessionIterIntegration(t *testing.T) { // nolint:paralleltest // Integr
 	q := session.Query("SELECT * FROM mykeyspace.triples")
 	q.SetPageSize(10)
 
-	p, err := session.Prepare("SELECT * FROM mykeyspace.triples")
+	p, err := session.Prepare(ctx, "SELECT * FROM mykeyspace.triples")
 	if err != nil {
 		t.Fatal(err)
 	}
 	p.SetPageSize(10)
 
-	iters := [2]Iter{q.Iter(), p.Iter()}
+	iters := [2]Iter{q.Iter(ctx), p.Iter(ctx)}
 	for _, it := range iters {
 		row, err := it.Next()
 
@@ -335,13 +335,13 @@ func TestTLSIntegration(t *testing.T) {
 
 			for _, stmt := range stmts {
 				q := session.Query(stmt)
-				if _, err := q.Exec(); err != nil {
+				if _, err := q.Exec(ctx); err != nil {
 					t.Fatal(err)
 				}
 			}
 
 			q := session.Query("SELECT COUNT(*) FROM mykeyspace.users")
-			if r, err := q.Exec(); err != nil {
+			if r, err := q.Exec(ctx); err != nil {
 				t.Fatal(err)
 			} else {
 				n, err := r.Rows[0][0].AsInt64()
@@ -374,34 +374,34 @@ func TestPrepareIntegration(t *testing.T) {
 
 	for _, stmt := range initStmts {
 		q := session.Query(stmt)
-		if _, err := q.Exec(); err != nil {
+		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 
-		// Await schema agreement, TODO: implement true schema agreement.
+		// Await schema agreement, TODO: implement true schema agreement and remove this.
 		time.Sleep(time.Second)
 	}
 
-	q, err := session.Prepare("INSERT INTO testks.doubles (pk, v) VALUES (?, ?)")
+	q, err := session.Prepare(ctx, "INSERT INTO testks.doubles (pk, v) VALUES (?, ?)")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	for i := int64(0); i < 1000; i++ {
-		_, err := q.BindInt64(0, i).BindInt64(1, 2*i).Exec()
+		_, err := q.BindInt64(0, i).BindInt64(1, 2*i).Exec(ctx)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	for i := int64(0); i < 1000; i++ {
-		q, err := session.Prepare("SELECT v FROM testks.doubles WHERE pk = " + fmt.Sprint(i))
+		q, err := session.Prepare(ctx, "SELECT v FROM testks.doubles WHERE pk = "+fmt.Sprint(i))
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		for rep := 0; rep < 3; rep++ {
-			res, err := q.Exec()
+			res, err := q.Exec(ctx)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -412,5 +412,73 @@ func TestPrepareIntegration(t *testing.T) {
 				t.Fatalf("expected %d, got %d", 2*i, v)
 			}
 		}
+	}
+}
+
+func TestContextsIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
+	defer session.Close()
+
+	initStmts := []string{
+		"DROP KEYSPACE IF EXISTS contextks",
+		"CREATE KEYSPACE IF NOT EXISTS contextks WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
+		"CREATE TABLE IF NOT EXISTS contextks.t (pk bigint PRIMARY KEY, v bigint)",
+	}
+
+	// Before stop queries should succeed.
+	for _, stmt := range initStmts {
+		q := session.Query(stmt)
+		if _, err := q.Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		// Await schema agreement, TODO: implement true schema agreement and remove this.
+		time.Sleep(time.Second)
+	}
+
+	insertQ, err := session.Prepare(ctx, "INSERT INTO contextks.t(pk) VALUES (?)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	selectQ, err := session.Prepare(ctx, "SELECT pk FROM contextks.t WHERE pk=?")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query on undone context should succeed.
+	if _, err := insertQ.BindInt64(0, 1).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	if res, err := selectQ.BindInt64(0, 1).Exec(ctx); err != nil {
+		t.Fatal(err)
+	} else if n, err := res.Rows[0][0].AsInt64(); err != nil {
+		t.Fatal(err)
+	} else if n != 1 {
+		t.Fatalf("expected 1, got %d", n)
+	}
+
+	doneCtx, doneCancel := context.WithCancel(ctx)
+	doneCancel()
+	for i := 0; i < 1000; i++ {
+		if _, err := insertQ.BindInt64(0, 2).Exec(doneCtx); err == nil {
+			t.Fatal("query on done query context should return an error")
+		}
+	}
+
+	// Query on undone context should still succeed.
+	if res, err := selectQ.BindInt64(0, 2).Exec(ctx); err != nil {
+		t.Fatal(err)
+	} else if len(res.Rows) > 0 {
+		t.Fatal("insert with context done before the query should not reach the database")
+	}
+
+	cancel()
+	if _, err := selectQ.Exec(ctx); err == nil {
+		t.Fatal("query on done session context should return an error")
 	}
 }
