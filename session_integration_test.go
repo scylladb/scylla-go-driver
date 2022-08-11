@@ -9,11 +9,16 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net"
+	"net/netip"
 	"os/signal"
 	"syscall"
 	"testing"
 	"time"
 
+	"github.com/scylladb/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/transport"
 	"go.uber.org/goleak"
 )
 
@@ -543,4 +548,703 @@ func TestSchemaAgreementIntegration(t *testing.T) {
 			}
 		}
 	}
+}
+
+type execFunc = func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
+
+type execWrapper struct {
+	execCnt         int
+	queryRecipients []netip.Addr
+	fakeErrors      []error
+}
+
+func getIP(addr net.Addr) netip.Addr {
+	return netip.MustParseAddrPort(addr.String()).Addr()
+}
+
+func (w *execWrapper) wrapExec(exec execFunc, t *testing.T) execFunc {
+	return func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, b frame.Bytes) (transport.QueryResult, error) {
+		w.queryRecipients = append(w.queryRecipients, getIP(conn.RemoteAddr()))
+		w.execCnt++
+		t.Log("retrying", conn)
+		if w.execCnt <= len(w.fakeErrors) {
+			return transport.QueryResult{}, w.fakeErrors[w.execCnt-1]
+		}
+
+		return exec(ctx, conn, stmt, b)
+	}
+}
+
+// reset should always be called before a testcase.
+func (w *execWrapper) reset() {
+	w.execCnt = 0
+	w.queryRecipients = nil
+}
+
+func TestExecRetryIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
+	defer session.Close()
+
+	initStmts := []string{
+		"DROP KEYSPACE IF EXISTS retryks",
+		"CREATE KEYSPACE IF NOT EXISTS retryks WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 3}",
+		"CREATE TABLE IF NOT EXISTS retryks.t (pk bigint PRIMARY KEY)",
+	}
+
+	for _, stmt := range initStmts {
+		q := session.Query(stmt)
+		if _, err := q.Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		// Await schema agreement, TODO: implement true schema agreement.
+		time.Sleep(time.Second)
+	}
+	session.Close()
+
+	cfg := testingSessionConfig
+	cfg.Keyspace = "retryks"
+	session, err := NewSession(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	for i := 0; i < len(retryTestCases); i++ {
+		tc := retryTestCases[i]
+		pk := int64(i)
+		t.Run(tc.name, func(t *testing.T) {
+			tc.execWrapper.reset()
+			q, err := session.Prepare(ctx, "INSERT INTO retryks.t (pk) VALUES (?)")
+			if err != nil {
+				t.Fatal(err)
+			}
+			q.exec = tc.execWrapper.wrapExec(q.exec, t)
+			q.SetIdempotent(tc.idempotent)
+
+			// Insert a single row, check for success
+			_, err = q.BindInt64(0, pk).Exec(ctx)
+			if err != nil && !tc.shouldFail {
+				t.Fatalf("query resulted in error: %v, when it should succeed", err)
+			}
+			if err == nil && tc.shouldFail {
+				t.Fatalf("expected query failure, but got success")
+			}
+
+			if len(tc.decisions)+1 != len(tc.execWrapper.queryRecipients) {
+				t.Fatalf("expected %d executions, performed %d", len(tc.decisions)-1, len(tc.execWrapper.queryRecipients))
+			}
+
+			recipients := tc.execWrapper.queryRecipients
+			for i, decision := range tc.decisions {
+				if decision == transport.RetryNextNode && recipients[i] == recipients[i+1] {
+					t.Fatalf("retry no. %d, expected other node retry, got %v twice", i+1, recipients[i])
+				} else if decision == transport.RetrySameNode && recipients[i] != recipients[i+1] {
+					t.Fatalf("retry no. %d, expected same node retry, but retry happened to %v after %v", i+1, recipients[i+1], recipients[i])
+				}
+			}
+
+			// Sanity check, on a failed query row shouldn't be present.
+			q, err = session.Prepare(ctx, "SELECT * FROM retryks.t WHERE pk=?")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if res, err := q.BindInt64(0, pk).Exec(ctx); err != nil {
+				t.Fatal(err)
+			} else if len(res.Rows) > 0 && tc.shouldFail {
+				t.Fatalf("query returned %d rows, when they shouldn't be inserted in the first place", len(res.Rows))
+			} else if len(res.Rows) == 0 && !tc.shouldFail {
+				t.Fatal("query returned no rows, when there should be one", len(res.Rows))
+			}
+		})
+	}
+}
+
+func TestIterRetryIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
+	initStmts := []string{
+		"DROP KEYSPACE IF EXISTS retryks",
+		"CREATE KEYSPACE IF NOT EXISTS retryks WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 3}",
+		"CREATE TABLE IF NOT EXISTS retryks.t (pk bigint PRIMARY KEY)",
+	}
+
+	for _, stmt := range initStmts {
+		q := session.Query(stmt)
+		if _, err := q.Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		// Await schema agreement, TODO: implement true schema agreement.
+		time.Sleep(time.Second)
+	}
+	session.Close()
+
+	cfg := testingSessionConfig
+	cfg.Keyspace = "retryks"
+	session, err := NewSession(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer session.Close()
+
+	for i := 0; i < len(retryTestCases); i++ {
+		tc := retryTestCases[i]
+		pk := int64(i)
+		t.Run(tc.name, func(t *testing.T) {
+			tc.execWrapper.reset()
+			insertQ, err := session.Prepare(ctx, "INSERT INTO retryks.t (pk) VALUES (?)")
+			if err != nil {
+				t.Fatal(err)
+			}
+			selectQ, err := session.Prepare(ctx, "SELECT * FROM retryks.t WHERE pk=?")
+			if err != nil {
+				t.Fatal(err)
+			}
+			selectQ.exec = tc.execWrapper.wrapExec(selectQ.exec, t)
+			selectQ.SetIdempotent(tc.idempotent)
+
+			_, err = insertQ.BindInt64(0, pk).Exec(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// Select a single row, check for success
+			it := selectQ.BindInt64(0, pk).Iter(ctx)
+			_, err = it.Next()
+			if err != nil && !tc.shouldFail {
+				t.Fatalf("query resulted in error: %v, when it should succeed", err)
+			}
+			if err == nil && tc.shouldFail {
+				t.Fatalf("expected query failure, but got success")
+			}
+
+			if len(tc.decisions)+1 != len(tc.execWrapper.queryRecipients) {
+				t.Fatalf("expected %d executions, performed %d", len(tc.decisions)-1, len(tc.execWrapper.queryRecipients))
+			}
+
+			recipients := tc.execWrapper.queryRecipients
+			for i, decision := range tc.decisions {
+				if decision == transport.RetryNextNode && recipients[i] == recipients[i+1] {
+					t.Fatalf("retry no. %d, expected other node retry, got %v twice", i+1, recipients[i])
+				} else if decision == transport.RetrySameNode && recipients[i] != recipients[i+1] {
+					t.Fatalf("retry no. %d, expected same node retry, but retry happened to %v after %v", i+1, recipients[i+1], recipients[i])
+				}
+			}
+		})
+	}
+}
+
+var retryTestCases = []struct {
+	name        string
+	execWrapper execWrapper
+	idempotent  bool
+	shouldFail  bool
+	decisions   []transport.RetryDecision
+}{
+	{
+		name:        "success without retries",
+		execWrapper: execWrapper{},
+		shouldFail:  false,
+	},
+	{
+		name: "ErrCodeSyntax",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeSyntax}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeSyntax",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeSyntax}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeInvalid",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeInvalid}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeInvalid",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeInvalid}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeAlreadyExists",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: frame.ErrCodeAlreadyExists}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeAlreadyExists",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeAlreadyExists}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeFunctionFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeFunctionFailure}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeFuncFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeFunctionFailure}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeCredentials",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeCredentials}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeCredentials",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeCredentials}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeUnauthorized",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeUnauthorized}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeUnauthorized",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeUnauthorized}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeConfig",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeConfig}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeConfig",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeConfig}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeReadFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadFailureError{
+					ScyllaError: response.ScyllaError{Code: ErrCodeReadFailure},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    1,
+					NumFailures: 1,
+					DataPresent: false,
+				}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeReadFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadFailureError{
+					ScyllaError: response.ScyllaError{Code: ErrCodeReadFailure},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    1,
+					NumFailures: 1,
+					DataPresent: false,
+				}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "ErrCodeWriteFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadFailureError{
+					ScyllaError: response.ScyllaError{Code: ErrCodeWriteFailure},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    1,
+					NumFailures: 1,
+					DataPresent: false,
+				}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeWriteFailure",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.WriteFailureError{
+					ScyllaError: response.ScyllaError{Code: ErrCodeWriteFailure},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    1,
+					NumFailures: 1,
+					WriteType:   frame.BatchLog,
+				}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "ErrCodeUnprepared",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeUnprepared}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeUnprepared",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeUnprepared}},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeOverloaded",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeOverloaded}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeOverloaded",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ScyllaError{Code: ErrCodeOverloaded},
+				response.ScyllaError{Code: ErrCodeOverloaded},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode, transport.RetryNextNode},
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeTruncate",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeTruncate}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeTruncate",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ScyllaError{Code: ErrCodeTruncate},
+				response.ScyllaError{Code: ErrCodeTruncate},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode, transport.RetryNextNode},
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeServer",
+		execWrapper: execWrapper{
+			fakeErrors: []error{response.ScyllaError{Code: ErrCodeServer}},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeServer",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ScyllaError{Code: ErrCodeServer},
+				response.ScyllaError{Code: ErrCodeServer},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode, transport.RetryNextNode},
+		idempotent: true,
+	},
+	{
+		name: "IO error",
+		execWrapper: execWrapper{
+			fakeErrors: []error{fmt.Errorf("dummy error")},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent IO error",
+		execWrapper: execWrapper{
+			fakeErrors: []error{fmt.Errorf("dummy error")},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "ErrCodeBootstrapping",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ScyllaError{Code: ErrCodeBootstrapping},
+				response.ScyllaError{Code: ErrCodeBootstrapping},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode, transport.RetryNextNode},
+		idempotent: true,
+	},
+	{
+		name: "idempotent ErrCodeBootstrapping",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ScyllaError{Code: ErrCodeBootstrapping},
+				response.ScyllaError{Code: ErrCodeBootstrapping},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode, transport.RetryNextNode},
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeUnavailable",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.UnavailableError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeUnavailable},
+					Consistency: frame.TWO,
+					Required:    2,
+					Alive:       1,
+				},
+				response.UnavailableError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeUnavailable},
+					Consistency: frame.TWO,
+					Required:    2,
+					Alive:       1,
+				},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeUnavailable",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.UnavailableError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeUnavailable},
+					Consistency: frame.TWO,
+					Required:    2,
+					Alive:       1,
+				},
+				response.UnavailableError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeUnavailable},
+					Consistency: frame.TWO,
+					Required:    2,
+					Alive:       1,
+				},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetryNextNode},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeReadTimeout, enough responses, data present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetrySameNode},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeReadTimeout, enough responses, data present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetrySameNode},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeReadTimeout, enough responses, data not present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: false,
+				},
+			},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeReadTimeout, enough responses, data not present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    2,
+					BlockFor:    2,
+					DataPresent: false,
+				},
+			},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeReadTimeout, not enough responses, data present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    1,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+			},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeReadTimeout, enough responses, data present",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.ReadTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeReadTimeout},
+					Consistency: frame.TWO,
+					Received:    1,
+					BlockFor:    2,
+					DataPresent: true,
+				},
+			},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeWriteTimeout, type == batchLog",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.WriteTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeWriteTimeout},
+					Consistency: frame.TWO,
+					Received:    1,
+					BlockFor:    2,
+					WriteType:   frame.BatchLog,
+				},
+			},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeWriteTimeout, type == batchLog",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.WriteTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeWriteTimeout},
+					Consistency: frame.TWO,
+					Received:    1,
+					BlockFor:    2,
+					WriteType:   frame.BatchLog,
+				},
+				response.WriteTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeWriteTimeout},
+					Consistency: frame.TWO,
+					Received:    1,
+					BlockFor:    2,
+					WriteType:   frame.BatchLog,
+				},
+			},
+		},
+		decisions:  []transport.RetryDecision{transport.RetrySameNode},
+		shouldFail: true,
+		idempotent: true,
+	},
+	{
+		name: "ErrCodeWriteTimeout, type != batchLog",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.WriteTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeWriteTimeout},
+					Consistency: frame.TWO,
+					Received:    4,
+					BlockFor:    2,
+					WriteType:   frame.Simple,
+				},
+			},
+		},
+		shouldFail: true,
+	},
+	{
+		name: "idempotent ErrCodeWriteTimeout, type != batchLog",
+		execWrapper: execWrapper{
+			fakeErrors: []error{
+				response.WriteTimeoutError{
+					ScyllaError: response.ScyllaError{Code: frame.ErrCodeWriteTimeout},
+					Consistency: frame.TWO,
+					Received:    4,
+					BlockFor:    2,
+					WriteType:   frame.Simple,
+				},
+			},
+		},
+		shouldFail: true,
+		idempotent: true,
+	},
 }

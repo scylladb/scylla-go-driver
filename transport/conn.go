@@ -808,6 +808,10 @@ func (c *Conn) String() string {
 	return fmt.Sprintf("[addr=%s shard=%d]", c.conn.RemoteAddr(), c.event.Shard)
 }
 
+func (c *Conn) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
 // withPort appends new port only if addr does not contain any.
 func withPort(addr, newPort string) string {
 	host, oldPort, err := net.SplitHostPort(addr)
