@@ -4,7 +4,7 @@ native_shard_aware_transport_port: 19042
 native_shard_aware_transport_port_ssl: 19142
 client_encryption_options:
   enabled: true
-  certificate: /etc/scylla/db.crt
-  keyfile: /etc/scylla/db.key
-  truststore: /etc/scylla/cadb.pem
+  certificate: /etc/scylla/tls/db.crt
+  keyfile: /etc/scylla/tls/db.key
+  truststore: /etc/scylla/tls/cadb.pem
   require_client_auth: true
