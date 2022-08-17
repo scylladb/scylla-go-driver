@@ -19,11 +19,11 @@ type CodedError interface {
 }
 
 func (e ScyllaError) Error() string {
-	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
+	return fmt.Sprintf("[Scylla error code=%#x message=%q]", e.Code, e.Message)
 }
 
 func (e ScyllaError) String() string {
-	return fmt.Sprintf("[Scylla error code=%x message=%q]", e.Code, e.Message)
+	return fmt.Sprintf("[Scylla error code=%#x message=%q]", e.Code, e.Message)
 }
 
 func (e ScyllaError) ErrorCode() frame.ErrorCode {
