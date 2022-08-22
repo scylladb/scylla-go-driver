@@ -74,6 +74,7 @@ type QueryResult struct {
 	HasMorePages bool
 	PagingState  frame.Bytes
 	ColSpec      []frame.ColumnSpec
+	SchemaChange *SchemaChange
 }
 
 func MakeQueryResult(res frame.Response, meta *frame.ResultMetadata) (QueryResult, error) {
@@ -93,8 +94,10 @@ func MakeQueryResult(res frame.Response, meta *frame.ResultMetadata) (QueryResul
 			}
 		}
 		return ret, nil
-	case *VoidResult, *SchemaChangeResult, *SetKeyspaceResult:
+	case *VoidResult, *SetKeyspaceResult:
 		return QueryResult{}, nil
+	case *SchemaChangeResult:
+		return QueryResult{SchemaChange: &v.SchemaChange}, nil
 	default:
 		return QueryResult{}, responseAsError(res)
 	}
