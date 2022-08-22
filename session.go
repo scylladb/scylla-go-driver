@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"github.com/scylladb/scylla-go-driver/transport"
@@ -69,14 +70,22 @@ type SessionConfig struct {
 	Hosts  []string
 	Events []EventType
 	Policy transport.HostSelectionPolicy
+
+	SchemaAgreementInterval time.Duration
+	// Controls the timeout for the automatic wait for schema agreement after sending a schema-altering statement.
+	// If less or equal to 0, the automatic schema agreement is disabled.
+	AutoAwaitSchemaAgreementTimeout time.Duration
+
 	transport.ConnConfig
 }
 
 func DefaultSessionConfig(keyspace string, hosts ...string) SessionConfig {
 	return SessionConfig{
-		Hosts:      hosts,
-		Policy:     transport.NewTokenAwarePolicy(""),
-		ConnConfig: transport.DefaultConnConfig(keyspace),
+		Hosts:                           hosts,
+		Policy:                          transport.NewTokenAwarePolicy(""),
+		ConnConfig:                      transport.DefaultConnConfig(keyspace),
+		SchemaAgreementInterval:         200 * time.Millisecond,
+		AutoAwaitSchemaAgreementTimeout: 60 * time.Second,
 	}
 }
 
@@ -182,6 +191,45 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	}
 
 	return Query{}, fmt.Errorf("prepare failed on all nodes, details: %v", resErr)
+}
+
+func (s *Session) AwaitSchemaAgreement(ctx context.Context, timeout time.Duration) error {
+	ticker := time.NewTicker(s.cfg.SchemaAgreementInterval)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	defer ticker.Stop()
+	for {
+		agreement, err := s.CheckSchemaAgreement(ctx)
+		if err != nil {
+			return err
+		}
+		if agreement {
+			return nil
+		}
+
+		select {
+		case <-ticker.C:
+			continue
+		case <-timer.C:
+			return fmt.Errorf("schema not in agreement after %v", timeout)
+		case <-ctx.Done():
+			return fmt.Errorf("schema not in agreement before: %w", ctx.Err())
+		}
+	}
+}
+
+func (s *Session) handleAutoAwaitSchemaAgreement(ctx context.Context, stmt string, result *transport.QueryResult) error {
+	if s.cfg.AutoAwaitSchemaAgreementTimeout <= 0 {
+		return nil
+	}
+
+	if result.SchemaChange != nil {
+		if err := s.AwaitSchemaAgreement(ctx, s.cfg.AutoAwaitSchemaAgreementTimeout); err != nil {
+			return fmt.Errorf("failed to reach schema agreement after a schema-altering statement: %v, %w", stmt, err)
+		}
+	}
+
+	return nil
 }
 
 func (s *Session) CheckSchemaAgreement(ctx context.Context) (bool, error) {
