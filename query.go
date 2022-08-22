@@ -24,7 +24,11 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 	}
 
 	res, err := q.exec(ctx, conn, q.stmt, nil)
-	return Result(res), err
+	if err != nil {
+		return Result(res), err
+	}
+
+	return Result(res), q.session.handleAutoAwaitSchemaAgreement(ctx, q.stmt.Content, &res)
 }
 
 func (q *Query) pickConn() (*transport.Conn, error) {

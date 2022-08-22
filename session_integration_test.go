@@ -12,7 +12,6 @@ import (
 	"os/signal"
 	"syscall"
 	"testing"
-	"time"
 
 	"go.uber.org/goleak"
 )
@@ -377,9 +376,6 @@ func TestPrepareIntegration(t *testing.T) {
 		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
-
-		// Await schema agreement, TODO: implement true schema agreement and remove this.
-		time.Sleep(time.Second)
 	}
 
 	q, err := session.Prepare(ctx, "INSERT INTO testks.doubles (pk, v) VALUES (?, ?)")
@@ -435,9 +431,6 @@ func TestContextsIntegration(t *testing.T) {
 		if _, err := q.Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
-
-		// Await schema agreement, TODO: implement true schema agreement and remove this.
-		time.Sleep(time.Second)
 	}
 
 	insertQ, err := session.Prepare(ctx, "INSERT INTO contextks.t(pk) VALUES (?)")
