@@ -184,6 +184,36 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	return Query{}, fmt.Errorf("prepare failed on all nodes, details: %v", resErr)
 }
 
+func (s *Session) CheckSchemaAgreement(ctx context.Context) (bool, error) {
+	// Get schema version from all nodes concurrently.
+	nodes := s.cluster.Topology().Nodes
+	versions := make([]frame.UUID, len(nodes))
+	errors := make([]error, len(nodes))
+	var wg sync.WaitGroup
+	for i := range nodes {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			versions[idx], errors[idx] = nodes[idx].FetchSchemaVersion(ctx)
+		}(i)
+	}
+	wg.Wait()
+
+	for _, err := range errors {
+		if err != nil {
+			return false, fmt.Errorf("schema version check failed: %v", errors)
+		}
+	}
+
+	for _, version := range versions {
+		if version != versions[0] {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
+
 func (s *Session) NewTokenAwarePolicy() transport.HostSelectionPolicy {
 	return transport.NewTokenAwarePolicy("")
 }
