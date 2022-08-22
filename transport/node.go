@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"go.uber.org/atomic"
@@ -41,6 +42,34 @@ func (n *Node) Conn(token Token) *Conn {
 
 func (n *Node) Prepare(ctx context.Context, s Statement) (Statement, error) {
 	return n.LeastBusyConn().Prepare(ctx, s)
+}
+
+var versionQuery = Statement{
+	Content:     "SELECT schema_version FROM system.local WHERE key='local'",
+	Consistency: frame.ONE,
+}
+
+func (n *Node) FetchSchemaVersion(ctx context.Context) (frame.UUID, error) {
+	conn := n.LeastBusyConn()
+	res, err := conn.Query(ctx, versionQuery, nil)
+	if err != nil {
+		return frame.UUID{}, err
+	}
+
+	if len(res.Rows) < 1 {
+		return frame.UUID{}, fmt.Errorf("schema_version query returned no rows")
+	}
+
+	if len(res.Rows[0]) < 1 {
+		return frame.UUID{}, fmt.Errorf("schema_version query returned an empty row")
+	}
+
+	version, err := res.Rows[0][0].AsUUID()
+	if err != nil {
+		return version, fmt.Errorf("parsing schema_version: %w", err)
+	}
+
+	return version, nil
 }
 
 type RingEntry struct {
