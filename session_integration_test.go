@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"syscall"
 	"testing"
+	"time"
 
 	"go.uber.org/goleak"
 )
@@ -473,5 +474,73 @@ func TestContextsIntegration(t *testing.T) {
 	cancel()
 	if _, err := selectQ.Exec(ctx); err == nil {
 		t.Fatal("query on done session context should return an error")
+	}
+}
+
+func TestSchemaAgreementIntegration(t *testing.T) {
+	defer goleak.VerifyNone(t)
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	session := newTestSession(ctx, t)
+	defer session.Close()
+
+	stmts := []string{
+		"DROP KEYSPACE mykeyspace",
+		"CREATE KEYSPACE mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 1}",
+		"ALTER KEYSPACE mykeyspace WITH replication = {'class': 'SimpleStrategy', 'replication_factor' : 2}",
+		"CREATE TABLE mykeyspace.users (user_id int, fname text, lname text, PRIMARY KEY((user_id)))",
+		"INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')",
+	}
+
+	for rep := 0; rep < 5; rep++ {
+		for _, stmt := range stmts {
+			q := session.Query(stmt)
+			if _, err := q.Exec(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			if agreement, err := session.CheckSchemaAgreement(ctx); err != nil {
+				t.Fatal(err)
+			} else if !agreement {
+				t.Fatal("schema is not in agreement after finishing a query")
+			}
+		}
+	}
+
+	cfg := testingSessionConfig
+	cfg.AutoAwaitSchemaAgreementTimeout = 0
+
+	unsafeSession, err := NewSession(ctx, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer unsafeSession.Close()
+
+	for rep := 0; rep < 5; rep++ {
+		for _, stmt := range stmts {
+			q := unsafeSession.Query(stmt)
+			if _, err := q.Exec(ctx); err != nil {
+				t.Fatal(err)
+			}
+
+			if agreement, err := unsafeSession.CheckSchemaAgreement(ctx); err != nil {
+				t.Fatal(err)
+			} else if !agreement {
+				t.Log("schema is not in agreement after finishing a query, awaiting agreement")
+				if err := unsafeSession.AwaitSchemaAgreement(ctx, 60*time.Second); err != nil {
+					t.Fatal(err)
+				}
+			}
+
+			if agreement, err := unsafeSession.CheckSchemaAgreement(ctx); err != nil {
+				t.Fatal(err)
+			} else if !agreement {
+				t.Log("schema is not in agreement after finishing a query, awaiting agreement")
+				if err := unsafeSession.AwaitSchemaAgreement(ctx, 60*time.Second); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
 	}
 }
