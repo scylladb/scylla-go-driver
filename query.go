@@ -260,7 +260,18 @@ func (q *Query) BindAny(pos int, x any) *Query {
 	}
 
 	var err error
-	q.stmt.Values[pos].Bytes, err = gocql.Marshal(q.stmt.Values[pos].Type, x)
+
+	typ := q.stmt.Values[pos].Type
+	if typ.ID == frame.ListID {
+		typ := gocql.CollectionType{
+			NativeType: gocql.NewNativeType(0x04, typ.Type(), ""),
+			Elem:       &q.stmt.Values[pos].Type.List.Element,
+		}
+		q.stmt.Values[pos].Bytes, err = gocql.Marshal(typ, x)
+	} else {
+		q.stmt.Values[pos].Bytes, err = gocql.Marshal(q.stmt.Values[pos].Type, x)
+	}
+
 	if err != nil {
 		q.err = append(q.err, err)
 		return q
@@ -297,6 +308,35 @@ func (q *Query) BindInt64(pos int, v int64) *Query {
 		return q
 	}
 
+	// if p.N != 8 {
+	// 	p.N = 8
+	p.Bytes = make([]byte, 8)
+	// }
+
+	p.Bytes[0] = byte(v >> 56)
+	p.Bytes[1] = byte(v >> 48)
+	p.Bytes[2] = byte(v >> 40)
+	p.Bytes[3] = byte(v >> 32)
+	p.Bytes[4] = byte(v >> 24)
+	p.Bytes[5] = byte(v >> 16)
+	p.Bytes[6] = byte(v >> 8)
+	p.Bytes[7] = byte(v)
+
+	return q
+}
+
+func (q *Query) BindInt64Reusing(pos int, v int64) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	p := &q.stmt.Values[pos]
+	if p.Type != nil && p.Type.ID != frame.BigIntID {
+		q.err = append(q.err, fmt.Errorf("can't bind int64 to the bind marker with position %d", pos))
+		return q
+	}
+
 	if p.N != 8 {
 		p.N = 8
 		p.Bytes = make([]byte, 8)
@@ -310,6 +350,57 @@ func (q *Query) BindInt64(pos int, v int64) *Query {
 	p.Bytes[5] = byte(v >> 16)
 	p.Bytes[6] = byte(v >> 8)
 	p.Bytes[7] = byte(v)
+
+	return q
+}
+
+type CqlValue interface {
+	Bytes() []byte
+	AppendBytes([]byte) []byte
+	CompareType(*frame.Option) bool
+}
+
+func (q *Query) BindCast2(pos int, v CqlValue) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	p := &q.stmt.Values[pos]
+	if p.Type != nil && !v.CompareType(p.Type) {
+		q.err = append(q.err, fmt.Errorf("can't bind int64 to the bind marker with position %d", pos))
+		return q
+	}
+
+	p.Bytes = v.Bytes()
+	if p.Bytes == nil {
+		p.N = -1
+	} else {
+		p.N = int32(len(p.Bytes))
+	}
+
+	return q
+}
+
+func (q *Query) BindTextList(pos int, v []string) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	p := &q.stmt.Values[pos]
+	if p.Type != nil && (p.Type.ID != frame.ListID || p.Type.List == nil || p.Type.List.Element.ID != frame.VarcharID) {
+		q.err = append(q.err, fmt.Errorf("can't bind stringlist to the bind marker with position %d", pos))
+		return q
+	}
+
+	l := len(v)
+	p.Bytes = []byte{byte(l << 24), byte(l << 16), byte(l << 8), byte(l)}
+	for _, elem := range v {
+		l := len(elem)
+		p.Bytes = append(p.Bytes, byte(l<<24), byte(l<<16), byte(l<<8), byte(l))
+		p.Bytes = append(p.Bytes, elem...)
+	}
 
 	return q
 }
