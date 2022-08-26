@@ -9,6 +9,8 @@ on:
   pull_request:
 permissions:
   contents: read
+env:
+  SCYLLA_ARGS: "--seeds=node1,node2 --authenticator PasswordAuthenticator --api-address 0.0.0.0"
 jobs:
   sanity:
     name: Sanity check
@@ -28,6 +30,21 @@ jobs:
         with:
           version: v1.46.2
 
+      - name: Setup 3-node Scylla cluster
+        run: |
+          sudo sh -c "echo 2097152 >> /proc/sys/fs/aio-max-nr"
+          docker-compose up -d
+
       - name: Run tests
         run: make test
 
+      - name: Ensure nodes are up
+        run: |
+          until docker compose exec node1 nodetool status; do sleep 1; done
+          while [[ $(docker compose exec node1 nodetool status | grep -c ^UN) != "3" ]]; do sleep 1; done
+
+      - name: Run integration tests
+        run: make docker-integration-test
+        
+      - name: Stop cluster
+        run: docker-compose down
