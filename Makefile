@@ -51,6 +51,7 @@ else ifeq ($(OS),Darwin)
 	@CGO_ENABLED=0 GOOS=linux go test -v -tags integration -c -o ./integration-test.dev $(PKG)
 	@docker run --name "integration-test" \
 		--network scylla_go_driver_public \
+		-v "$(PWD)/testdata:/testdata" \
 		-v "$(PWD)/integration-test.dev:/usr/bin/integration-test:ro" \
 		-it --read-only --rm ubuntu integration-test -test.v -test.run $(RUN) $(ARGS)
 else
