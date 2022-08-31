@@ -191,7 +191,7 @@ func (r *PoolRefiller) onConnClose(conn *Conn) {
 	select {
 	case r.pool.connClosedCh <- conn.Shard():
 	default:
-		log.Printf("conn pool: ignoring conn %s close", conn)
+		r.cfg.Logger.Infof("conn pool: ignoring conn %s close", conn)
 	}
 }
 

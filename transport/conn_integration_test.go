@@ -5,7 +5,6 @@ package transport
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"os/signal"
 	"strconv"
@@ -13,10 +12,16 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/scylladb/scylla-go-driver/frame"
-
 	"github.com/google/go-cmp/cmp"
+	"github.com/scylladb/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/log"
 )
+
+var testingConnConfig = func() ConnConfig {
+	cfg := DefaultConnConfig("")
+	cfg.Logger = log.NewDebugLogger()
+	return cfg
+}()
 
 func TestOpenShardConnIntegration(t *testing.T) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
@@ -28,7 +33,7 @@ func TestOpenShardConnIntegration(t *testing.T) {
 
 	for i := uint16(0); i < si.NrShards; i++ {
 		si.Shard = i
-		c, err := OpenShardConn(ctx, TestHost+":19042", si, DefaultConnConfig(""))
+		c, err := OpenShardConn(ctx, TestHost+":19042", si, testingConnConfig)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -59,7 +64,7 @@ func (h *connTestHelper) applyFixture(ctx context.Context) {
 	h.exec(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, 'rick', 'sanchez')")
 	h.exec(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
 	if err := h.conn.UseKeyspace(ctx, "mykeyspace"); err != nil {
-		log.Fatalf("use keyspace %v", err)
+		h.t.Fatalf("use keyspace %v", err)
 	}
 }
 
@@ -195,7 +200,7 @@ func (h *connTestHelper) applyCompressionFixture(ctx context.Context, toSend []b
 	h.execCompression(ctx, fmt.Sprintf("INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (1, '%s', 'sanchez')", toSend))
 	h.execCompression(ctx, "INSERT INTO mykeyspace.users(user_id, fname, lname) VALUES (4, 'rust', 'cohle')")
 	if err := h.conn.UseKeyspace(ctx, "mykeyspace"); err != nil {
-		log.Fatalf("use keyspace %v", err)
+		h.t.Fatalf("use keyspace %v", err)
 	}
 }
 
@@ -232,7 +237,7 @@ func TestCompressionIntegration(t *testing.T) {
 func testCompression(ctx context.Context, t *testing.T, c frame.Compression, toSend []byte) {
 	t.Helper()
 
-	cfg := DefaultConnConfig("")
+	cfg := testingConnConfig
 	cfg.Compression = c
 	conn, err := OpenConn(ctx, TestHost, nil, cfg)
 	if err != nil {

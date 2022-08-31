@@ -1,8 +1,9 @@
 package transport
 
 import (
-	"log"
 	"sort"
+
+	"github.com/scylladb/scylla-go-driver/log"
 )
 
 // HostSelectionPolicy decides which node the query should be routed to.
@@ -69,14 +70,14 @@ type policyInfo struct {
 	remoteNodes []*Node
 }
 
-func (pi *policyInfo) Preprocess(t *topology, ks keyspace) {
+func (pi *policyInfo) Preprocess(t *topology, ks keyspace, logger log.Logger) {
 	switch ks.strategy.class {
 	case simpleStrategy, localStrategy:
 		pi.preprocessSimpleStrategy(t, ks.strategy)
 	case networkTopologyStrategy:
 		pi.preprocessNetworkTopologyStrategy(t, ks.strategy)
 	default:
-		log.Println("policyInfo: unknown strategy, defaulting to round robin")
+		logger.Warnf("policyInfo: keyspace %v has unknown strategy, defaulting to round robin")
 		if t.localDC == "" {
 			pi.preprocessRoundRobinStrategy(t)
 		} else {

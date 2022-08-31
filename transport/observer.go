@@ -2,8 +2,9 @@ package transport
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/scylladb/scylla-go-driver/log"
 )
 
 var Now = time.Now
@@ -51,18 +52,20 @@ type ConnObserver interface {
 	OnPickReplacedWithLessBusyConn(ev ConnEvent)
 }
 
-type LoggingConnObserver struct{}
+type LoggingConnObserver struct {
+	log log.Logger
+}
 
 var _ ConnObserver = LoggingConnObserver{}
 
 func (o LoggingConnObserver) OnConnect(ev ConnectEvent) {
 	if ev.Err != nil {
-		log.Printf("%s failed to open connection after %s: %s", ev, ev.Duration(), ev.Err)
+		o.log.Infof("%s failed to open connection after %s: %s", ev, ev.Duration(), ev.Err)
 	} else {
-		log.Printf("%s connected in %s", ev, ev.Duration())
+		o.log.Infof("%s connected in %s", ev, ev.Duration())
 	}
 }
 
 func (o LoggingConnObserver) OnPickReplacedWithLessBusyConn(ev ConnEvent) {
-	log.Printf("%s pick replaced with less busy conn", ev)
+	o.log.Infof("%s pick replaced with less busy conn", ev)
 }
