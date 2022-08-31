@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/scylladb/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/log"
 )
 
 // Round-Robin tests can't be run in parallel because
@@ -29,9 +30,9 @@ func mockCluster(t *topology, ks, localDC string) *Cluster {
 	t.localDC = localDC
 
 	if k, ok := t.keyspaces[ks]; ok {
-		t.policyInfo.Preprocess(t, k)
+		t.policyInfo.Preprocess(t, k, log.NewDebugLogger())
 	} else {
-		t.policyInfo.Preprocess(t, keyspace{})
+		t.policyInfo.Preprocess(t, keyspace{}, log.NewDebugLogger())
 	}
 	c.setTopology(t)
 

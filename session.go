@@ -3,7 +3,6 @@ package scylla
 import (
 	"context"
 	"fmt"
-	"log"
 	"sync"
 	"time"
 
@@ -271,6 +270,6 @@ func (s *Session) NewTokenAwareDCAwarePolicy(localDC string) transport.HostSelec
 }
 
 func (s *Session) Close() {
-	log.Println("session: close")
+	s.cfg.Logger.Info("session: close")
 	s.cluster.Close()
 }

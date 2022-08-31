@@ -3,7 +3,6 @@ package transport
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"sort"
 	"strconv"
@@ -160,7 +159,7 @@ func NewCluster(ctx context.Context, cfg ConnConfig, p HostSelectionPolicy, e []
 }
 
 func (c *Cluster) NewControl(ctx context.Context) (*Conn, error) {
-	log.Printf("cluster: open control connection")
+	c.cfg.Logger.Info("cluster: open control connection")
 	var errs []string
 	for addr := range c.knownHosts {
 		conn, err := OpenConn(ctx, addr, nil, c.cfg)
@@ -184,7 +183,7 @@ func (c *Cluster) NewControl(ctx context.Context) (*Conn, error) {
 // refreshTopology creates new topology filled with the result of keyspaceQuery, localQuery and peerQuery.
 // Old topology is replaced with the new one atomically to prevent dirty reads.
 func (c *Cluster) refreshTopology(ctx context.Context) error {
-	log.Printf("cluster: refresh topology")
+	c.cfg.Logger.Infoln("cluster: refresh topology")
 	rows, err := c.getAllNodesInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("query info about nodes in cluster: %w", err)
@@ -236,9 +235,9 @@ func (c *Cluster) refreshTopology(ctx context.Context) error {
 	}
 
 	if ks, ok := t.keyspaces[c.cfg.Keyspace]; ok {
-		t.policyInfo.Preprocess(t, ks)
+		t.policyInfo.Preprocess(t, ks, c.cfg.Logger)
 	} else {
-		t.policyInfo.Preprocess(t, keyspace{})
+		t.policyInfo.Preprocess(t, keyspace{}, c.cfg.Logger)
 	}
 
 	c.setTopology(t)
@@ -450,7 +449,7 @@ func (c *Cluster) setTopology(t *topology) {
 // of registering handlers for them.
 func (c *Cluster) handleEvent(ctx context.Context, r response) {
 	if r.Err != nil {
-		log.Printf("cluster: received event with error: %v", r.Err)
+		c.cfg.Logger.Infoln("cluster: received event with error: %v", r.Err)
 		c.RequestReopenControl()
 		return
 	}
@@ -462,17 +461,17 @@ func (c *Cluster) handleEvent(ctx context.Context, r response) {
 	case *SchemaChange:
 		// TODO: add schema change.
 	default:
-		log.Printf("cluster: unsupported event type: %v", r.Response)
+		c.cfg.Logger.Warnf("cluster: unsupported event type: %v", r.Response)
 	}
 }
 
 func (c *Cluster) handleTopologyChange(v *TopologyChange) {
-	log.Printf("cluster: handle topology change: %+#v", v)
+	c.cfg.Logger.Infof("cluster: handle topology change: %+#v", v)
 	c.RequestRefresh()
 }
 
 func (c *Cluster) handleStatusChange(ctx context.Context, v *StatusChange) {
-	log.Printf("cluster: handle status change: %+#v", v)
+	c.cfg.Logger.Infof("cluster: handle status change: %+#v", v)
 	m := c.Topology().peers
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
@@ -482,10 +481,10 @@ func (c *Cluster) handleStatusChange(ctx context.Context, v *StatusChange) {
 		case frame.Down:
 			n.setStatus(statusDown)
 		default:
-			log.Printf("cluster: status change not supported: %+#v", v)
+			c.cfg.Logger.Warnf("cluster: status change not supported: %+#v", v)
 		}
 	} else {
-		log.Printf("cluster: unknown node %s received status change: %+#v in topology %v", addr, v, m)
+		c.cfg.Logger.Infof("cluster: unknown node %s received status change: %+#v in topology %v, requesting topology refresh", addr, v, m)
 		c.RequestRefresh()
 	}
 }
@@ -503,7 +502,7 @@ func (c *Cluster) loop(ctx context.Context) {
 		case <-c.reopenControlChan:
 			c.tryReopenControl(ctx)
 		case <-ctx.Done():
-			log.Printf("cluster closing due to: %v", ctx.Err())
+			c.cfg.Logger.Infof("cluster closing due to: %v", ctx.Err())
 			c.handleClose()
 			return
 		case <-c.closeChan:
@@ -523,17 +522,17 @@ func (c *Cluster) tryRefresh(ctx context.Context) {
 	if err := c.refreshTopology(ctx); err != nil {
 		c.RequestReopenControl()
 		time.AfterFunc(tryRefreshInterval, c.RequestRefresh)
-		log.Printf("cluster: refresh topology: %v", err)
+		c.cfg.Logger.Infof("cluster: refresh topology: %v", err)
 	}
 }
 
 const tryReopenControlInterval = time.Second
 
 func (c *Cluster) tryReopenControl(ctx context.Context) {
-	log.Printf("cluster: reopen control connection")
+	c.cfg.Logger.Infoln("cluster: reopen control connection")
 	if control, err := c.NewControl(ctx); err != nil {
 		time.AfterFunc(tryReopenControlInterval, c.RequestReopenControl)
-		log.Printf("cluster: failed to reopen control connection: %v", err)
+		c.cfg.Logger.Infof("cluster: failed to reopen control connection: %v", err)
 	} else {
 		c.control.Close()
 		c.control = control
@@ -542,7 +541,7 @@ func (c *Cluster) tryReopenControl(ctx context.Context) {
 }
 
 func (c *Cluster) handleClose() {
-	log.Printf("cluster: handle cluster close")
+	c.cfg.Logger.Infoln("cluster: handle cluster close")
 	c.control.Close()
 	m := c.Topology().peers
 	for _, n := range m {
@@ -551,7 +550,7 @@ func (c *Cluster) handleClose() {
 }
 
 func (c *Cluster) RequestRefresh() {
-	log.Printf("cluster: requested to refresh cluster topology")
+	c.cfg.Logger.Infoln("cluster: requested to refresh cluster topology")
 	select {
 	case c.refreshChan <- struct{}{}:
 	default:
@@ -559,7 +558,7 @@ func (c *Cluster) RequestRefresh() {
 }
 
 func (c *Cluster) RequestReopenControl() {
-	log.Printf("cluster: requested to reopen control connection")
+	c.cfg.Logger.Infoln("cluster: requested to reopen control connection")
 	select {
 	case c.reopenControlChan <- struct{}{}:
 	default:
@@ -567,7 +566,7 @@ func (c *Cluster) RequestReopenControl() {
 }
 
 func (c *Cluster) Close() {
-	log.Printf("cluster: requested to close cluster")
+	c.cfg.Logger.Infoln("cluster: requested to close cluster")
 	select {
 	case c.closeChan <- struct{}{}:
 	default:

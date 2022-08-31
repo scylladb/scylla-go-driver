@@ -18,13 +18,18 @@ import (
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"github.com/scylladb/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/log"
 	"github.com/scylladb/scylla-go-driver/transport"
 	"go.uber.org/goleak"
 )
 
 const TestHost = "192.168.100.100"
 
-var testingSessionConfig = DefaultSessionConfig("mykeyspace", TestHost)
+var testingSessionConfig = func() SessionConfig {
+	cfg := DefaultSessionConfig("mykeyspace", TestHost)
+	cfg.Logger = log.NewDebugLogger()
+	return cfg
+}()
 
 func initKeyspace(ctx context.Context, t testing.TB) {
 	t.Helper()

@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -19,6 +18,7 @@ import (
 	"github.com/scylladb/scylla-go-driver/frame"
 	. "github.com/scylladb/scylla-go-driver/frame/request"
 	. "github.com/scylladb/scylla-go-driver/frame/response"
+	"github.com/scylladb/scylla-go-driver/log"
 
 	"go.uber.org/atomic"
 )
@@ -71,6 +71,7 @@ type connWriter struct {
 
 	// For use only when skipping sending a request.
 	freeStream func(frame.StreamID)
+	log        log.Logger
 }
 
 func (c *connWriter) submit(r request) {
@@ -105,14 +106,14 @@ func (c *connWriter) loop(ctx context.Context) {
 					c.freeStream(r.StreamID)
 					continue
 				}
-				log.Printf("%s fatal send error, closing connection due to %s", c.connString(), err)
+				c.log.Infof("%s fatal send error, closing connection due to %s", c.connString(), err)
 				c.connClose()
 				return
 			}
 			c.stats.inFlight.Inc()
 		}
 		if err := c.conn.Flush(); err != nil {
-			log.Printf("%s fatal flush error, closing connection due to %s", c.connString(), err)
+			c.log.Infof("%s fatal flush error, closing connection due to %s", c.connString(), err)
 			c.connClose()
 			return
 		}
@@ -172,6 +173,8 @@ type connReader struct {
 	s      streamIDAllocator
 	closed bool
 	mu     sync.Mutex // mu guards h, s and closed
+
+	log log.Logger
 }
 
 func (c *connReader) setHandler(h ResponseHandler) (frame.StreamID, error) {
@@ -221,7 +224,7 @@ func (c *connReader) loop(ctx context.Context) {
 		}
 
 		if resp.Err != nil {
-			log.Printf("%s fatal receive error, closing connection due to %s", c.connString(), resp.Err)
+			c.log.Infof("%s fatal receive error, closing connection due to %s", c.connString(), resp.Err)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -232,7 +235,7 @@ func (c *connReader) loop(ctx context.Context) {
 		if h := c.handler(resp.StreamID); h != nil {
 			h <- resp
 		} else {
-			log.Printf("%s received unknown stream ID %d, closing connection", c.connString(), resp.StreamID)
+			c.log.Warnf("%s received unknown stream ID %d, closing connection", c.connString(), resp.StreamID)
 			c.connClose()
 			c.drainHandlers()
 			return
@@ -313,7 +316,7 @@ func (c *connReader) parse(op frame.OpCode) frame.Response {
 	case frame.OpAuthChallenge:
 		return ParseAuthChallenge(&c.buf)
 	default:
-		log.Fatalf("not supported")
+		c.log.Warnf("not supported")
 		return nil
 	}
 }
@@ -347,9 +350,11 @@ type ConnConfig struct {
 	ComprBufferSize int
 
 	ConnObserver ConnObserver
+	Logger       log.Logger
 }
 
 func DefaultConnConfig(keyspace string) ConnConfig {
+	l := log.NewDefaultLogger()
 	return ConnConfig{
 		Username:           "cassandra",
 		Password:           "cassandra",
@@ -358,8 +363,9 @@ func DefaultConnConfig(keyspace string) ConnConfig {
 		Timeout:            500 * time.Millisecond,
 		DefaultConsistency: frame.LOCALQUORUM,
 		DefaultPort:        "9042",
-		ConnObserver:       LoggingConnObserver{},
+		ConnObserver:       LoggingConnObserver{l},
 		ComprBufferSize:    comprBufferSize,
+		Logger:             l,
 	}
 }
 
@@ -378,7 +384,7 @@ func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfi
 	for i := 0; i < maxTries; i++ {
 		conn, err := OpenLocalPortConn(ctx, addr, it(), cfg)
 		if err != nil {
-			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
+			cfg.Logger.Infof("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
 			if conn != nil {
 				conn.Close()
 			}
@@ -422,7 +428,7 @@ func OpenConn(ctx context.Context, addr string, localAddr *net.TCPAddr, cfg Conn
 	}
 
 	if cfg.TLSConfig != nil {
-		tConn, err := WrapTLS(ctx, tcpConn, cfg.TLSConfig)
+		tConn, err := WrapTLS(ctx, tcpConn, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -433,14 +439,14 @@ func OpenConn(ctx context.Context, addr string, localAddr *net.TCPAddr, cfg Conn
 	return WrapConn(ctx, tcpConn, cfg)
 }
 
-func WrapTLS(ctx context.Context, conn *net.TCPConn, cfg *tls.Config) (net.Conn, error) {
-	cfg = cfg.Clone()
-	tconn := tls.Client(conn, cfg)
+func WrapTLS(ctx context.Context, conn *net.TCPConn, cfg ConnConfig) (net.Conn, error) {
+	tlsConfig := cfg.TLSConfig.Clone()
+	tconn := tls.Client(conn, tlsConfig)
 	if err := tconn.HandshakeContext(ctx); err != nil {
 		if err := tconn.Close(); err != nil {
-			log.Printf("%s failed to close: %s", tconn.RemoteAddr(), err)
+			cfg.Logger.Warnf("%s failed to close: %s", tconn.RemoteAddr(), err)
 		} else {
-			log.Printf("%s closed", tconn.RemoteAddr())
+			cfg.Logger.Infof("%s closed", tconn.RemoteAddr())
 		}
 
 		return nil, err
@@ -467,6 +473,7 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 			stats:      s,
 			connString: c.String,
 			connClose:  c.Close,
+			log:        cfg.Logger,
 		},
 		r: connReader{
 			conn: io.LimitedReader{
@@ -476,6 +483,7 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 			h:          make(map[frame.StreamID]ResponseHandler),
 			connString: c.String,
 			connClose:  c.Close,
+			log:        cfg.Logger,
 		},
 		stats: s,
 	}
@@ -793,9 +801,9 @@ func (c *Conn) Shard() int {
 func (c *Conn) Close() {
 	c.closeOnce.Do(func() {
 		if err := c.conn.Close(); err != nil {
-			log.Printf("%s failed to close: %s", c, err)
+			c.cfg.Logger.Warnf("%s failed to close: %s", c, err)
 		} else {
-			log.Printf("%s closed", c)
+			c.cfg.Logger.Infof("%s closed", c)
 		}
 		c.w.requestCh <- _connCloseRequest
 		if c.onClose != nil {
