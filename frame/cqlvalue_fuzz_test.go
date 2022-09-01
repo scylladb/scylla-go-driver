@@ -3,6 +3,7 @@ package frame
 import (
 	"math"
 	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -142,12 +143,17 @@ func FuzzCqlValueText(f *testing.F) {
 }
 
 func FuzzCqlValueIP(f *testing.F) {
-	testCases := [][]byte{{1, 2, 3}, net.IP{127, 0, 0, 1}, net.IP{127, 0, 0, 1}.To16()}
+	testCases := [][]byte{net.IP{127, 0, 0, 1}, net.IP{127, 0, 0, 1}.To16()}
 	for _, tc := range testCases {
 		f.Add(tc)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		in, err := CqlFromIP(data)
+		ip, ok := netip.AddrFromSlice(data)
+		if !ok {
+			t.Skip()
+		}
+
+		in, err := CqlFromIP(ip)
 		if err != nil {
 			// We skip tests with incorrect CqlValue.
 			t.Skip()

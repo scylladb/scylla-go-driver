@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"net"
+	"net/netip"
 	"unicode"
 	"unicode/utf8"
 )
@@ -153,16 +153,17 @@ func (c CqlValue) AsText() (string, error) {
 	return string(c.Value), nil
 }
 
-func (c CqlValue) AsIP() (net.IP, error) {
+func (c CqlValue) AsIP() (netip.Addr, error) {
 	if c.Type.ID != InetID {
-		return nil, fmt.Errorf("%v is not of Inet type", c)
+		return netip.Addr{}, fmt.Errorf("%v is not of Inet type", c)
 	}
 
-	if len(c.Value) != 4 && len(c.Value) != 16 {
-		return nil, fmt.Errorf("invalid ip length")
+	ret, ok := netip.AddrFromSlice(c.Value)
+	if !ok {
+		return netip.Addr{}, fmt.Errorf("invalid ip length")
 	}
 
-	return c.Value, nil
+	return ret, nil
 }
 
 func (c CqlValue) AsFloat32() (float32, error) {
@@ -414,17 +415,15 @@ func CqlFromTimeUUID(b [16]byte) (CqlValue, error) {
 	return c, nil
 }
 
-func CqlFromIP(ip net.IP) (CqlValue, error) {
-	if len(ip) != 4 || len(ip) != 16 {
-		return CqlValue{}, fmt.Errorf("invalid ip address")
+func CqlFromIP(ip netip.Addr) (CqlValue, error) {
+	if ip.BitLen() == 0 {
+		return CqlValue{}, fmt.Errorf("zero addr is not supported")
 	}
 
-	c := CqlValue{
+	return CqlValue{
 		Type:  &Option{ID: InetID},
-		Value: make(Bytes, len(ip)),
-	}
-	copy(c.Value, ip)
-	return c, nil
+		Value: ip.AsSlice(),
+	}, nil
 }
 
 func CqlFromFloat32(v float32) CqlValue {

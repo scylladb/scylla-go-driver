@@ -2,7 +2,7 @@ package frame
 
 import (
 	"errors"
-	"net"
+	"net/netip"
 )
 
 // Generic types from CQL binary protocol.
@@ -40,13 +40,13 @@ func (v Value) Clone() Value {
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L241-L245
 type Inet struct {
-	IP   Bytes
+	IP   netip.Addr
 	Port Int
 }
 
 // String only takes care of IP part of the address.
 func (i Inet) String() string {
-	return net.IP(i.IP).String()
+	return i.IP.String()
 }
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L183-L201

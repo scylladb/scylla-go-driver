@@ -119,13 +119,14 @@ func (b *Buffer) WriteValue(v Value) {
 }
 
 func (b *Buffer) WriteInet(v Inet) {
+	addr := v.IP.AsSlice()
 	if Debug {
-		if l := len(v.IP); l != 4 && l != 16 {
-			log.Printf("unknown IP length")
+		if len(addr) != 4 && len(addr) != 16 {
+			log.Printf("unknown ip length")
 		}
 	}
-	b.WriteByte(Byte(len(v.IP)))
-	b.Write(v.IP)
+	b.WriteByte(Byte(len(addr)))
+	b.Write(addr)
 	b.WriteInt(v.Port)
 }
 
