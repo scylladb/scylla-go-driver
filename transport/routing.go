@@ -30,14 +30,14 @@ func RandomShardPort(si ShardInfo) uint16 {
 // ShardPortIterator returns iterator for consecutive ports that are
 // mapped to a specific shard on scylla node.
 func ShardPortIterator(si ShardInfo) func() uint16 {
-	port := RandomShardPort(si)
+	port := int(RandomShardPort(si))
 
 	return func() uint16 {
-		port += si.NrShards
+		port += int(si.NrShards)
 		if port > maxPort {
-			port = (minPort+si.NrShards-1)/si.NrShards*si.NrShards + si.Shard
+			port = int((minPort+si.NrShards-1)/si.NrShards*si.NrShards + si.Shard)
 		}
-		return port
+		return uint16(port)
 	}
 }
 
