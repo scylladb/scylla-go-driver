@@ -31,7 +31,12 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 	for n != nil {
 	sameNodeRetries:
 		for {
-			conn := n.Conn(info)
+			conn, err := n.Conn(info)
+			if err != nil {
+				lastErr = err
+				break sameNodeRetries
+			}
+
 			res, err := q.exec(ctx, conn, q.stmt, nil)
 			if err != nil {
 				ri := transport.RetryInfo{
@@ -60,15 +65,19 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 		i++
 		n = q.session.cfg.HostSelectionPolicy.Node(info, i)
 	}
+
+	if lastErr == nil {
+		return Result{}, ErrNoConnection
+	}
 	return Result{}, lastErr
 }
 
 func (q *Query) pickConn(qi transport.QueryInfo) (*transport.Conn, error) {
 	n := q.session.cfg.HostSelectionPolicy.Node(qi, 0)
 
-	conn := n.Conn(qi)
-	if conn == nil {
-		return nil, errNoConnection
+	conn, err := n.Conn(qi)
+	if err != nil {
+		return nil, ErrNoConnection
 	}
 
 	return conn, nil
@@ -281,6 +290,7 @@ type iterWorker struct {
 	pickNode  func(transport.QueryInfo, int) *transport.Node
 	nodeIdx   int
 	conn      *transport.Conn
+	connErr   error
 
 	rd transport.RetryDecider
 
@@ -295,7 +305,7 @@ func (w *iterWorker) loop(ctx context.Context) {
 		w.errCh <- fmt.Errorf("can't pick a node to execute request")
 		return
 	}
-	w.conn = n.Conn(w.queryInfo)
+	w.conn, w.connErr = n.Conn(w.queryInfo)
 
 	for {
 		_, ok := <-w.requestCh
@@ -324,6 +334,10 @@ func (w *iterWorker) exec(ctx context.Context) (transport.QueryResult, error) {
 	for {
 	sameNodeRetries:
 		for {
+			if w.connErr != nil {
+				lastErr = w.connErr
+				break
+			}
 			res, err := w.queryExec(ctx, w.conn, w.stmt, w.pagingState)
 			if err != nil {
 				ri := transport.RetryInfo{
@@ -349,9 +363,12 @@ func (w *iterWorker) exec(ctx context.Context) (transport.QueryResult, error) {
 		w.nodeIdx++
 		n := w.pickNode(w.queryInfo, w.nodeIdx)
 		if n == nil {
+			if lastErr == nil {
+				return transport.QueryResult{}, ErrNoConnection
+			}
 			return transport.QueryResult{}, lastErr
 		}
 
-		w.conn = n.Conn(w.queryInfo)
+		w.conn, w.connErr = n.Conn(w.queryInfo)
 	}
 }

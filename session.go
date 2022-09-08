@@ -56,7 +56,7 @@ var (
 		"SERIAL      Consistency = 0x0008\n" +
 		"LOCALSERIAL Consistency = 0x0009\n" +
 		"LOCALONE    Consistency = 0x000A")
-	errNoConnection = fmt.Errorf("no working connection")
+	ErrNoConnection = fmt.Errorf("no connection to execute the query on")
 )
 
 type Compression = frame.Compression

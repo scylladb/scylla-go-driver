@@ -53,10 +53,10 @@ func (n *Node) Close() {
 	n.setStatus(statusDown)
 }
 
-func (n *Node) LeastBusyConn() *Conn {
+func (n *Node) LeastBusyConn() (*Conn, error) {
 	return n.pool.LeastBusyConn()
 }
-func (n *Node) Conn(qi QueryInfo) *Conn {
+func (n *Node) Conn(qi QueryInfo) (*Conn, error) {
 	if qi.tokenAware {
 		return n.pool.Conn(qi.token)
 	}
@@ -65,7 +65,11 @@ func (n *Node) Conn(qi QueryInfo) *Conn {
 }
 
 func (n *Node) Prepare(ctx context.Context, s Statement) (Statement, error) {
-	return n.LeastBusyConn().Prepare(ctx, s)
+	conn, err := n.LeastBusyConn()
+	if err != nil {
+		return Statement{}, err
+	}
+	return conn.Prepare(ctx, s)
 }
 
 var versionQuery = Statement{
@@ -74,7 +78,11 @@ var versionQuery = Statement{
 }
 
 func (n *Node) FetchSchemaVersion(ctx context.Context) (frame.UUID, error) {
-	conn := n.LeastBusyConn()
+	conn, err := n.LeastBusyConn()
+	if err != nil {
+		return frame.UUID{}, err
+	}
+
 	res, err := conn.Query(ctx, versionQuery, nil)
 	if err != nil {
 		return frame.UUID{}, err

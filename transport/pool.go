@@ -41,13 +41,13 @@ func (p *ConnPool) String() string {
 	return fmt.Sprintf("pool %s [shards=%d]", p.host, p.nrShards)
 }
 
-func (p *ConnPool) Conn(token Token) *Conn {
+func (p *ConnPool) Conn(token Token) (*Conn, error) {
 	idx := p.shardOf(token)
 	if conn := p.loadConn(idx); conn != nil {
 		if isHeavyLoaded(conn) {
-			return p.maybeReplaceWithLessBusyConn(conn)
+			return p.maybeReplaceWithLessBusyConn(conn), nil
 		}
-		return conn
+		return conn, nil
 	}
 	return p.LeastBusyConn()
 }
@@ -57,7 +57,7 @@ func isHeavyLoaded(conn *Conn) bool {
 }
 
 func (p *ConnPool) maybeReplaceWithLessBusyConn(conn *Conn) *Conn {
-	if lb := p.LeastBusyConn(); conn.Waiting()-lb.Waiting() > maxStreamID<<1/10 {
+	if lb, err := p.LeastBusyConn(); err == nil && conn.Waiting()-lb.Waiting() > maxStreamID<<1/10 {
 		if p.connObs != nil {
 			p.connObs.OnPickReplacedWithLessBusyConn(conn.Event())
 		}
@@ -66,7 +66,7 @@ func (p *ConnPool) maybeReplaceWithLessBusyConn(conn *Conn) *Conn {
 	return conn
 }
 
-func (p *ConnPool) LeastBusyConn() *Conn {
+func (p *ConnPool) LeastBusyConn() (*Conn, error) {
 	var (
 		leastBusyConn *Conn
 		minBusy       = maxStreamID + 2 // adding 2 more is required due to atomics
@@ -80,7 +80,11 @@ func (p *ConnPool) LeastBusyConn() *Conn {
 			}
 		}
 	}
-	return leastBusyConn
+
+	if leastBusyConn == nil {
+		return nil, fmt.Errorf("no connections available for host %s", p.host)
+	}
+	return leastBusyConn, nil
 }
 
 func (p *ConnPool) shardOf(token Token) int {

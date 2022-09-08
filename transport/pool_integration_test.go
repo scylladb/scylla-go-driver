@@ -72,21 +72,27 @@ func TestConnPoolConnIntegration(t *testing.T) {
 	defer p.Close()
 
 	t0 := MurmurToken([]byte(""))
-	if conn := p.Conn(t0); conn == nil || conn.Shard() != 0 {
+	if conn, err := p.Conn(t0); err != nil || conn.Shard() != 0 {
 		t.Fatal("invalid return of Conn")
 	}
 
 	load := uint32(math.Floor(maxStreamID/2 + 1))
-	p.Conn(t0).stats.inQueue.Store(load)
 
-	if conn := p.Conn(t0); conn == nil {
+	conn, err := p.Conn(t0)
+	if err != nil {
+		t.Fatal("invalid return of Conn")
+	}
+
+	conn.stats.inQueue.Store(load)
+
+	if conn, err := p.Conn(t0); err != nil {
 		t.Fatal("invalid return of Conn")
 	} else if conn.Shard() == 0 {
 		t.Fatalf("invalid load distribution")
 	}
 
 	t1 := MurmurToken([]byte("0")) // Very big number approx. 3 * 10^18.
-	if conn := p.Conn(t1); conn == nil {
+	if _, err := p.Conn(t1); err != nil {
 		t.Fatal("invalid return of Conn")
 	}
 }
