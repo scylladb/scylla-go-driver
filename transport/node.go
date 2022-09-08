@@ -25,7 +25,7 @@ type Node struct {
 	status     nodeStatus
 }
 
-func (n *Node) Status() bool {
+func (n *Node) IsUp() bool {
 	return n.status.Load()
 }
 
