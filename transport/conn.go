@@ -164,7 +164,7 @@ type connReader struct {
 	bufw        io.Writer
 	stats       *stats
 	compr       *compr
-	handleEvent func(r response)
+	handleEvent func(context.Context, response)
 	connString  func() string
 	connClose   func()
 
@@ -209,13 +209,13 @@ func (c *connReader) freeStream(streamID frame.StreamID) {
 }
 
 // loop terminates when its connection gets closed by the pool, especially when session context is done.
-func (c *connReader) loop() {
+func (c *connReader) loop(ctx context.Context) {
 	c.bufw = frame.BufferWriter(&c.buf)
 	for {
 		resp := c.recv()
 		if resp.StreamID == eventStreamID {
 			if c.handleEvent != nil {
-				c.handleEvent(resp)
+				c.handleEvent(ctx, resp)
 			}
 			continue
 		}
@@ -495,7 +495,7 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 	}
 
 	go c.w.loop(ctx)
-	go c.r.loop()
+	go c.r.loop(ctx)
 
 	if err := c.init(ctx); err != nil {
 		return c, err
@@ -652,7 +652,7 @@ func (c *Conn) Execute(ctx context.Context, s Statement, pagingState frame.Bytes
 	return MakeQueryResult(res, s.Metadata)
 }
 
-func (c *Conn) RegisterEventHandler(ctx context.Context, h func(r response), e ...frame.EventType) error {
+func (c *Conn) RegisterEventHandler(ctx context.Context, h func(context.Context, response), e ...frame.EventType) error {
 	c.r.handleEvent = h
 	req := Register{EventTypes: e}
 	res, err := c.sendRequest(ctx, &req, false, false)

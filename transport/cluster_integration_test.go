@@ -51,7 +51,7 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	// Checks cluster behavior after receiving event with error.
-	c.handleEvent(response{Err: fmt.Errorf("fake error")})
+	c.handleEvent(ctx, response{Err: fmt.Errorf("fake error")})
 
 	expected := &Node{
 		addr:       TestHost,
@@ -65,12 +65,14 @@ func TestClusterIntegration(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	c.handleEvent(response{
-		Response: &StatusChange{
-			Status:  frame.Down,
-			Address: addr,
-		},
-	})
+	c.handleEvent(
+		ctx,
+		response{
+			Response: &StatusChange{
+				Status:  frame.Down,
+				Address: addr,
+			},
+		})
 	expected.setStatus(statusDown)
 
 	time.Sleep(awaitingChanges)
@@ -84,12 +86,14 @@ func TestClusterIntegration(t *testing.T) {
 		t.Fatalf("Keyspaces failed to load")
 	}
 
-	c.handleEvent(response{
-		Response: &TopologyChange{
-			Change:  frame.NewNode,
-			Address: addr,
-		},
-	})
+	c.handleEvent(
+		ctx,
+		response{
+			Response: &TopologyChange{
+				Change:  frame.NewNode,
+				Address: addr,
+			},
+		})
 
 	time.Sleep(awaitingChanges)
 	// Checks if cluster can handle (fake) topology change.
