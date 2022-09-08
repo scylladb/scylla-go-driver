@@ -448,7 +448,7 @@ func (c *Cluster) setTopology(t *topology) {
 // handleEvent creates function which is passed to control connection
 // via registerEvents in order to handle events right away instead
 // of registering handlers for them.
-func (c *Cluster) handleEvent(r response) {
+func (c *Cluster) handleEvent(ctx context.Context, r response) {
 	if r.Err != nil {
 		log.Printf("cluster: received event with error: %v", r.Err)
 		c.RequestReopenControl()
@@ -458,7 +458,7 @@ func (c *Cluster) handleEvent(r response) {
 	case *TopologyChange:
 		c.handleTopologyChange(v)
 	case *StatusChange:
-		c.handleStatusChange(v)
+		c.handleStatusChange(ctx, v)
 	case *SchemaChange:
 		// TODO: add schema change.
 	default:
@@ -471,14 +471,14 @@ func (c *Cluster) handleTopologyChange(v *TopologyChange) {
 	c.RequestRefresh()
 }
 
-func (c *Cluster) handleStatusChange(v *StatusChange) {
+func (c *Cluster) handleStatusChange(ctx context.Context, v *StatusChange) {
 	log.Printf("cluster: handle status change: %+#v", v)
 	m := c.Topology().peers
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
 		switch v.Status {
 		case frame.Up:
-			n.setStatus(statusUP)
+			n.Init(ctx, c.cfg)
 		case frame.Down:
 			n.setStatus(statusDown)
 		default:
