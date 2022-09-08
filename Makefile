@@ -58,6 +58,16 @@ else
 	$(error Unsupported OS $(OS))
 endif
 
+.PHONY: docker-integration-test
+docker-integration-test: RUN=Integration
+docker-integration-test:
+	@CGO_ENABLED=0 GOOS=linux go test -v -tags integration -c -o ./integration-test.dev $(PKG)
+	@docker run --name "integration-test" \
+		--network scylla_go_driver_public \
+		-v "$(PWD)/testdata:/testdata" \
+		-v "$(PWD)/integration-test.dev:/usr/bin/integration-test:ro" \
+		-i --read-only --rm ubuntu integration-test -test.v -test.run $(RUN) $(ARGS)
+
 .PHONY: run-benchtab
 run-benchtab: CPUSET=4-5
 run-benchtab:
