@@ -54,9 +54,16 @@ func (n *Node) Close() {
 }
 
 func (n *Node) LeastBusyConn() (*Conn, error) {
+	if !n.IsUp() {
+		return nil, fmt.Errorf("node %v is down", n)
+	}
+
 	return n.pool.LeastBusyConn()
 }
 func (n *Node) Conn(qi QueryInfo) (*Conn, error) {
+	if !n.IsUp() {
+		return nil, fmt.Errorf("node %v is down", n)
+	}
 	if qi.tokenAware {
 		return n.pool.Conn(qi.token)
 	}
