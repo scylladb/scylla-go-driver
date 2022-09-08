@@ -212,15 +212,9 @@ func (c *Cluster) refreshTopology(ctx context.Context) error {
 		// If node is present in both maps we can reuse its connection pool.
 		if node, ok := old[n.addr]; ok {
 			n.pool = node.pool
-			n.setStatus(node.Status())
-		} else {
-			if pool, err := NewConnPool(ctx, n.addr, c.cfg); err != nil {
-				n.setStatus(statusDown)
-			} else {
-				n.setStatus(statusUP)
-				n.pool = pool
-			}
 		}
+		n.Init(ctx, c.cfg)
+
 		// Every encountered node becomes known host for future use.
 		c.knownHosts[n.addr] = struct{}{}
 		t.peers[n.addr] = n
@@ -236,8 +230,8 @@ func (c *Cluster) refreshTopology(ctx context.Context) error {
 	}
 	// We want to close pools of nodes present in previous and absent in current topology.
 	for k, v := range old {
-		if _, ok := t.peers[k]; v.pool != nil && !ok {
-			v.pool.Close()
+		if _, ok := t.peers[k]; !ok {
+			v.Close()
 		}
 	}
 
@@ -336,6 +330,7 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 	if addr == nil || addr.IsUnspecified() {
 		return nil, fmt.Errorf("all addr columns conatin invalid IP")
 	}
+
 	return &Node{
 		hostID:     hostID,
 		addr:       addr.String(),
@@ -550,10 +545,8 @@ func (c *Cluster) handleClose() {
 	log.Printf("cluster: handle cluster close")
 	c.control.Close()
 	m := c.Topology().peers
-	for _, v := range m {
-		if v.pool != nil {
-			v.pool.Close()
-		}
+	for _, n := range m {
+		n.Close()
 	}
 }
 

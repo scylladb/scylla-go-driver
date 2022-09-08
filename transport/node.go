@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"go.uber.org/atomic"
@@ -30,6 +31,26 @@ func (n *Node) Status() bool {
 
 func (n *Node) setStatus(v bool) {
 	n.status.Store(v)
+}
+
+func (n *Node) Init(ctx context.Context, cfg ConnConfig) {
+	if n.pool == nil {
+		var err error
+		n.pool, err = NewConnPool(ctx, n.addr, cfg)
+		if err == nil {
+			n.setStatus(statusUP)
+		} else {
+			log.Printf("couldn't create a connection pool to node %v: %v;setting node status to DOWN", n, err)
+			n.setStatus(statusDown)
+		}
+	}
+}
+
+func (n *Node) Close() {
+	if n.pool != nil {
+		n.pool.Close()
+	}
+	n.setStatus(statusDown)
 }
 
 func (n *Node) LeastBusyConn() *Conn {
