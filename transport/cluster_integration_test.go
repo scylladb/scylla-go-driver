@@ -22,8 +22,8 @@ func compareNodes(c *Cluster, addr string, expected *Node) error {
 	switch {
 	case !ok:
 		return fmt.Errorf("couldn't find node: %s in cluster's nodes", addr)
-	case got.Status() != expected.Status():
-		return fmt.Errorf("got status: %t, expected: %t", got.Status(), expected.Status())
+	case got.IsUp() != expected.IsUp():
+		return fmt.Errorf("got status: %t, expected: %t", got.IsUp(), expected.IsUp())
 	case got.addr != expected.addr:
 		return fmt.Errorf("got IP address: %s, expected: %s", got.addr, expected.addr)
 	case got.rack != expected.rack:
