@@ -80,7 +80,7 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	// There should be at least system keyspaces present.
-	if len(c.topology.Load().(*topology).keyspaces) == 0 {
+	if len(c.Topology().keyspaces) == 0 {
 		t.Fatalf("Keyspaces failed to load")
 	}
 

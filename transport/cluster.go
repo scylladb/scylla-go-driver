@@ -26,7 +26,7 @@ type (
 )
 
 type Cluster struct {
-	topology          atomic.Value // *topology
+	topology          atomic.Pointer[topology]
 	control           *Conn
 	cfg               ConnConfig
 	handledEvents     []frame.EventType // This will probably be moved to config.
@@ -443,7 +443,7 @@ func parseTokensFromRow(n *Node, r frame.Row, ring *Ring) error {
 }
 
 func (c *Cluster) Topology() *topology {
-	return c.topology.Load().(*topology)
+	return c.topology.Load()
 }
 
 func (c *Cluster) setTopology(t *topology) {
