@@ -376,6 +376,10 @@ func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfi
 	it := ShardPortIterator(si)
 	maxTries := (maxPort-minPort+1)/int(si.NrShards) + 1
 	for i := 0; i < maxTries; i++ {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("aborted opening connection on shard %d: %w", si.Shard, err)
+		}
+
 		conn, err := OpenLocalPortConn(ctx, addr, it(), cfg)
 		if err != nil {
 			log.Printf("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
