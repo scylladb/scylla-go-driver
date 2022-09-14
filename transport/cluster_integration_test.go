@@ -17,7 +17,7 @@ import (
 const awaitingChanges = 100 * time.Millisecond
 
 func compareNodes(c *Cluster, addr string, expected *Node) error {
-	m := c.Topology().peers
+	m := c.topology.Load().peers
 	got, ok := m[addr]
 	switch {
 	case !ok:
@@ -80,7 +80,7 @@ func TestClusterIntegration(t *testing.T) {
 	}
 
 	// There should be at least system keyspaces present.
-	if len(c.Topology().keyspaces) == 0 {
+	if len(c.topology.Load().keyspaces) == 0 {
 		t.Fatalf("Keyspaces failed to load")
 	}
 

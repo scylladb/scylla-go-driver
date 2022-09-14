@@ -33,7 +33,7 @@ func mockCluster(t *topology, ks, localDC string) *Cluster {
 	} else {
 		t.policyInfo.Preprocess(t, keyspace{})
 	}
-	c.setTopology(t)
+	c.topology.Store(t)
 
 	return &c
 }

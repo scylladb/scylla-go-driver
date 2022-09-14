@@ -38,6 +38,10 @@ type Cluster struct {
 	queryInfoCounter atomic.Uint64
 }
 
+func (c *Cluster) Nodes() []*Node {
+	return c.topology.Load().Nodes
+}
+
 type topology struct {
 	localDC    string
 	peers      peerMap
@@ -86,13 +90,13 @@ type QueryInfo struct {
 func (c *Cluster) NewQueryInfo() QueryInfo {
 	return QueryInfo{
 		tokenAware: false,
-		topology:   c.Topology(),
+		topology:   c.topology.Load(),
 		offset:     c.generateOffset(),
 	}
 }
 
 func (c *Cluster) NewTokenAwareQueryInfo(t Token, ks string) (QueryInfo, error) {
-	top := c.Topology()
+	top := c.topology.Load()
 	// When keyspace is not specified, we take default keyspace from ConnConfig.
 	if ks == "" {
 		if c.cfg.Keyspace == "" {
@@ -144,7 +148,7 @@ func NewCluster(ctx context.Context, cfg ConnConfig, p HostSelectionPolicy, e []
 	if p, ok := p.(*TokenAwarePolicy); ok {
 		localDC = p.localDC
 	}
-	c.setTopology(&topology{localDC: localDC})
+	c.topology.Store(&topology{localDC: localDC})
 
 	if control, err := c.NewControl(ctx); err != nil {
 		return nil, fmt.Errorf("create control connection: %w", err)
@@ -190,9 +194,9 @@ func (c *Cluster) refreshTopology(ctx context.Context) error {
 		return fmt.Errorf("query info about nodes in cluster: %w", err)
 	}
 
-	old := c.Topology().peers
+	old := c.topology.Load().peers
 	t := newTopology()
-	t.localDC = c.Topology().localDC
+	t.localDC = c.topology.Load().localDC
 	t.keyspaces, err = c.updateKeyspace(ctx)
 	if err != nil {
 		return fmt.Errorf("query keyspaces: %w", err)
@@ -247,7 +251,7 @@ func (c *Cluster) refreshTopology(ctx context.Context) error {
 		t.policyInfo.Preprocess(t, keyspace{})
 	}
 
-	c.setTopology(t)
+	c.topology.Store(t)
 	drainChan(c.refreshChan)
 	return nil
 }
@@ -442,14 +446,6 @@ func parseTokensFromRow(n *Node, r frame.Row, ring *Ring) error {
 	return nil
 }
 
-func (c *Cluster) Topology() *topology {
-	return c.topology.Load()
-}
-
-func (c *Cluster) setTopology(t *topology) {
-	c.topology.Store(t)
-}
-
 // handleEvent creates function which is passed to control connection
 // via registerEvents in order to handle events right away instead
 // of registering handlers for them.
@@ -478,7 +474,7 @@ func (c *Cluster) handleTopologyChange(v *TopologyChange) {
 
 func (c *Cluster) handleStatusChange(v *StatusChange) {
 	log.Printf("cluster: handle status change: %+#v", v)
-	m := c.Topology().peers
+	m := c.topology.Load().peers
 	addr := v.Address.String()
 	if n, ok := m[addr]; ok {
 		switch v.Status {
@@ -549,7 +545,7 @@ func (c *Cluster) tryReopenControl(ctx context.Context) {
 func (c *Cluster) handleClose() {
 	log.Printf("cluster: handle cluster close")
 	c.control.Close()
-	m := c.Topology().peers
+	m := c.topology.Load().peers
 	for _, v := range m {
 		if v.pool != nil {
 			v.pool.Close()
