@@ -19,7 +19,7 @@ type ConnPool struct {
 	host         string
 	nrShards     int
 	msbIgnore    uint8
-	conns        []atomic.Value
+	conns        []atomic.Pointer[Conn]
 	connClosedCh chan int // notification channel for when connection is closed
 	connObs      ConnObserver
 }
@@ -99,13 +99,11 @@ func (p *ConnPool) storeConn(conn *Conn) {
 }
 
 func (p *ConnPool) loadConn(shard int) *Conn {
-	conn, _ := p.conns[shard].Load().(*Conn)
-	return conn
+	return p.conns[shard].Load()
 }
 
 func (p *ConnPool) clearConn(shard int) bool {
-	conn, _ := p.conns[shard].Swap((*Conn)(nil)).(*Conn)
-	return conn != nil
+	return p.conns[shard].Swap(nil) != nil
 }
 
 func (p *ConnPool) Close() {
@@ -115,7 +113,7 @@ func (p *ConnPool) Close() {
 // closeAll is called by PoolRefiller.
 func (p *ConnPool) closeAll() {
 	for i := range p.conns {
-		if conn, ok := p.conns[i].Swap((*Conn)(nil)).(*Conn); ok {
+		if conn := p.conns[i].Swap(nil); conn != nil {
 			conn.Close()
 		}
 	}
@@ -168,7 +166,7 @@ func (r *PoolRefiller) init(ctx context.Context, host string) error {
 		host:         host,
 		nrShards:     int(ss.NrShards),
 		msbIgnore:    ss.MsbIgnore,
-		conns:        make([]atomic.Value, int(ss.NrShards)),
+		conns:        make([]atomic.Pointer[Conn], int(ss.NrShards)),
 		connClosedCh: make(chan int, int(ss.NrShards)+1),
 		connObs:      r.cfg.ConnObserver,
 	}

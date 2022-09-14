@@ -33,7 +33,7 @@ func mockCluster(t *topology, ks, localDC string) *Cluster {
 	} else {
 		t.policyInfo.Preprocess(t, keyspace{})
 	}
-	c.setTopology(t)
+	c.topology.Store(t)
 
 	return &c
 }
@@ -139,16 +139,16 @@ func TestDCAwareRoundRobinPolicy(t *testing.T) { //nolint:paralleltest // Can't 
 }
 
 /*
-	mockTopologyTokenAwareSimpleStrategy creates cluster topology with info about 3 nodes living in the same datacenter.
+mockTopologyTokenAwareSimpleStrategy creates cluster topology with info about 3 nodes living in the same datacenter.
 
-	Ring field is populated as follows:
-	ring tokens:            50 100 150 200 250 300 400 500
-	corresponding node ids: 2  1   2   3   1   2   3   1
+Ring field is populated as follows:
+ring tokens:            50 100 150 200 250 300 400 500
+corresponding node ids: 2  1   2   3   1   2   3   1
 
-	Keyspaces:
-	names:       "rf2"  "rf3"
-	strategies:  simple simple
-	rep factors: 2      3
+Keyspaces:
+names:       "rf2"  "rf3"
+strategies:  simple simple
+rep factors: 2      3.
 */
 func mockTopologyTokenAwareSimpleStrategy() *topology {
 	dummyNodes := []*Node{
@@ -239,24 +239,24 @@ func TestTokenAwareSimpleStrategyPolicy(t *testing.T) { //nolint:paralleltest //
 }
 
 /*
-	mockTopologyTokenAwareNetworkStrategy creates cluster topology with info about 8 nodes
-	living in two different datacenters.
+mockTopologyTokenAwareNetworkStrategy creates cluster topology with info about 8 nodes
+living in two different datacenters.
 
-	Ring field is populated as follows:
-	ring tokens:            50 100 150 200 250 300 400 500 510
-	corresponding node ids: 1  5   2   1   6   4   8   7   3
+Ring field is populated as follows:
+ring tokens:            50 100 150 200 250 300 400 500 510
+corresponding node ids: 1  5   2   1   6   4   8   7   3
 
-	Datacenter:       waw
-	nodes in rack r1: 1 2
-	nodes in rack r2: 3 4
+Datacenter:       waw
+nodes in rack r1: 1 2
+nodes in rack r2: 3 4
 
-	Datacenter:       her
-	nodes in rack r3: 5 6
-	nodes in rack r4: 7 8
+Datacenter:       her
+nodes in rack r3: 5 6
+nodes in rack r4: 7 8
 
-	Keyspace:         "waw/her"
-	strategy: network topology
-	replication factors: waw: 2 her: 3
+Keyspace:         "waw/her"
+strategy: network topology
+replication factors: waw: 2 her: 3.
 */
 func mockTopologyTokenAwareDCAwareStrategy() *topology {
 	dummyNodes := []*Node{

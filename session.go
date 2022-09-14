@@ -161,7 +161,7 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
 
 	// Prepare on all nodes concurrently.
-	nodes := s.cluster.Topology().Nodes
+	nodes := s.cluster.Nodes()
 	resStmt := make([]transport.Statement, len(nodes))
 	resErr := make([]error, len(nodes))
 	var wg sync.WaitGroup
@@ -234,7 +234,7 @@ func (s *Session) handleAutoAwaitSchemaAgreement(ctx context.Context, stmt strin
 
 func (s *Session) CheckSchemaAgreement(ctx context.Context) (bool, error) {
 	// Get schema version from all nodes concurrently.
-	nodes := s.cluster.Topology().Nodes
+	nodes := s.cluster.Nodes()
 	versions := make([]frame.UUID, len(nodes))
 	errors := make([]error, len(nodes))
 	var wg sync.WaitGroup
