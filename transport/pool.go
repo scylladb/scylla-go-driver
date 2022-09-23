@@ -233,7 +233,9 @@ func (r *PoolRefiller) fill(ctx context.Context) {
 		if r.pool.loadConn(i) != nil {
 			continue
 		}
-
+		if ctx.Err() != nil {
+			return
+		}
 		si.Shard = uint16(i)
 		span := startSpan()
 		conn, err := OpenShardConn(ctx, r.addr, si, r.cfg)
