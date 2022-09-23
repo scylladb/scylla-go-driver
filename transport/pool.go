@@ -141,9 +141,6 @@ func (r *PoolRefiller) init(ctx context.Context, host string) error {
 	conn, err := OpenConn(ctx, host, nil, r.cfg)
 	span.stop()
 	if err != nil {
-		if conn != nil {
-			conn.Close()
-		}
 		return err
 	}
 
@@ -244,9 +241,6 @@ func (r *PoolRefiller) fill(ctx context.Context) {
 		if err != nil {
 			if r.pool.connObs != nil {
 				r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: ConnEvent{Addr: r.addr, Shard: si.Shard}, span: span, Err: err})
-			}
-			if conn != nil {
-				conn.Close()
 			}
 			continue
 		}

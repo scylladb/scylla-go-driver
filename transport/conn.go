@@ -385,9 +385,6 @@ func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfi
 		conn, err := OpenLocalPortConn(ctx, addr, it(), cfg)
 		if err != nil {
 			cfg.Logger.Infof("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
-			if conn != nil {
-				conn.Close()
-			}
 			continue
 		}
 		return conn, nil
@@ -506,7 +503,8 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 	go c.r.loop(ctx)
 
 	if err := c.init(ctx); err != nil {
-		return c, err
+		c.Close()
+		return nil, err
 	}
 
 	return c, nil

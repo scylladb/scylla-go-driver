@@ -167,13 +167,11 @@ func (c *Cluster) NewControl(ctx context.Context) (*Conn, error) {
 			if err := conn.RegisterEventHandler(ctx, c.handleEvent, c.handledEvents...); err == nil {
 				return conn, nil
 			} else {
+				conn.Close()
 				errs = append(errs, fmt.Sprintf("%s failed to register for events: %s", conn, err))
 			}
 		} else {
 			errs = append(errs, fmt.Sprintf("%s failed to connect: %s", addr, err))
-		}
-		if conn != nil {
-			conn.Close()
 		}
 	}
 
