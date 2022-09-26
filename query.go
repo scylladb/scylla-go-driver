@@ -12,6 +12,7 @@ type Query struct {
 	session     *Session
 	stmt        transport.Statement
 	buf         frame.Buffer
+	pageState   frame.Bytes
 	exec        func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
 	asyncExec   func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
 	res         []transport.ResponseHandler
@@ -38,7 +39,7 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 				break sameNodeRetries
 			}
 
-			res, err := q.exec(ctx, conn, q.stmt, nil)
+			res, err := q.exec(ctx, conn, q.stmt, q.pageState)
 			if err != nil {
 				ri := transport.RetryInfo{
 					Error:       err,
@@ -99,7 +100,7 @@ func (q *Query) AsyncExec(ctx context.Context) {
 
 	h := transport.MakeResponseHandler()
 	q.res = append(q.res, h)
-	q.asyncExec(ctx, conn, stmt, nil, h)
+	q.asyncExec(ctx, conn, stmt, q.pageState, h)
 }
 
 var ErrNoQueryResults = fmt.Errorf("no query results to be fetched")
@@ -194,6 +195,15 @@ func (q *Query) SetIdempotent(v bool) {
 
 func (q *Query) Idempotent() bool {
 	return q.stmt.Idempotent
+}
+
+func (q *Query) SetPageState(v []byte) *Query {
+	q.pageState = v
+	return q
+}
+
+func (q *Query) PageState() []byte {
+	return q.pageState
 }
 
 func (q *Query) SetRetryPolicy(v transport.RetryPolicy) *Query {
