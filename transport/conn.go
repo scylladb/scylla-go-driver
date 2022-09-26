@@ -70,8 +70,9 @@ type connWriter struct {
 	connClose  func()
 
 	// For use only when skipping sending a request.
-	freeStream func(frame.StreamID)
-	log        log.Logger
+	freeStream            func(frame.StreamID)
+	log                   log.Logger
+	writeCoalesceWaitTime time.Duration
 }
 
 func (c *connWriter) submit(r request) {
@@ -85,7 +86,7 @@ func (c *connWriter) loop(ctx context.Context) {
 		// If there are no requests backoff.
 		// Through experimentation, we know that, sleeping more than 1ms makes no difference or is counterproductive.
 		if size == 0 {
-			time.Sleep(time.Millisecond)
+			time.Sleep(c.writeCoalesceWaitTime)
 			size = len(c.requestCh)
 		}
 		if size == 0 {
@@ -333,11 +334,12 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	Username   string
-	Password   string
-	Keyspace   string
-	TCPNoDelay bool
-	Timeout    time.Duration
+	Username              string
+	Password              string
+	Keyspace              string
+	TCPNoDelay            bool
+	WriteCoalesceWaitTime time.Duration
+	Timeout               time.Duration
 
 	// If not nil, all connections will use TLS according to TLSConfig,
 	// please note that the default port (9042) may not support TLS.
@@ -356,16 +358,17 @@ type ConnConfig struct {
 func DefaultConnConfig(keyspace string) ConnConfig {
 	l := log.NewDefaultLogger()
 	return ConnConfig{
-		Username:           "cassandra",
-		Password:           "cassandra",
-		Keyspace:           keyspace,
-		TCPNoDelay:         true,
-		Timeout:            500 * time.Millisecond,
-		DefaultConsistency: frame.LOCALQUORUM,
-		DefaultPort:        "9042",
-		ConnObserver:       LoggingConnObserver{l},
-		ComprBufferSize:    comprBufferSize,
-		Logger:             l,
+		Username:              "cassandra",
+		Password:              "cassandra",
+		Keyspace:              keyspace,
+		TCPNoDelay:            true,
+		Timeout:               500 * time.Millisecond,
+		DefaultConsistency:    frame.LOCALQUORUM,
+		DefaultPort:           "9042",
+		ConnObserver:          LoggingConnObserver{l},
+		ComprBufferSize:       comprBufferSize,
+		Logger:                l,
+		WriteCoalesceWaitTime: time.Millisecond,
 	}
 }
 
@@ -468,12 +471,13 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 			Shard: UnknownShard,
 		},
 		w: connWriter{
-			conn:       bufio.NewWriterSize(conn, ioBufferSize),
-			requestCh:  make(chan request, requestChanSize),
-			stats:      s,
-			connString: c.String,
-			connClose:  c.Close,
-			log:        cfg.Logger,
+			conn:                  bufio.NewWriterSize(conn, ioBufferSize),
+			requestCh:             make(chan request, requestChanSize),
+			stats:                 s,
+			connString:            c.String,
+			connClose:             c.Close,
+			log:                   cfg.Logger,
+			writeCoalesceWaitTime: cfg.WriteCoalesceWaitTime,
 		},
 		r: connReader{
 			conn: io.LimitedReader{
