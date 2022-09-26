@@ -223,6 +223,11 @@ func (q *Query) SerialConsistency(v frame.Consistency) frame.Consistency {
 	return q.stmt.SerialConsistency
 }
 
+func (q *Query) NoSkipMetadata() *Query {
+	q.stmt.NoSkipMetadata = true
+	return q
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
