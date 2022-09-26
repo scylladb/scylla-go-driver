@@ -215,6 +215,14 @@ func (q *Query) RetryPolicy() transport.RetryPolicy {
 	return q.retryPolicy
 }
 
+func (q *Query) SetSerialConsistency(v frame.Consistency) {
+	q.stmt.SerialConsistency = v
+}
+
+func (q *Query) SerialConsistency(v frame.Consistency) frame.Consistency {
+	return q.stmt.SerialConsistency
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
