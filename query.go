@@ -297,6 +297,14 @@ func (q *Query) NoSkipMetadata() *Query {
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
+	stmt := q.stmt.Clone()
+
+	var pageState []byte
+	if q.pageState != nil {
+		pageState = make([]byte, len(q.pageState))
+		copy(pageState, q.pageState)
+	}
+
 	it := Iter{
 		requestCh: make(chan struct{}, 1),
 		nextCh:    make(chan transport.QueryResult),
@@ -310,12 +318,13 @@ func (q *Query) Iter(ctx context.Context) Iter {
 	}
 
 	worker := iterWorker{
-		stmt: q.stmt.Clone(),
+		stmt: stmt,
 
-		rd:        q.retryPolicy.NewRetryDecider(),
-		queryInfo: info,
-		pickNode:  q.session.cfg.HostSelectionPolicy.Node,
-		queryExec: q.exec,
+		rd:          q.retryPolicy.NewRetryDecider(),
+		queryInfo:   info,
+		pickNode:    q.session.cfg.HostSelectionPolicy.Node,
+		queryExec:   q.exec,
+		pagingState: pageState,
 
 		requestCh: it.requestCh,
 		nextCh:    it.nextCh,
@@ -342,6 +351,10 @@ var (
 	ErrClosedIter = fmt.Errorf("iter is closed")
 	ErrNoMoreRows = fmt.Errorf("no more rows left")
 )
+
+func (it *Iter) PageState() []byte {
+	return it.result.PagingState
+}
 
 func (it *Iter) Next() (frame.Row, error) {
 	if it.closed {
