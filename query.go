@@ -9,12 +9,13 @@ import (
 )
 
 type Query struct {
-	session   *Session
-	stmt      transport.Statement
-	buf       frame.Buffer
-	exec      func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
-	asyncExec func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
-	res       []transport.ResponseHandler
+	session     *Session
+	stmt        transport.Statement
+	buf         frame.Buffer
+	exec        func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
+	asyncExec   func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
+	res         []transport.ResponseHandler
+	retryPolicy transport.RetryPolicy
 }
 
 func (q *Query) Exec(ctx context.Context) (Result, error) {
@@ -46,7 +47,7 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 				}
 
 				if rd == nil {
-					rd = q.session.cfg.RetryPolicy.NewRetryDecider()
+					rd = q.retryPolicy.NewRetryDecider()
 				}
 				switch rd.Decide(ri) {
 				case transport.RetrySameNode:
@@ -195,6 +196,15 @@ func (q *Query) Idempotent() bool {
 	return q.stmt.Idempotent
 }
 
+func (q *Query) SetRetryPolicy(v transport.RetryPolicy) *Query {
+	q.retryPolicy = v
+	return q
+}
+
+func (q *Query) RetryPolicy() transport.RetryPolicy {
+	return q.retryPolicy
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
@@ -213,7 +223,7 @@ func (q *Query) Iter(ctx context.Context) Iter {
 	worker := iterWorker{
 		stmt: q.stmt.Clone(),
 
-		rd:        q.session.cfg.RetryPolicy.NewRetryDecider(),
+		rd:        q.retryPolicy.NewRetryDecider(),
 		queryInfo: info,
 		pickNode:  q.session.cfg.HostSelectionPolicy.Node,
 		queryExec: q.exec,

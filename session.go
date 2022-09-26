@@ -11,7 +11,6 @@ import (
 	"go.uber.org/atomic"
 )
 
-// TODO: Add retry policy.
 // TODO: Add Query Paging.
 
 type EventType = string
@@ -147,14 +146,16 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 }
 
 func (s *Session) Query(content string) Query {
-	return Query{session: s,
-		stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
+	return Query{
+		session: s,
+		stmt:    transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
 		exec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
 			return conn.Query(ctx, stmt, pagingState)
 		},
 		asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
 			conn.AsyncQuery(ctx, stmt, pagingState, handler)
 		},
+		retryPolicy: s.cfg.RetryPolicy,
 	}
 }
 
@@ -187,6 +188,7 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 				asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
 					conn.AsyncExecute(ctx, stmt, pagingState, handler)
 				},
+				retryPolicy: s.cfg.RetryPolicy,
 			}, nil
 		}
 	}
