@@ -348,6 +348,8 @@ type Iter struct {
 	nextCh    chan transport.QueryResult
 	errCh     chan error
 	closed    bool
+
+	err error
 }
 
 var (
@@ -373,7 +375,7 @@ func (it *Iter) NumRows() int {
 
 func (it *Iter) Next() (frame.Row, error) {
 	if it.closed {
-		return nil, ErrClosedIter
+		return nil, it.err
 	}
 
 	if it.pos >= it.rowCnt {
@@ -381,8 +383,8 @@ func (it *Iter) Next() (frame.Row, error) {
 		case r := <-it.nextCh:
 			it.result = r
 		case err := <-it.errCh:
-			it.Close()
-			return nil, err
+			it.err = err
+			return nil, it.Close()
 		}
 
 		it.pos = 0
@@ -400,12 +402,13 @@ func (it *Iter) Next() (frame.Row, error) {
 	return res, nil
 }
 
-func (it *Iter) Close() {
+func (it *Iter) Close() error {
 	if it.closed {
-		return
+		return it.err
 	}
 	it.closed = true
 	close(it.requestCh)
+	return it.err
 }
 
 type iterWorker struct {
