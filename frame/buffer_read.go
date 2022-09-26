@@ -356,8 +356,8 @@ func (b *Buffer) ReadUDTOption() *UDTOption {
 	return &UDTOption{
 		Keyspace:   ks,
 		Name:       name,
-		fieldNames: fn,
-		fieldTypes: ft,
+		FieldNames: fn,
+		FieldTypes: ft,
 	}
 }
 
