@@ -8,6 +8,7 @@ import (
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"github.com/scylladb/scylla-go-driver/transport"
+	"go.uber.org/atomic"
 )
 
 // TODO: Add retry policy.
@@ -122,6 +123,7 @@ func (cfg *SessionConfig) Validate() error {
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
+	closed  atomic.Bool
 }
 
 func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
@@ -270,6 +272,12 @@ func (s *Session) NewTokenAwareDCAwarePolicy(localDC string) transport.HostSelec
 }
 
 func (s *Session) Close() {
-	s.cfg.Logger.Info("session: close")
-	s.cluster.Close()
+	if s.closed.Swap(true) {
+		s.cfg.Logger.Info("session: close")
+		s.cluster.Close()
+	}
+}
+
+func (s *Session) Closed() bool {
+	return s.closed.Load()
 }
