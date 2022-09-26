@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/scylladb/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/frame/response"
 	"github.com/scylladb/scylla-go-driver/transport"
 )
 
@@ -309,8 +310,9 @@ func (q *Query) Iter(ctx context.Context) Iter {
 		requestCh: make(chan struct{}, 1),
 		nextCh:    make(chan transport.QueryResult),
 		errCh:     make(chan error, 1),
-	}
 
+		prepared: stmt.Prepared,
+	}
 	info, err := q.info()
 	if err != nil {
 		it.errCh <- err
@@ -337,9 +339,10 @@ func (q *Query) Iter(ctx context.Context) Iter {
 }
 
 type Iter struct {
-	result transport.QueryResult
-	pos    int
-	rowCnt int
+	result   transport.QueryResult
+	prepared *response.PreparedResult
+	pos      int
+	rowCnt   int
 
 	requestCh chan struct{}
 	nextCh    chan transport.QueryResult
@@ -351,6 +354,14 @@ var (
 	ErrClosedIter = fmt.Errorf("iter is closed")
 	ErrNoMoreRows = fmt.Errorf("no more rows left")
 )
+
+func (it *Iter) Columns() []frame.ColumnSpec {
+	if it.prepared == nil {
+		return it.result.ColSpec
+	}
+
+	return it.prepared.ResultMetadata.Columns
+}
 
 func (it *Iter) PageState() []byte {
 	return it.result.PagingState
