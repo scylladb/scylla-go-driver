@@ -367,6 +367,10 @@ func (it *Iter) PageState() []byte {
 	return it.result.PagingState
 }
 
+func (it *Iter) NumRows() int {
+	return it.rowCnt
+}
+
 func (it *Iter) Next() (frame.Row, error) {
 	if it.closed {
 		return nil, ErrClosedIter
