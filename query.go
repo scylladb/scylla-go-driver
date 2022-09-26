@@ -19,6 +19,18 @@ type Query struct {
 	retryPolicy transport.RetryPolicy
 }
 
+func (q *Query) Prepare(ctx context.Context) error {
+	p, err := q.session.prepareStatement(ctx, q.stmt)
+	if err != nil {
+		return err
+	}
+
+	q.stmt = p.stmt
+	q.exec = p.exec
+	q.asyncExec = p.asyncExec
+	return nil
+}
+
 func (q *Query) Exec(ctx context.Context) (Result, error) {
 	info, err := q.info()
 	if err != nil {
