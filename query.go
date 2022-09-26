@@ -17,6 +17,7 @@ type Query struct {
 	asyncExec   func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
 	res         []transport.ResponseHandler
 	retryPolicy transport.RetryPolicy
+	err         []error
 }
 
 func (q *Query) Prepare(ctx context.Context) error {
@@ -32,6 +33,9 @@ func (q *Query) Prepare(ctx context.Context) error {
 }
 
 func (q *Query) Exec(ctx context.Context) (Result, error) {
+	if q.err != nil {
+		return Result{}, fmt.Errorf("query can't be executed: %v", q.err)
+	}
 	info, err := q.info()
 	if err != nil {
 		return Result{}, err
@@ -131,21 +135,22 @@ func (q *Query) Fetch() (Result, error) {
 		return Result{}, resp.Err
 	}
 
-	res, err := transport.MakeQueryResult(resp.Response, q.stmt.Metadata)
+	res, err := transport.MakeQueryResult(resp.Response, q.stmt.Prepared)
 	return Result(res), err
 }
 
 // https://github.com/scylladb/scylla/blob/40adf38915b6d8f5314c621a94d694d172360833/compound_compat.hh#L33-L47
 func (q *Query) token() (transport.Token, bool) {
-	if q.stmt.PkCnt == 0 {
+	if q.stmt.Prepared == nil || q.stmt.Prepared.Metadata.PkCnt == 0 {
 		return 0, false
 	}
+	meta := q.stmt.Prepared.Metadata
 
 	q.buf.Reset()
-	if q.stmt.PkCnt == 1 {
-		return transport.MurmurToken(q.stmt.Values[q.stmt.PkIndexes[0]].Bytes), true
+	if meta.PkCnt == 1 {
+		return transport.MurmurToken(q.stmt.Values[meta.PkIndexes[0]].Bytes), true
 	}
-	for _, idx := range q.stmt.PkIndexes {
+	for _, idx := range meta.PkIndexes {
 		size := q.stmt.Values[idx].N
 		q.buf.WriteShort(frame.Short(size))
 		q.buf.Write(q.stmt.Values[idx].Bytes)
@@ -166,8 +171,31 @@ func (q *Query) info() (transport.QueryInfo, error) {
 	return q.session.cluster.NewQueryInfo(), nil
 }
 
+func (q *Query) checkBounds(pos int) error {
+	if q.stmt.Prepared != nil {
+		if pos < 0 || pos >= len(q.stmt.Values) {
+			return fmt.Errorf("no bind marker with position %d", pos)
+		}
+
+		return nil
+	}
+
+	for i := len(q.stmt.Values); i <= pos; i++ {
+		q.stmt.Values = append(q.stmt.Values, frame.Value{})
+	}
+	return nil
+}
+
 func (q *Query) BindInt64(pos int, v int64) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
 	p := &q.stmt.Values[pos]
+	if q.stmt.Prepared != nil && q.stmt.Prepared.Metadata.Columns[pos].Type.ID != frame.BigIntID {
+		q.err = append(q.err, fmt.Errorf("can't bind int64 to column of type BigInt"))
+	}
 	if p.N == 0 {
 		p.N = 8
 		p.Bytes = make([]byte, 8)

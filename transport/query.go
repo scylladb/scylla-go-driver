@@ -7,11 +7,9 @@ import (
 )
 
 type Statement struct {
-	ID                frame.Bytes
+	Prepared          *PreparedResult
 	Content           string
 	Values            []frame.Value
-	PkIndexes         []frame.Short
-	PkCnt             frame.Int
 	PageSize          frame.Int
 	Consistency       frame.Consistency
 	SerialConsistency frame.Consistency
@@ -19,7 +17,6 @@ type Statement struct {
 	Compression       bool
 	NoSkipMetadata    bool
 	Idempotent        bool
-	Metadata          *frame.ResultMetadata
 }
 
 // Clone makes new Values to avoid data overwrite in binding.
@@ -50,7 +47,7 @@ func makeQuery(s Statement, pagingState frame.Bytes) Query {
 
 func makeExecute(s Statement, pagingState frame.Bytes) Execute {
 	res := Execute{
-		ID:          s.ID,
+		ID:          s.Prepared.ID,
 		Consistency: s.Consistency,
 		Options: frame.QueryOptions{
 			Flags:             frame.SkipMetadata,
@@ -84,7 +81,7 @@ type QueryResult struct {
 	SchemaChange *SchemaChange
 }
 
-func MakeQueryResult(res frame.Response, meta *frame.ResultMetadata) (QueryResult, error) {
+func MakeQueryResult(res frame.Response, pr *PreparedResult) (QueryResult, error) {
 	switch v := res.(type) {
 	case *RowsResult:
 		ret := QueryResult{
@@ -93,10 +90,11 @@ func MakeQueryResult(res frame.Response, meta *frame.ResultMetadata) (QueryResul
 			HasMorePages: v.Metadata.Flags&frame.HasMorePages > 0,
 			ColSpec:      v.Metadata.Columns,
 		}
-		if meta != nil && meta.Columns != nil {
+		if pr != nil {
+			cols := pr.ResultMetadata.Columns
 			for i := range ret.Rows {
-				for j := range meta.Columns {
-					ret.Rows[i][j].Type = &meta.Columns[j].Type
+				for j := range cols {
+					ret.Rows[i][j].Type = &cols[j].Type
 				}
 			}
 		}

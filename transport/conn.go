@@ -632,7 +632,7 @@ func (c *Conn) Query(ctx context.Context, s Statement, pagingState frame.Bytes) 
 		return QueryResult{}, err
 	}
 
-	return MakeQueryResult(res, s.Metadata)
+	return MakeQueryResult(res, s.Prepared)
 }
 
 func (c *Conn) Prepare(ctx context.Context, s Statement) (Statement, error) {
@@ -643,11 +643,8 @@ func (c *Conn) Prepare(ctx context.Context, s Statement) (Statement, error) {
 	}
 
 	if v, ok := res.(*PreparedResult); ok {
-		s.ID = v.ID
+		s.Prepared = v
 		s.Values = make([]frame.Value, len(v.Metadata.Columns))
-		s.PkIndexes = v.Metadata.PkIndexes
-		s.PkCnt = v.Metadata.PkCnt
-		s.Metadata = &v.ResultMetadata
 		return s, nil
 	}
 
@@ -661,7 +658,7 @@ func (c *Conn) Execute(ctx context.Context, s Statement, pagingState frame.Bytes
 		return QueryResult{}, err
 	}
 
-	return MakeQueryResult(res, s.Metadata)
+	return MakeQueryResult(res, s.Prepared)
 }
 
 func (c *Conn) RegisterEventHandler(ctx context.Context, h func(context.Context, response), e ...frame.EventType) error {
