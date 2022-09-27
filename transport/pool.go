@@ -3,8 +3,8 @@ package transport
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
+	"math/bits"
 	"net"
 	"time"
 
@@ -126,10 +126,11 @@ func (p *ConnPool) closeAll() {
 }
 
 type PoolRefiller struct {
-	addr   string
-	pool   ConnPool
-	cfg    ConnConfig
-	active int
+	addr         string
+	pool         ConnPool
+	cfg          ConnConfig
+	active       int
+	fillRandomly bool
 }
 
 func (r *PoolRefiller) init(ctx context.Context, host string) error {
@@ -158,13 +159,17 @@ func (r *PoolRefiller) init(ctx context.Context, host string) error {
 		if v, ok := s.Options[ScyllaShardAwarePortSSL]; ok {
 			r.addr = net.JoinHostPort(host, v[0])
 		} else {
-			return fmt.Errorf("missing encrypted shard aware port information %v", s.Options)
+			r.cfg.Logger.Warnf("missing encrypted shard aware port information %v; falling back to random shard discovery", s.Options)
+			r.addr = net.JoinHostPort(host, r.cfg.DefaultPort)
+			r.fillRandomly = true
 		}
 	} else {
 		if v, ok := s.Options[ScyllaShardAwarePort]; ok {
 			r.addr = net.JoinHostPort(host, v[0])
 		} else {
-			return fmt.Errorf("missing shard aware port information %v", s.Options)
+			r.cfg.Logger.Warnf("missing shard aware port information %v; falling back to random shard discovery", s.Options)
+			r.addr = net.JoinHostPort(host, r.cfg.DefaultPort)
+			r.fillRandomly = true
 		}
 	}
 
@@ -222,17 +227,39 @@ func (r *PoolRefiller) loop(ctx context.Context) {
 	}
 }
 
+// storeShard assumes conn is non-nil.
+func (r *PoolRefiller) storeShard(conn *Conn, span span) bool {
+	if r.pool.loadConn(conn.Shard()) != nil {
+		if r.pool.connObs != nil {
+			r.pool.connObs.OnConnect(ConnectEvent{
+				ConnEvent: conn.Event(),
+				span:      span,
+				Err:       fmt.Errorf("shard already in pool"),
+			})
+		}
+		conn.Close()
+		return false
+	}
+
+	if r.pool.connObs != nil {
+		r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: conn.Event(), span: span})
+	}
+	conn.setOnClose(r.onConnClose)
+	r.pool.storeConn(conn)
+	r.active++
+	return true
+}
+
 func (r *PoolRefiller) fill(ctx context.Context) {
-	if !r.needsFilling() {
-		return
+	if r.fillRandomly {
+		r.fillRandom(ctx)
 	}
 
 	si := ShardInfo{
 		NrShards:  uint16(r.pool.nrShards),
 		MsbIgnore: r.pool.msbIgnore,
 	}
-
-	for i := 0; i < r.pool.nrShards; i++ {
+	for i := 0; r.needsFilling() && i < r.pool.nrShards; i++ {
 		if r.pool.loadConn(i) != nil {
 			continue
 		}
@@ -245,23 +272,14 @@ func (r *PoolRefiller) fill(ctx context.Context) {
 			if r.pool.connObs != nil {
 				r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: ConnEvent{Addr: r.addr, Shard: si.Shard}, span: span, Err: err})
 			}
-			if conn != nil {
-				conn.Close()
-			}
 			continue
 		}
-		if r.pool.connObs != nil {
-			r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: conn.Event(), span: span})
-		}
 
+		r.storeShard(conn, span)
 		if conn.Shard() != i {
-			log.Fatalf("opened conn to wrong shard: expected %d got %d", i, conn.Shard())
-		}
-		conn.setOnClose(r.onConnClose)
-		r.pool.storeConn(conn)
-		r.active++
-
-		if !r.needsFilling() {
+			r.cfg.Logger.Warnf("opened conn to wrong shard: expected %d got %d; falling back to random discovery", i, conn.Shard())
+			r.fillRandomly = true
+			r.fillRandom(ctx)
 			return
 		}
 	}
@@ -269,4 +287,22 @@ func (r *PoolRefiller) fill(ctx context.Context) {
 
 func (r *PoolRefiller) needsFilling() bool {
 	return r.active < r.pool.nrShards
+}
+
+func (r *PoolRefiller) fillRandom(ctx context.Context) {
+	// https://en.wikipedia.org/wiki/Coupon_collector%27s_problem
+	maxTries := r.pool.nrShards * bits.Len(uint(r.pool.nrShards))
+	for try := 0; r.needsFilling() && try < maxTries; try++ {
+		span := startSpan()
+		conn, err := OpenConn(ctx, r.addr, nil, r.cfg)
+		span.stop()
+		if err != nil {
+			if r.pool.connObs != nil {
+				r.pool.connObs.OnConnect(ConnectEvent{ConnEvent: ConnEvent{Addr: r.addr, Shard: UnknownShard}, span: span, Err: err})
+			}
+			continue
+		}
+
+		r.storeShard(conn, span)
+	}
 }
