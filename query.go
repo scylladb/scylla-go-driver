@@ -186,6 +186,32 @@ func (q *Query) checkBounds(pos int) error {
 	return nil
 }
 
+type Serializable interface {
+	Serialize(*frame.Option) (n int32, bytes []byte, err error)
+}
+
+// Bind allows binding any Serializable value to the bind marker at given pos in query,
+// it shouldn't be used on non-prepared queries, as it will always result in query execution error later.
+func (q *Query) Bind(pos int, v Serializable) *Query {
+	if q.stmt.Prepared == nil {
+		q.err = append(q.err, fmt.Errorf("binding any to unprepared queries is not supported"))
+		return q
+	}
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+	p := &q.stmt.Values[pos]
+	typ := &q.stmt.Prepared.Metadata.Columns[pos].Type
+
+	var err error
+	p.N, p.Bytes, err = v.Serialize(typ)
+	if err != nil {
+		q.err = append(q.err, err)
+	}
+	return q
+}
+
 func (q *Query) BindInt64(pos int, v int64) *Query {
 	if err := q.checkBounds(pos); err != nil {
 		q.err = append(q.err, err)
