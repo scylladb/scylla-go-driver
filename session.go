@@ -8,9 +8,9 @@ import (
 
 	"github.com/scylladb/scylla-go-driver/frame"
 	"github.com/scylladb/scylla-go-driver/transport"
+	"go.uber.org/atomic"
 )
 
-// TODO: Add retry policy.
 // TODO: Add Query Paging.
 
 type EventType = string
@@ -122,6 +122,7 @@ func (cfg *SessionConfig) Validate() error {
 type Session struct {
 	cfg     SessionConfig
 	cluster *transport.Cluster
+	closed  atomic.Bool
 }
 
 func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
@@ -145,20 +146,25 @@ func NewSession(ctx context.Context, cfg SessionConfig) (*Session, error) {
 }
 
 func (s *Session) Query(content string) Query {
-	return Query{session: s,
-		stmt: transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
+	return Query{
+		session: s,
+		stmt:    transport.Statement{Content: content, Consistency: s.cfg.DefaultConsistency},
 		exec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes) (transport.QueryResult, error) {
 			return conn.Query(ctx, stmt, pagingState)
 		},
 		asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
 			conn.AsyncQuery(ctx, stmt, pagingState, handler)
 		},
+		retryPolicy: s.cfg.RetryPolicy,
 	}
 }
 
 func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
+	return s.prepareStatement(ctx, stmt)
+}
 
+func (s *Session) prepareStatement(ctx context.Context, stmt transport.Statement) (Query, error) {
 	// Prepare on all nodes concurrently.
 	nodes := s.cluster.Topology().Nodes
 	resStmt := make([]transport.Statement, len(nodes))
@@ -185,6 +191,7 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 				asyncExec: func(ctx context.Context, conn *transport.Conn, stmt transport.Statement, pagingState frame.Bytes, handler transport.ResponseHandler) {
 					conn.AsyncExecute(ctx, stmt, pagingState, handler)
 				},
+				retryPolicy: s.cfg.RetryPolicy,
 			}, nil
 		}
 	}
@@ -270,6 +277,12 @@ func (s *Session) NewTokenAwareDCAwarePolicy(localDC string) transport.HostSelec
 }
 
 func (s *Session) Close() {
-	s.cfg.Logger.Info("session: close")
-	s.cluster.Close()
+	if s.closed.Swap(true) {
+		s.cfg.Logger.Info("session: close")
+		s.cluster.Close()
+	}
+}
+
+func (s *Session) Closed() bool {
+	return s.closed.Load()
 }

@@ -5,19 +5,38 @@ import (
 	"fmt"
 
 	"github.com/scylladb/scylla-go-driver/frame"
+	"github.com/scylladb/scylla-go-driver/frame/response"
 	"github.com/scylladb/scylla-go-driver/transport"
 )
 
 type Query struct {
-	session   *Session
-	stmt      transport.Statement
-	buf       frame.Buffer
-	exec      func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
-	asyncExec func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
-	res       []transport.ResponseHandler
+	session     *Session
+	stmt        transport.Statement
+	buf         frame.Buffer
+	pageState   frame.Bytes
+	exec        func(context.Context, *transport.Conn, transport.Statement, frame.Bytes) (transport.QueryResult, error)
+	asyncExec   func(context.Context, *transport.Conn, transport.Statement, frame.Bytes, transport.ResponseHandler)
+	res         []transport.ResponseHandler
+	retryPolicy transport.RetryPolicy
+	err         []error
+}
+
+func (q *Query) Prepare(ctx context.Context) error {
+	p, err := q.session.prepareStatement(ctx, q.stmt)
+	if err != nil {
+		return err
+	}
+
+	q.stmt = p.stmt
+	q.exec = p.exec
+	q.asyncExec = p.asyncExec
+	return nil
 }
 
 func (q *Query) Exec(ctx context.Context) (Result, error) {
+	if q.err != nil {
+		return Result{}, fmt.Errorf("query can't be executed: %v", q.err)
+	}
 	info, err := q.info()
 	if err != nil {
 		return Result{}, err
@@ -37,7 +56,7 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 				break sameNodeRetries
 			}
 
-			res, err := q.exec(ctx, conn, q.stmt, nil)
+			res, err := q.exec(ctx, conn, q.stmt, q.pageState)
 			if err != nil {
 				ri := transport.RetryInfo{
 					Error:       err,
@@ -46,7 +65,7 @@ func (q *Query) Exec(ctx context.Context) (Result, error) {
 				}
 
 				if rd == nil {
-					rd = q.session.cfg.RetryPolicy.NewRetryDecider()
+					rd = q.retryPolicy.NewRetryDecider()
 				}
 				switch rd.Decide(ri) {
 				case transport.RetrySameNode:
@@ -98,7 +117,7 @@ func (q *Query) AsyncExec(ctx context.Context) {
 
 	h := transport.MakeResponseHandler()
 	q.res = append(q.res, h)
-	q.asyncExec(ctx, conn, stmt, nil, h)
+	q.asyncExec(ctx, conn, stmt, q.pageState, h)
 }
 
 var ErrNoQueryResults = fmt.Errorf("no query results to be fetched")
@@ -117,21 +136,22 @@ func (q *Query) Fetch() (Result, error) {
 		return Result{}, resp.Err
 	}
 
-	res, err := transport.MakeQueryResult(resp.Response, q.stmt.Metadata)
+	res, err := transport.MakeQueryResult(resp.Response, q.stmt.Prepared)
 	return Result(res), err
 }
 
 // https://github.com/scylladb/scylla/blob/40adf38915b6d8f5314c621a94d694d172360833/compound_compat.hh#L33-L47
 func (q *Query) token() (transport.Token, bool) {
-	if q.stmt.PkCnt == 0 {
+	if q.stmt.Prepared == nil || q.stmt.Prepared.Metadata.PkCnt == 0 {
 		return 0, false
 	}
+	meta := q.stmt.Prepared.Metadata
 
 	q.buf.Reset()
-	if q.stmt.PkCnt == 1 {
-		return transport.MurmurToken(q.stmt.Values[q.stmt.PkIndexes[0]].Bytes), true
+	if meta.PkCnt == 1 {
+		return transport.MurmurToken(q.stmt.Values[meta.PkIndexes[0]].Bytes), true
 	}
-	for _, idx := range q.stmt.PkIndexes {
+	for _, idx := range meta.PkIndexes {
 		size := q.stmt.Values[idx].N
 		q.buf.WriteShort(frame.Short(size))
 		q.buf.Write(q.stmt.Values[idx].Bytes)
@@ -152,8 +172,57 @@ func (q *Query) info() (transport.QueryInfo, error) {
 	return q.session.cluster.NewQueryInfo(), nil
 }
 
-func (q *Query) BindInt64(pos int, v int64) *Query {
+func (q *Query) checkBounds(pos int) error {
+	if q.stmt.Prepared != nil {
+		if pos < 0 || pos >= len(q.stmt.Values) {
+			return fmt.Errorf("no bind marker with position %d", pos)
+		}
+
+		return nil
+	}
+
+	for i := len(q.stmt.Values); i <= pos; i++ {
+		q.stmt.Values = append(q.stmt.Values, frame.Value{})
+	}
+	return nil
+}
+
+type Serializable interface {
+	Serialize(*frame.Option) (n int32, bytes []byte, err error)
+}
+
+// Bind allows binding any Serializable value to the bind marker at given pos in query,
+// it shouldn't be used on non-prepared queries, as it will always result in query execution error later.
+func (q *Query) Bind(pos int, v Serializable) *Query {
+	if q.stmt.Prepared == nil {
+		q.err = append(q.err, fmt.Errorf("binding any to unprepared queries is not supported"))
+		return q
+	}
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
 	p := &q.stmt.Values[pos]
+	typ := &q.stmt.Prepared.Metadata.Columns[pos].Type
+
+	var err error
+	p.N, p.Bytes, err = v.Serialize(typ)
+	if err != nil {
+		q.err = append(q.err, err)
+	}
+	return q
+}
+
+func (q *Query) BindInt64(pos int, v int64) *Query {
+	if err := q.checkBounds(pos); err != nil {
+		q.err = append(q.err, err)
+		return q
+	}
+
+	p := &q.stmt.Values[pos]
+	if q.stmt.Prepared != nil && q.stmt.Prepared.Metadata.Columns[pos].Type.ID != frame.BigIntID {
+		q.err = append(q.err, fmt.Errorf("can't bind int64 to column of type BigInt"))
+	}
 	if p.N == 0 {
 		p.N = 8
 		p.Bytes = make([]byte, 8)
@@ -195,15 +264,55 @@ func (q *Query) Idempotent() bool {
 	return q.stmt.Idempotent
 }
 
+func (q *Query) SetPageState(v []byte) *Query {
+	q.pageState = v
+	return q
+}
+
+func (q *Query) PageState() []byte {
+	return q.pageState
+}
+
+func (q *Query) SetRetryPolicy(v transport.RetryPolicy) *Query {
+	q.retryPolicy = v
+	return q
+}
+
+func (q *Query) RetryPolicy() transport.RetryPolicy {
+	return q.retryPolicy
+}
+
+func (q *Query) SetSerialConsistency(v frame.Consistency) {
+	q.stmt.SerialConsistency = v
+}
+
+func (q *Query) SerialConsistency(v frame.Consistency) frame.Consistency {
+	return q.stmt.SerialConsistency
+}
+
+func (q *Query) NoSkipMetadata() *Query {
+	q.stmt.NoSkipMetadata = true
+	return q
+}
+
 type Result transport.QueryResult
 
 func (q *Query) Iter(ctx context.Context) Iter {
+	stmt := q.stmt.Clone()
+
+	var pageState []byte
+	if q.pageState != nil {
+		pageState = make([]byte, len(q.pageState))
+		copy(pageState, q.pageState)
+	}
+
 	it := Iter{
 		requestCh: make(chan struct{}, 1),
 		nextCh:    make(chan transport.QueryResult),
 		errCh:     make(chan error, 1),
-	}
 
+		prepared: stmt.Prepared,
+	}
 	info, err := q.info()
 	if err != nil {
 		it.errCh <- err
@@ -211,12 +320,13 @@ func (q *Query) Iter(ctx context.Context) Iter {
 	}
 
 	worker := iterWorker{
-		stmt: q.stmt.Clone(),
+		stmt: stmt,
 
-		rd:        q.session.cfg.RetryPolicy.NewRetryDecider(),
-		queryInfo: info,
-		pickNode:  q.session.cfg.HostSelectionPolicy.Node,
-		queryExec: q.exec,
+		rd:          q.retryPolicy.NewRetryDecider(),
+		queryInfo:   info,
+		pickNode:    q.session.cfg.HostSelectionPolicy.Node,
+		queryExec:   q.exec,
+		pagingState: pageState,
 
 		requestCh: it.requestCh,
 		nextCh:    it.nextCh,
@@ -229,14 +339,17 @@ func (q *Query) Iter(ctx context.Context) Iter {
 }
 
 type Iter struct {
-	result transport.QueryResult
-	pos    int
-	rowCnt int
+	result   transport.QueryResult
+	prepared *response.PreparedResult
+	pos      int
+	rowCnt   int
 
 	requestCh chan struct{}
 	nextCh    chan transport.QueryResult
 	errCh     chan error
 	closed    bool
+
+	err error
 }
 
 var (
@@ -244,9 +357,25 @@ var (
 	ErrNoMoreRows = fmt.Errorf("no more rows left")
 )
 
+func (it *Iter) Columns() []frame.ColumnSpec {
+	if it.prepared == nil {
+		return it.result.ColSpec
+	}
+
+	return it.prepared.ResultMetadata.Columns
+}
+
+func (it *Iter) PageState() []byte {
+	return it.result.PagingState
+}
+
+func (it *Iter) NumRows() int {
+	return it.rowCnt
+}
+
 func (it *Iter) Next() (frame.Row, error) {
 	if it.closed {
-		return nil, ErrClosedIter
+		return nil, it.err
 	}
 
 	if it.pos >= it.rowCnt {
@@ -254,8 +383,8 @@ func (it *Iter) Next() (frame.Row, error) {
 		case r := <-it.nextCh:
 			it.result = r
 		case err := <-it.errCh:
-			it.Close()
-			return nil, err
+			it.err = err
+			return nil, it.Close()
 		}
 
 		it.pos = 0
@@ -273,12 +402,13 @@ func (it *Iter) Next() (frame.Row, error) {
 	return res, nil
 }
 
-func (it *Iter) Close() {
+func (it *Iter) Close() error {
 	if it.closed {
-		return
+		return it.err
 	}
 	it.closed = true
 	close(it.requestCh)
+	return it.err
 }
 
 type iterWorker struct {

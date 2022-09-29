@@ -1,0 +1,68 @@
+name: Scylla Manager integration tests
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  integration:
+    name: Scylla Manager integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out driver
+        uses: actions/checkout@v2
+      
+      - name: Save commit SHA in env
+        run: echo "DRIVER_VERSION=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          repository: scylladb/scylla-manager
+
+      - name: Set Go version
+        run: |
+          echo "GOVERSION=$(cat .go-version)" >> $GITHUB_ENV
+
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        id: go
+        with:
+          go-version: "${{env.GOVERSION}}"
+
+      - name: Set up env variables
+        run: |
+          echo "GOPATH=$(go env GOPATH)" >> $GITHUB_ENV
+          echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+          echo "$(go env -w GOCACHE=/home/runner/work/scylla-manager/scylla-manager/.cache/go-build/)"
+          echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
+          echo "GOCACHEPATTERN=.cache/go-build/**" >> $GITHUB_ENV
+          echo "date=$(date  +'%m-%Y')" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        if: steps.cache-dependencies.outputs.cache-hit != 'true'
+        run: |
+          ./install-dependencies.sh
+
+      - name: Replace gocql with scylla-go-driver
+        run: |
+          go mod edit -go=1.18
+          go mod edit -replace github.com/gocql/gocql=github.com/scylladb/scylla-go-driver/gocql@${{github.event.pull_request.head.sha}}
+          make vendor
+
+      - name: Setup test environment
+        run: |
+          make start-dev-env
+
+      - name: Scylla Manager Integration tests
+        run: |
+          # make pkg-integration-test PKG=./pkg/ping/cqlping
+          make pkg-integration-test PKG=./pkg/ping/dynamoping
+          make pkg-integration-test PKG=./pkg/scyllaclient
+          # make pkg-integration-test PKG=./pkg/service/backup
+          make pkg-integration-test PKG=./pkg/service/cluster
+          make pkg-integration-test PKG=./pkg/service/healthcheck
+          # make pkg-integration-test PKG=./pkg/service/repair
+          make pkg-integration-test PKG=./pkg/service/scheduler
+          make pkg-integration-test PKG=./pkg/store
+          make pkg-integration-test PKG=./pkg/schema/migrate
+          make pkg-integration-test PKG=./pkg/util/netwait

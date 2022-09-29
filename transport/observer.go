@@ -17,6 +17,9 @@ type ConnEvent struct {
 }
 
 func (ev ConnEvent) String() string {
+	if ev.Shard == UnknownShard {
+		return fmt.Sprintf("[addr=%s shard=?]", ev.Addr)
+	}
 	return fmt.Sprintf("[addr=%s shard=%d]", ev.Addr, ev.Shard)
 }
 

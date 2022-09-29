@@ -384,8 +384,8 @@ type SetOption struct {
 type UDTOption struct {
 	Keyspace   string
 	Name       string
-	fieldNames []string
-	fieldTypes []Option
+	FieldNames []string
+	FieldTypes []Option
 }
 
 // https://github.com/apache/cassandra/blob/adcff3f630c0d07d1ba33bf23fcb11a6db1b9af1/doc/native_protocol_v4.spec#L655-L658
