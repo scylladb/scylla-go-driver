@@ -1,0 +1,49 @@
+name: GocqlX integration tests
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  integration:
+    name: GocqlX integration tests
+    runs-on: ubuntu-latest
+    env:
+      SCYLLA_VERSION: 5.0.0
+      GOBIN: ./bin
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+        with:
+          repository: scylladb/gocqlx
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.18.0
+          stable: true
+
+      - name: Replace gocql with scylla-go-driver
+        run: |
+          go mod edit -go=1.18
+          go mod edit -replace github.com/gocql/gocql=github.com/scylladb/scylla-go-driver/gocql@${{github.event.pull_request.head.sha}}
+          go mod tidy
+
+      - name: Make Directory for GOBIN
+        run: mkdir -p ${GOBIN}
+
+      - name: Download Dependencies
+        run: make get-deps
+        
+      - name: Run scylla
+        run: make run-scylla
+
+      - name: Run GocqlX tests
+        run: |
+          go test -cpu 1 -count=1 -cover -race -tags all .
+          go test -cpu 1 -count=1 -cover -race -tags all ./qb
+          go test -cpu 1 -count=1 -cover -race -tags all ./table
+          go test -cpu 1 -count=1 -cover -race -tags all ./migrate
+          go test -cpu 1 -count=1 -cover -race -tags all ./dbutil
+        
+      - name: Stop cluster
+        run: make stop-scylla
