@@ -161,6 +161,8 @@ func (s *Session) Query(content string) Query {
 	}
 }
 
+// Prepare prepares a DML query on all the cluster nodes, it returns successfully
+// if the prepare succeeds on at least one node.
 func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	stmt := transport.Statement{Content: content, Consistency: frame.ALL}
 
@@ -197,6 +199,9 @@ func (s *Session) Prepare(ctx context.Context, content string) (Query, error) {
 	return Query{}, fmt.Errorf("prepare failed on all nodes, details: %v", resErr)
 }
 
+// AwaitSchemaAgreement will await for schema agreement checking it once every SchemaAgreementInterval
+// specified in SessionConfig, if schema is not in agreement after timeout duration, or after context is done,
+// it will return an error.
 func (s *Session) AwaitSchemaAgreement(ctx context.Context, timeout time.Duration) error {
 	ticker := time.NewTicker(s.cfg.SchemaAgreementInterval)
 	timer := time.NewTimer(timeout)
