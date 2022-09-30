@@ -66,14 +66,18 @@ var (
 )
 
 type SessionConfig struct {
-	Hosts               []string
-	Events              []EventType
+	Hosts  []string
+	Events []EventType
+	// Default: DefaultRetryPolicy.
 	HostSelectionPolicy transport.HostSelectionPolicy
-	RetryPolicy         transport.RetryPolicy
+	// Default: TokenAwarePolicy.
+	RetryPolicy transport.RetryPolicy
 
+	// Default: 200 milliseconds.
 	SchemaAgreementInterval time.Duration
 	// Controls the timeout for the automatic wait for schema agreement after sending a schema-altering statement.
 	// If less or equal to 0, the automatic schema agreement is disabled.
+	// Default: 60 seconds.
 	AutoAwaitSchemaAgreementTimeout time.Duration
 
 	transport.ConnConfig

@@ -333,22 +333,28 @@ type Conn struct {
 }
 
 type ConnConfig struct {
-	Username   string
-	Password   string
-	Keyspace   string
+	// Default: cassandra
+	Username string
+	// Default: cassandra
+	Password string
+	Keyspace string
+	// Default: true
 	TCPNoDelay bool
-	Timeout    time.Duration
+	// Default: 500 milliseconds.
+	Timeout time.Duration
 
 	// If not nil, all connections will use TLS according to TLSConfig,
 	// please note that the default port (9042) may not support TLS.
 	TLSConfig *tls.Config
-
+	// Default: Local Quorum
 	DefaultConsistency frame.Consistency
-	DefaultPort        string
+	// Default: "9042"
+	DefaultPort string
 
 	Compression     frame.Compression
 	ComprBufferSize int
 
+	// Default: LoggingConnObserver
 	ConnObserver ConnObserver
 	Logger       log.Logger
 }
