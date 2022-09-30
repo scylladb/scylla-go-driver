@@ -197,6 +197,7 @@ func (q *Query) Idempotent() bool {
 
 type Result transport.QueryResult
 
+// Iter returns an iterator that can be used to read paged queries row by row.
 func (q *Query) Iter(ctx context.Context) Iter {
 	it := Iter{
 		requestCh: make(chan struct{}, 1),
@@ -228,6 +229,8 @@ func (q *Query) Iter(ctx context.Context) Iter {
 	return it
 }
 
+// Iter is used to execute paged queries, prefetching the next page.
+// Close should be called when it goes out of use to release resources assigned to it.
 type Iter struct {
 	result transport.QueryResult
 	pos    int
@@ -244,6 +247,7 @@ var (
 	ErrNoMoreRows = fmt.Errorf("no more rows left")
 )
 
+// Next returns the next row of the query result, potentially executing the query.
 func (it *Iter) Next() (frame.Row, error) {
 	if it.closed {
 		return nil, ErrClosedIter
@@ -273,6 +277,7 @@ func (it *Iter) Next() (frame.Row, error) {
 	return res, nil
 }
 
+// Close releases the resources assigned to the Iter, performing queries on closed iter will result in an error.
 func (it *Iter) Close() {
 	if it.closed {
 		return
