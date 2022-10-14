@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode"
 
@@ -383,6 +384,17 @@ const (
 	comprBufferSize      = 64 * 1024 // 64 Kb
 )
 
+/*
+Checks if this error indicates that a chosen source port/address cannot be bound.
+
+This is caused by one of the following:
+  - The source address is already used by another socket,
+  - The source address is reserved and the process does not have sufficient privileges to use it.
+*/
+func isAddrUnavailableForUseErr(err error) bool {
+	return errors.Is(err, syscall.EADDRINUSE) || errors.Is(err, syscall.EPERM)
+}
+
 // OpenShardConn opens connection mapped to a specific shard on Scylla node.
 func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfig) (*Conn, error) {
 	it := ShardPortIterator(si)
@@ -391,15 +403,16 @@ func OpenShardConn(ctx context.Context, addr string, si ShardInfo, cfg ConnConfi
 		conn, err := OpenLocalPortConn(ctx, addr, it(), cfg)
 		if err != nil {
 			cfg.Logger.Infof("%s dial error: %s (try %d/%d)", addr, err, i, maxTries)
-			if conn != nil {
-				conn.Close()
+			if isAddrUnavailableForUseErr(err) {
+				continue
 			}
-			continue
+
+			return nil, fmt.Errorf("failed to open connection to shard: %w", err)
 		}
 		return conn, nil
 	}
 
-	return nil, fmt.Errorf("failed to open connection on shard %d: all local ports are busy", si.Shard)
+	return nil, fmt.Errorf("failed to open connection on shard %d: all local ports are unavailable for use", si.Shard)
 }
 
 // OpenLocalPortConn opens connection on a given local port.
@@ -512,7 +525,8 @@ func WrapConn(ctx context.Context, conn net.Conn, cfg ConnConfig) (*Conn, error)
 	go c.r.loop(ctx)
 
 	if err := c.init(ctx); err != nil {
-		return c, err
+		c.Close()
+		return nil, err
 	}
 
 	return c, nil

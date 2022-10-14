@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"net"
 	"os/signal"
 	"strconv"
 	"sync"
@@ -276,5 +277,67 @@ func testCompression(ctx context.Context, t *testing.T, c frame.Compression, toS
 		if diff := cmp.Diff(expected[j], row); diff != "" {
 			t.Fatal(diff)
 		}
+	}
+}
+
+func TestConnectedToNonCqlServer(t *testing.T) {
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer cancel()
+
+	t.Logf("%+v", testingConnConfig)
+	testCases := []struct {
+		name     string
+		response []byte
+	}{
+		{
+			name:     "non-cql response",
+			response: []byte("0"),
+		},
+		{
+			name: "non supported cql response",
+			response: func() []byte {
+				var buf frame.Buffer
+				frame := frame.Header{
+					Version: frame.CQLv4,
+					OpCode:  frame.OpReady,
+				}
+
+				frame.WriteTo(&buf)
+				return buf.Bytes()
+			}(),
+		},
+	}
+
+	for i := 0; i < len(testCases); i++ {
+		tc := testCases[i]
+		t.Run(tc.name, func(t *testing.T) {
+			server, err := net.Listen("tcp", "127.0.0.1:")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer server.Close()
+			go func() {
+				conn, err := server.Accept()
+				if err != nil {
+					t.Log(err)
+					t.Fail()
+					return
+				}
+				go func(conn net.Conn) {
+					defer conn.Close()
+					conn.Write(tc.response)
+				}(conn)
+			}()
+
+			addr := server.Addr().String()
+			conn, err := OpenConn(ctx, addr, nil, testingConnConfig)
+			if err == nil {
+				t.Fatal("connecting to non-cql server should fail")
+			}
+			t.Log(err)
+			if conn != nil {
+				t.Fatal("connecting to non-cql server should return a nil-conn")
+			}
+		})
 	}
 }
