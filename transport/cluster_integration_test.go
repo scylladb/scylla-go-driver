@@ -5,6 +5,7 @@ package transport
 import (
 	"context"
 	"fmt"
+	"net/netip"
 	"os/signal"
 	"syscall"
 	"testing"
@@ -40,7 +41,7 @@ func TestClusterIntegration(t *testing.T) {
 	defer cancel()
 
 	addr := frame.Inet{
-		IP:   []byte{192, 168, 100, 100},
+		IP:   netip.MustParseAddr(TestHost),
 		Port: 9042,
 	}
 

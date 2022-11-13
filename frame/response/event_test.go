@@ -1,6 +1,7 @@
 package response
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/scylladb/scylla-go-driver/frame"
@@ -21,7 +22,7 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 				var b frame.Buffer
 				b.WriteString("UP")
 				b.WriteInet(frame.Inet{
-					IP:   []byte{127, 0, 0, 1},
+					IP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
 					Port: 9042,
 				})
 				return b.Bytes()
@@ -29,7 +30,7 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 			expected: StatusChange{
 				Status: "UP",
 				Address: frame.Inet{
-					IP:   []byte{127, 0, 0, 1},
+					IP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
 					Port: 9042,
 				},
 			},
@@ -42,8 +43,8 @@ func TestStatusChangeEvent(t *testing.T) { // nolint:dupl // Tests are different
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseStatusChange(&buf)
-			if diff := cmp.Diff(*a, tc.expected); diff != "" {
-				t.Fatal(diff)
+			if *a != tc.expected {
+				t.Fatalf("expected %v, got %v", tc.expected, *a)
 			}
 		})
 	}
@@ -62,7 +63,7 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 				var b frame.Buffer
 				b.WriteString("NEW_NODE")
 				b.WriteInet(frame.Inet{
-					IP:   []byte{127, 0, 0, 1},
+					IP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
 					Port: 9042,
 				})
 				return b.Bytes()
@@ -70,7 +71,7 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 			expected: TopologyChange{
 				Change: "NEW_NODE",
 				Address: frame.Inet{
-					IP:   []byte{127, 0, 0, 1},
+					IP:   netip.AddrFrom4([4]byte{127, 0, 0, 1}),
 					Port: 9042,
 				},
 			},
@@ -83,8 +84,8 @@ func TestTopologyChangeEvent(t *testing.T) { //nolint:dupl // Tests are differen
 			var buf frame.Buffer
 			buf.Write(tc.content)
 			a := ParseTopologyChange(&buf)
-			if diff := cmp.Diff(*a, tc.expected); diff != "" {
-				t.Fatal(diff)
+			if *a != tc.expected {
+				t.Fatalf("expected %v, got %v", tc.expected, *a)
 			}
 		})
 	}

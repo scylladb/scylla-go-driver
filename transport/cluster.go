@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"sort"
 	"strconv"
 	"strings"
@@ -313,7 +314,7 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 	}
 	// Possible IP addresses starts from addrIndex in both system.local and system.peers queries.
 	// They are grouped with decreasing priority.
-	var addr net.IP
+	var addr netip.Addr
 	for i := addrIndex; i < len(r); i++ {
 		addr, err = r[i].AsIP()
 		if err == nil && !addr.IsUnspecified() {
@@ -321,13 +322,16 @@ func (c *Cluster) parseNodeFromRow(r frame.Row) (*Node, error) {
 		} else if err == nil && addr.IsUnspecified() {
 			host, _, err := net.SplitHostPort(c.control.conn.RemoteAddr().String())
 			if err == nil {
-				addr = net.ParseIP(host)
+				addr, err = netip.ParseAddr(host)
+				if err != nil {
+					addr = netip.AddrFrom4([4]byte{0, 0, 0, 0})
+				}
 				break
 			}
 		}
 	}
-	if addr == nil || addr.IsUnspecified() {
-		return nil, fmt.Errorf("all addr columns conatin invalid IP")
+	if addr.IsUnspecified() {
+		return nil, fmt.Errorf("all addr columns contain invalid IP")
 	}
 
 	return &Node{

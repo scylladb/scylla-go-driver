@@ -3,6 +3,7 @@ package frame
 import (
 	"fmt"
 	"log"
+	"net/netip"
 )
 
 // All the read functions call readByte or readInto as they would want to read a single byte or copy a slice of bytes.
@@ -160,7 +161,9 @@ func (b *Buffer) ReadInet() Inet {
 			log.Printf("unknown ip length")
 		}
 	}
-	return Inet{IP: b.readCopy(int(n)), Port: b.ReadInt()}
+
+	ip, _ := netip.AddrFromSlice(b.readCopy(int(n)))
+	return Inet{IP: ip, Port: b.ReadInt()}
 }
 
 func (b *Buffer) ReadString() string {

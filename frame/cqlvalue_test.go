@@ -2,7 +2,7 @@ package frame
 
 import (
 	"math"
-	"net"
+	"net/netip"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -509,7 +509,7 @@ func TestCqlValueAsIP(t *testing.T) {
 		name     string
 		content  CqlValue
 		valid    bool
-		expected net.IP
+		expected netip.Addr
 	}{
 		{
 			name: "wrong length",
@@ -530,19 +530,19 @@ func TestCqlValueAsIP(t *testing.T) {
 			name: "valid v4",
 			content: CqlValue{
 				Type:  &Option{ID: InetID},
-				Value: Bytes(net.IP{127, 0, 0, 1}),
+				Value: Bytes{127, 0, 0, 1},
 			},
 			valid:    true,
-			expected: net.IP{127, 0, 0, 1},
+			expected: netip.AddrFrom4([4]byte{127, 0, 0, 1}),
 		},
 		{
 			name: "valid v6",
 			content: CqlValue{
 				Type:  &Option{ID: InetID},
-				Value: Bytes(net.IP{127, 0, 0, 1}.To16()),
+				Value: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 127, 0, 0, 1},
 			},
 			valid:    true,
-			expected: net.IP{127, 0, 0, 1}.To16(),
+			expected: netip.AddrFrom16([16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 127, 0, 0, 1}),
 		},
 	}
 
@@ -557,8 +557,8 @@ func TestCqlValueAsIP(t *testing.T) {
 				}
 				return
 			}
-			if diff := cmp.Diff(v, tc.expected); diff != "" {
-				t.Fatalf(diff)
+			if v != tc.expected {
+				t.Fatalf("expected %v, got %v", tc.expected, v)
 			}
 		})
 	}
